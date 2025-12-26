@@ -268,6 +268,10 @@ export type Database = {
     Functions: {
       get_user_company_id: { Args: never; Returns: string }
       get_user_role: { Args: { _company_id: string }; Returns: string }
+      sale_belongs_to_user_company: {
+        Args: { _sale_id: string }
+        Returns: boolean
+      }
       user_belongs_to_company: {
         Args: { _company_id: string }
         Returns: boolean
