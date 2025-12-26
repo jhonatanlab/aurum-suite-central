@@ -81,7 +81,7 @@ export function ProductSidePanel({
       {/* Backdrop */}
       <div
         className={cn(
-          "fixed inset-0 bg-black/60 z-40 transition-opacity duration-300",
+          "fixed inset-0 z-40 transition-all duration-300 bg-black/60 backdrop-blur-sm",
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
         onClick={onClose}
@@ -90,11 +90,11 @@ export function ProductSidePanel({
       {/* Side Panel */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-full max-w-md z-50 transform transition-transform duration-300 ease-out",
+          "fixed top-0 right-0 h-screen w-[420px] max-w-[90vw] z-50 transform transition-transform duration-300 ease-out",
           open ? "translate-x-0" : "translate-x-full"
         )}
       >
-        <div className="h-full flex flex-col bg-[#1E1E1E] border-l border-[#2A2A2A] shadow-2xl">
+        <div className="h-full flex flex-col bg-[#1E1E1E] border-l border-[#2A2A2A] shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-[#2A2A2A]">
             <h2 className="text-xl font-semibold text-white">
