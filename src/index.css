@@ -101,7 +101,23 @@
     box-shadow: 0 0 20px hsl(var(--gold) / 0.3), 0 0 40px hsl(var(--gold) / 0.1);
   }
 
+  .gold-glow-subtle {
+    box-shadow: 0 0 12px hsl(var(--gold) / 0.15), 0 0 24px hsl(var(--gold) / 0.05);
+  }
+
   .card-hover {
     @apply transition-all duration-300 hover:border-[hsl(var(--gold)/0.3)] hover:shadow-lg hover:shadow-[hsl(var(--gold)/0.05)];
+  }
+
+  .card-premium {
+    @apply bg-card border border-border rounded-2xl shadow-lg shadow-black/20;
+  }
+
+  .sidebar-item-active {
+    @apply bg-secondary border-l-2 border-l-[hsl(var(--gold))];
+  }
+
+  .page-transition {
+    @apply animate-fade-in;
   }
 }

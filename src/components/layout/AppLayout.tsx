@@ -39,7 +39,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         )}
       >
         <Header title={title} />
-        <main className="p-6 animate-fade-in">
+        <main className="p-6 page-transition">
           {children}
         </main>
       </div>
