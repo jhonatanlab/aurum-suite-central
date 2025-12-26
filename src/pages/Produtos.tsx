@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, Trash2, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -24,6 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ProductSidePanel } from "@/components/products/ProductSidePanel";
 
 interface Product {
@@ -52,6 +60,11 @@ export default function Produtos() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+
   // Fetch products
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products", company?.id],
@@ -68,6 +81,34 @@ export default function Produtos() {
     },
     enabled: !!company?.id,
   });
+
+  // Extract unique categories
+  const categories = useMemo(() => {
+    const cats = products
+      .map((p) => p.category)
+      .filter((c): c is string => !!c && c.trim() !== "");
+    return [...new Set(cats)].sort();
+  }, [products]);
+
+  // Filtered products
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      // Search filter
+      const matchesSearch = product.name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+
+      // Status filter
+      const matchesStatus =
+        statusFilter === "all" || product.status === statusFilter;
+
+      // Category filter
+      const matchesCategory =
+        categoryFilter === "all" || product.category === categoryFilter;
+
+      return matchesSearch && matchesStatus && matchesCategory;
+    });
+  }, [products, searchQuery, statusFilter, categoryFilter]);
 
   // Create product mutation
   const createMutation = useMutation({
@@ -219,6 +260,59 @@ export default function Produtos() {
           </Button>
         </div>
 
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center sm:justify-end">
+          {/* Search Input */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar produto..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-[#121212] border-[#2A2A2A] text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-36 bg-[#121212] border-[#2A2A2A] text-foreground focus:border-primary focus:ring-primary/20">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
+              <SelectItem value="all" className="text-foreground focus:bg-[#2A2A2A] focus:text-foreground">
+                Todos
+              </SelectItem>
+              <SelectItem value="active" className="text-foreground focus:bg-[#2A2A2A] focus:text-foreground">
+                Ativo
+              </SelectItem>
+              <SelectItem value="inactive" className="text-foreground focus:bg-[#2A2A2A] focus:text-foreground">
+                Inativo
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Category Filter */}
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full sm:w-40 bg-[#121212] border-[#2A2A2A] text-foreground focus:border-primary focus:ring-primary/20">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
+              <SelectItem value="all" className="text-foreground focus:bg-[#2A2A2A] focus:text-foreground">
+                Todas
+              </SelectItem>
+              {categories.map((cat) => (
+                <SelectItem
+                  key={cat}
+                  value={cat}
+                  className="text-foreground focus:bg-[#2A2A2A] focus:text-foreground"
+                >
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Table */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           {isLoading ? (
@@ -228,6 +322,10 @@ export default function Produtos() {
           ) : products.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               Nenhum produto cadastrado. Clique em "Novo Produto" para começar.
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">
+              Nenhum produto encontrado com os filtros aplicados.
             </div>
           ) : (
             <Table>
@@ -250,7 +348,7 @@ export default function Produtos() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <TableRow
                     key={product.id}
                     className="border-border cursor-pointer hover:bg-muted/50 transition-colors"
