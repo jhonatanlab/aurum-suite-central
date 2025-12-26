@@ -8,7 +8,6 @@ import CRM from "./pages/CRM";
 import Vendas from "./pages/Vendas";
 import Equipe from "./pages/Equipe";
 import Produtos from "./pages/Produtos";
-import POS from "./pages/POS";
 import Whatsapp from "./pages/Whatsapp";
 import Campanhas from "./pages/Campanhas";
 import Automacoes from "./pages/Automacoes";
@@ -32,7 +31,6 @@ const App = () => (
           <Route path="/vendas" element={<Vendas />} />
           <Route path="/equipe" element={<Equipe />} />
           <Route path="/produtos" element={<Produtos />} />
-          <Route path="/pos" element={<POS />} />
           <Route path="/whatsapp" element={<Whatsapp />} />
           <Route path="/campanhas" element={<Campanhas />} />
           <Route path="/automacoes" element={<Automacoes />} />
