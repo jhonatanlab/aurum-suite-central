@@ -163,30 +163,36 @@ export type Database = {
       }
       products: {
         Row: {
+          category: string | null
           company_id: string
           consignment_available: boolean | null
           created_at: string | null
           id: string
           name: string
           price: number
+          status: string | null
           stock: number | null
         }
         Insert: {
+          category?: string | null
           company_id: string
           consignment_available?: boolean | null
           created_at?: string | null
           id?: string
           name: string
           price: number
+          status?: string | null
           stock?: number | null
         }
         Update: {
+          category?: string | null
           company_id?: string
           consignment_available?: boolean | null
           created_at?: string | null
           id?: string
           name?: string
           price?: number
+          status?: string | null
           stock?: number | null
         }
         Relationships: [
