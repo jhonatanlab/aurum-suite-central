@@ -11,6 +11,10 @@ import Produtos from "./pages/Produtos";
 import POS from "./pages/POS";
 import Whatsapp from "./pages/Whatsapp";
 import Campanhas from "./pages/Campanhas";
+import Automacoes from "./pages/Automacoes";
+import Revendedores from "./pages/Revendedores";
+import Financeiro from "./pages/Financeiro";
+import Garantias from "./pages/Garantias";
 import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +35,10 @@ const App = () => (
           <Route path="/pos" element={<POS />} />
           <Route path="/whatsapp" element={<Whatsapp />} />
           <Route path="/campanhas" element={<Campanhas />} />
+          <Route path="/automacoes" element={<Automacoes />} />
+          <Route path="/revendedores" element={<Revendedores />} />
+          <Route path="/financeiro" element={<Financeiro />} />
+          <Route path="/garantias" element={<Garantias />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

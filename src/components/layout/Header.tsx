@@ -1,4 +1,5 @@
-import { Bell, Search, User } from "lucide-react";
+import { Bell, Search, User, ChevronRight, Home } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,12 +16,52 @@ interface HeaderProps {
   title: string;
 }
 
+const routeTitles: Record<string, string> = {
+  "/": "Dashboard",
+  "/crm": "CRM",
+  "/vendas": "Vendas (PDV)",
+  "/equipe": "Equipe",
+  "/produtos": "Produtos",
+  "/pos": "POS",
+  "/whatsapp": "WhatsApp",
+  "/campanhas": "Campanhas",
+  "/automacoes": "Automações",
+  "/revendedores": "Revendedores",
+  "/financeiro": "Financeiro",
+  "/garantias": "Garantias & Retornos",
+  "/configuracoes": "Configurações",
+};
+
 export function Header({ title }: HeaderProps) {
+  const location = useLocation();
+  const currentPath = location.pathname;
+  const pageTitle = routeTitles[currentPath] || title;
+
   return (
     <header className="sticky top-0 z-30 h-16 glass border-b border-[hsl(var(--glass-border))]">
       <div className="flex h-full items-center justify-between px-6">
-        {/* Title */}
-        <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+        {/* Breadcrumb + Title */}
+        <div className="flex flex-col gap-0.5">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Link 
+              to="/" 
+              className="flex items-center gap-1 hover:text-foreground transition-colors"
+            >
+              <Home className="h-3 w-3" />
+              <span>Home</span>
+            </Link>
+            {currentPath !== "/" && (
+              <>
+                <ChevronRight className="h-3 w-3" />
+                <span className="text-foreground">{pageTitle}</span>
+              </>
+            )}
+          </nav>
+          
+          {/* Page Title */}
+          <h1 className="text-xl font-semibold text-foreground">{pageTitle}</h1>
+        </div>
 
         {/* Right Section */}
         <div className="flex items-center gap-4">
@@ -29,14 +70,14 @@ export function Header({ title }: HeaderProps) {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar..."
-              className="w-64 bg-secondary/50 border-border pl-9 focus:border-gold/50 focus:ring-gold/20"
+              className="w-64 bg-secondary/50 border-border pl-9 focus:border-[hsl(var(--gold)/0.5)] focus:ring-[hsl(var(--gold)/0.2)]"
             />
           </div>
 
           {/* Notifications */}
           <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
             <Bell className="h-5 w-5" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-gold" />
+            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[hsl(var(--gold))]" />
           </Button>
 
           {/* User Menu */}
