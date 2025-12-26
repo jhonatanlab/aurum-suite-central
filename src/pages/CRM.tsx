@@ -12,6 +12,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+} from "@dnd-kit/core";
 
 const stages = [
   { id: "novo", title: "Novo Lead" },
@@ -35,12 +46,28 @@ interface Lead {
   status: string | null;
 }
 
-function LeadCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
+function DraggableLeadCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: lead.id,
+  });
+
+  const style = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      }
+    : undefined;
+
   const phoneNumber = lead.phone?.replace(/\D/g, "") || "";
-  
+
   return (
-    <Card 
-      className="p-4 bg-card border-border/50 hover:border-primary/30 transition-all duration-200 cursor-pointer group"
+    <Card
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`p-4 bg-card border-border/50 hover:border-primary/30 transition-all duration-200 cursor-grab group touch-none ${
+        isDragging ? "opacity-50 scale-105 shadow-xl shadow-primary/20 z-50" : ""
+      }`}
       onClick={onClick}
     >
       <div className="flex items-start justify-between mb-3">
@@ -51,12 +78,12 @@ function LeadCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
           <span className="text-xs text-muted-foreground">#{lead.id.slice(0, 4)}</span>
         </div>
       </div>
-      
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {phoneNumber && (
             <>
-              <a 
+              <a
                 href={`https://wa.me/55${phoneNumber}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -65,7 +92,7 @@ function LeadCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
               >
                 <MessageCircle className="h-4 w-4" />
               </a>
-              <a 
+              <a
                 href={`tel:+55${phoneNumber}`}
                 className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
                 onClick={(e) => e.stopPropagation()}
@@ -83,9 +110,45 @@ function LeadCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
   );
 }
 
-function KanbanColumn({ stage, leads, onLeadClick }: { stage: typeof stages[0]; leads: Lead[]; onLeadClick: (lead: Lead) => void }) {
+function DragOverlayCard({ lead }: { lead: Lead }) {
+  const phoneNumber = lead.phone?.replace(/\D/g, "") || "";
+
+  return (
+    <Card className="p-4 bg-card border-primary/50 shadow-2xl shadow-primary/30 scale-105 cursor-grabbing">
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <h4 className="font-medium text-foreground">{lead.name}</h4>
+          <span className="text-xs text-muted-foreground">#{lead.id.slice(0, 4)}</span>
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {phoneNumber && (
+            <>
+              <span className="p-1.5 rounded-md text-muted-foreground">
+                <MessageCircle className="h-4 w-4" />
+              </span>
+              <span className="p-1.5 rounded-md text-muted-foreground">
+                <Phone className="h-4 w-4" />
+              </span>
+            </>
+          )}
+        </div>
+        <span className="text-sm font-semibold text-primary">
+          R$ {(lead.value || 0).toLocaleString("pt-BR")}
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+function DroppableColumn({ stage, leads, onLeadClick }: { stage: typeof stages[0]; leads: Lead[]; onLeadClick: (lead: Lead) => void }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: stage.id,
+  });
+
   const stageLeads = leads.filter((lead) => lead.status === stage.id);
-  
+
   return (
     <div className="flex-1 min-w-[280px] max-w-[320px]">
       <div className="flex items-center justify-between mb-4 px-1">
@@ -96,10 +159,15 @@ function KanbanColumn({ stage, leads, onLeadClick }: { stage: typeof stages[0]; 
           </span>
         </div>
       </div>
-      
-      <div className="space-y-3">
+
+      <div
+        ref={setNodeRef}
+        className={`space-y-3 min-h-[200px] p-2 rounded-lg transition-all duration-200 ${
+          isOver ? "bg-primary/10 ring-2 ring-primary/30" : "bg-transparent"
+        }`}
+      >
         {stageLeads.map((lead) => (
-          <LeadCard key={lead.id} lead={lead} onClick={() => onLeadClick(lead)} />
+          <DraggableLeadCard key={lead.id} lead={lead} onClick={() => onLeadClick(lead)} />
         ))}
       </div>
     </div>
@@ -445,23 +513,52 @@ export default function CRM() {
   const [search, setSearch] = useState("");
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const { company } = useCompany();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   const { data: leads = [], isLoading, refetch } = useQuery({
     queryKey: ["leads", company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
-      
+
       const { data, error } = await supabase
         .from("leads")
         .select("id, name, value, phone, status")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       return data as Lead[];
     },
     enabled: !!company?.id,
+  });
+
+  const updateLeadStage = useMutation({
+    mutationFn: async ({ leadId, newStage }: { leadId: string; newStage: string }) => {
+      const { error } = await supabase
+        .from("leads")
+        .update({ status: newStage })
+        .eq("id", leadId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao mover lead", description: error.message, variant: "destructive" });
+      refetch();
+    },
   });
 
   const filteredLeads = leads.filter((lead) =>
@@ -469,8 +566,35 @@ export default function CRM() {
   );
 
   const handleLeadClick = (lead: Lead) => {
-    setEditingLead(lead);
-    setEditModalOpen(true);
+    if (!activeLead) {
+      setEditingLead(lead);
+      setEditModalOpen(true);
+    }
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const lead = leads.find((l) => l.id === event.active.id);
+    setActiveLead(lead || null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveLead(null);
+
+    if (!over) return;
+
+    const leadId = active.id as string;
+    const newStage = over.id as string;
+    const lead = leads.find((l) => l.id === leadId);
+
+    if (lead && lead.status !== newStage && stages.some((s) => s.id === newStage)) {
+      // Optimistic update
+      queryClient.setQueryData(["leads", company?.id], (old: Lead[] | undefined) =>
+        old?.map((l) => (l.id === leadId ? { ...l, status: newStage } : l))
+      );
+
+      updateLeadStage.mutate({ leadId, newStage });
+    }
   };
 
   return (
@@ -487,7 +611,7 @@ export default function CRM() {
               className="pl-10 bg-card border-border/50 focus:border-primary"
             />
           </div>
-          
+
           <div className="flex items-center gap-3">
             <Button variant="outline" className="gap-2">
               <Settings className="h-4 w-4" />
@@ -503,22 +627,32 @@ export default function CRM() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="overflow-x-auto pb-4">
-            <div className="flex gap-6 min-w-max">
-              {stages.map((stage) => (
-                <KanbanColumn 
-                  key={stage.id} 
-                  stage={stage} 
-                  leads={filteredLeads} 
-                  onLeadClick={handleLeadClick}
-                />
-              ))}
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="overflow-x-auto pb-4">
+              <div className="flex gap-6 min-w-max">
+                {stages.map((stage) => (
+                  <DroppableColumn
+                    key={stage.id}
+                    stage={stage}
+                    leads={filteredLeads}
+                    onLeadClick={handleLeadClick}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+
+            <DragOverlay>
+              {activeLead ? <DragOverlayCard lead={activeLead} /> : null}
+            </DragOverlay>
+          </DndContext>
         )}
       </div>
 
-      <EditLeadModal 
+      <EditLeadModal
         lead={editingLead}
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
