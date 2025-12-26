@@ -1,5 +1,5 @@
-import { Bell, Search, User, ChevronRight, Home } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Bell, Search, User, ChevronRight, Home, LogOut, Building2, Settings } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
 
 interface HeaderProps {
   title: string;
@@ -29,13 +31,36 @@ const routeTitles: Record<string, string> = {
   "/revendedores": "Revendedores",
   "/financeiro": "Financeiro",
   "/garantias": "Garantias & Retornos",
+  "/meu-negocio": "Meu Negócio",
   "/configuracoes": "Configurações",
 };
 
 export function Header({ title }: HeaderProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const { company, companyUser } = useCompany();
+  
   const currentPath = location.pathname;
   const pageTitle = routeTitles[currentPath] || title;
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  const getUserInitials = () => {
+    if (!user?.email) return 'U';
+    return user.email.charAt(0).toUpperCase();
+  };
+
+  const getRoleLabel = (role: string | null) => {
+    switch (role) {
+      case 'owner': return 'Proprietário';
+      case 'admin': return 'Administrador';
+      default: return 'Atendente';
+    }
+  };
 
   return (
     <header className="sticky top-0 z-30 h-16 glass border-b border-[hsl(var(--glass-border))]">
@@ -65,8 +90,18 @@ export function Header({ title }: HeaderProps) {
 
         {/* Right Section */}
         <div className="flex items-center gap-4">
+          {/* Company Name Badge */}
+          {company && (
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border">
+              <Building2 className="h-4 w-4 text-gold" />
+              <span className="text-sm font-medium text-foreground truncate max-w-[150px]">
+                {company.name}
+              </span>
+            </div>
+          )}
+
           {/* Search */}
-          <div className="relative hidden md:block">
+          <div className="relative hidden lg:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar..."
@@ -86,7 +121,7 @@ export function Header({ title }: HeaderProps) {
               <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                 <Avatar className="h-9 w-9 border border-border">
                   <AvatarFallback className="bg-secondary text-foreground">
-                    <User className="h-4 w-4" />
+                    {getUserInitials()}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -94,19 +129,35 @@ export function Header({ title }: HeaderProps) {
             <DropdownMenuContent className="w-56 bg-card border-border" align="end">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium text-foreground">Administrador</p>
-                  <p className="text-xs text-muted-foreground">admin@aurumsite.com</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {getRoleLabel(companyUser?.role)}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user?.email}
+                  </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-border" />
-              <DropdownMenuItem className="text-muted-foreground hover:text-foreground focus:bg-secondary">
-                Perfil
+              <DropdownMenuItem 
+                className="text-muted-foreground hover:text-foreground focus:bg-secondary cursor-pointer"
+                onClick={() => navigate('/meu-negocio')}
+              >
+                <Building2 className="h-4 w-4 mr-2" />
+                Meu Negócio
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-muted-foreground hover:text-foreground focus:bg-secondary">
+              <DropdownMenuItem 
+                className="text-muted-foreground hover:text-foreground focus:bg-secondary cursor-pointer"
+                onClick={() => navigate('/configuracoes')}
+              >
+                <Settings className="h-4 w-4 mr-2" />
                 Configurações
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border" />
-              <DropdownMenuItem className="text-destructive focus:bg-secondary">
+              <DropdownMenuItem 
+                className="text-destructive focus:bg-secondary cursor-pointer"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
                 Sair
               </DropdownMenuItem>
             </DropdownMenuContent>

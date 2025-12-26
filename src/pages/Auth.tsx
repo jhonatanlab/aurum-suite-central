@@ -1,0 +1,189 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, Crown } from 'lucide-react';
+
+const authSchema = z.object({
+  email: z.string().email('Email inválido').max(255, 'Email muito longo'),
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres').max(72, 'Senha muito longa'),
+});
+
+type AuthFormData = z.infer<typeof authSchema>;
+
+export default function Auth() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, signUp, user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset
+  } = useForm<AuthFormData>({
+    resolver: zodResolver(authSchema)
+  });
+
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const onSubmit = async (data: AuthFormData) => {
+    setIsLoading(true);
+
+    try {
+      if (isLogin) {
+        const { error } = await signIn(data.email, data.password);
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            toast({
+              title: 'Credenciais inválidas',
+              description: 'Email ou senha incorretos.',
+              variant: 'destructive',
+            });
+          } else {
+            toast({
+              title: 'Erro ao entrar',
+              description: error.message,
+              variant: 'destructive',
+            });
+          }
+        } else {
+          toast({
+            title: 'Bem-vindo!',
+            description: 'Login realizado com sucesso.',
+          });
+        }
+      } else {
+        const { error } = await signUp(data.email, data.password);
+        if (error) {
+          if (error.message.includes('already registered')) {
+            toast({
+              title: 'Email já cadastrado',
+              description: 'Este email já está em uso. Tente fazer login.',
+              variant: 'destructive',
+            });
+          } else {
+            toast({
+              title: 'Erro ao cadastrar',
+              description: error.message,
+              variant: 'destructive',
+            });
+          }
+        } else {
+          toast({
+            title: 'Conta criada!',
+            description: 'Sua conta foi criada com sucesso.',
+          });
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleMode = () => {
+    setIsLogin(!isLogin);
+    reset();
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md animate-fade-in">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 mb-2">
+            <Crown className="h-10 w-10 text-gold" />
+            <h1 className="text-3xl font-bold gold-text">Aurum Suite</h1>
+          </div>
+          <p className="text-muted-foreground">Sistema de gestão empresarial</p>
+        </div>
+
+        <Card className="card-premium">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">
+              {isLogin ? 'Entrar' : 'Criar conta'}
+            </CardTitle>
+            <CardDescription>
+              {isLogin 
+                ? 'Acesse sua conta para continuar' 
+                : 'Preencha os dados para criar sua conta'
+              }
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  {...register('email')}
+                  className="bg-secondary border-border"
+                />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  {...register('password')}
+                  className="bg-secondary border-border"
+                />
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full gold-gradient text-primary-foreground font-semibold"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Aguarde...
+                  </>
+                ) : (
+                  isLogin ? 'Entrar' : 'Cadastrar'
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-muted-foreground text-sm">
+                {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
+                <button
+                  type="button"
+                  onClick={toggleMode}
+                  className="ml-1 text-gold hover:underline font-medium"
+                >
+                  {isLogin ? 'Cadastre-se' : 'Entre'}
+                </button>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
