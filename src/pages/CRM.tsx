@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -213,14 +213,14 @@ function EditLeadModal({ lead, open, onOpenChange, onSuccess }: { lead: Lead | n
   const queryClient = useQueryClient();
 
   // Sync form with lead data when it changes
-  useState(() => {
-    if (lead) {
+  useEffect(() => {
+    if (lead && open) {
       setName(lead.name);
       setValue(lead.value?.toString() || "");
       setPhone(lead.phone || "");
       setStatus(lead.status || "novo");
     }
-  });
+  }, [lead?.id, open]);
 
   const updateLead = useMutation({
     mutationFn: async (data: z.infer<typeof leadSchema>) => {
@@ -294,13 +294,6 @@ function EditLeadModal({ lead, open, onOpenChange, onSuccess }: { lead: Lead | n
     updateLead.mutate(result.data);
   };
 
-  // Update form when lead changes
-  if (lead && name !== lead.name && !updateLead.isPending) {
-    setName(lead.name);
-    setValue(lead.value?.toString() || "");
-    setPhone(lead.phone || "");
-    setStatus(lead.status || "novo");
-  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
