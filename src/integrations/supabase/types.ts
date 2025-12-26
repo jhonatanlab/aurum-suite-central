@@ -51,22 +51,34 @@ export type Database = {
       }
       companies: {
         Row: {
+          cnpj: string | null
           created_at: string | null
           id: string
           name: string
+          owner_uid: string | null
           plan: string | null
+          status: string | null
+          updated_at: string | null
         }
         Insert: {
+          cnpj?: string | null
           created_at?: string | null
           id?: string
           name: string
+          owner_uid?: string | null
           plan?: string | null
+          status?: string | null
+          updated_at?: string | null
         }
         Update: {
+          cnpj?: string | null
           created_at?: string | null
           id?: string
           name?: string
+          owner_uid?: string | null
           plan?: string | null
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -266,6 +278,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_company_for_user: {
+        Args: { _cnpj?: string; _name: string }
+        Returns: string
+      }
       get_user_company_id: { Args: never; Returns: string }
       get_user_role: { Args: { _company_id: string }; Returns: string }
       sale_belongs_to_user_company: {
