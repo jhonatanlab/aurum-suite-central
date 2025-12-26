@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Settings, MessageCircle, Phone, Loader2, Trash2 } from "lucide-react";
+import { Plus, Search, Settings, Loader2 } from "lucide-react";
+import { LeadSidePanel } from "@/components/crm/LeadSidePanel";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -46,6 +47,8 @@ interface Lead {
   value: number | null;
   phone: string | null;
   status: string | null;
+  source: string | null;
+  notes: string | null;
 }
 
 function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onClick: () => void; isDraggingThis: boolean }) {
@@ -59,8 +62,6 @@ function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onCl
         transition: 'none',
       }
     : undefined;
-
-  const phoneNumber = lead.phone?.replace(/\D/g, "") || "";
 
   return (
     <Card
@@ -85,28 +86,6 @@ function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onCl
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {phoneNumber && (
-            <>
-              <a
-                href={`https://wa.me/55${phoneNumber}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MessageCircle className="h-4 w-4" />
-              </a>
-              <a
-                href={`tel:+55${phoneNumber}`}
-                className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Phone className="h-4 w-4" />
-              </a>
-            </>
-          )}
-        </div>
         <span className="text-sm font-semibold text-primary">
           R$ {(lead.value || 0).toLocaleString("pt-BR")}
         </span>
@@ -116,8 +95,6 @@ function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onCl
 }
 
 function DragOverlayCard({ lead }: { lead: Lead }) {
-  const phoneNumber = lead.phone?.replace(/\D/g, "") || "";
-
   return (
     <Card 
       className="p-4 bg-card border-primary/60 cursor-grabbing animate-in zoom-in-95 duration-150"
@@ -133,18 +110,6 @@ function DragOverlayCard({ lead }: { lead: Lead }) {
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {phoneNumber && (
-            <>
-              <span className="p-1.5 rounded-md text-muted-foreground">
-                <MessageCircle className="h-4 w-4" />
-              </span>
-              <span className="p-1.5 rounded-md text-muted-foreground">
-                <Phone className="h-4 w-4" />
-              </span>
-            </>
-          )}
-        </div>
         <span className="text-sm font-semibold text-primary">
           R$ {(lead.value || 0).toLocaleString("pt-BR")}
         </span>
@@ -202,184 +167,6 @@ function DroppableColumn({
   );
 }
 
-function EditLeadModal({ lead, open, onOpenChange, onSuccess }: { lead: Lead | null; open: boolean; onOpenChange: (open: boolean) => void; onSuccess: () => void }) {
-  const [name, setName] = useState(lead?.name || "");
-  const [value, setValue] = useState(lead?.value?.toString() || "");
-  const [phone, setPhone] = useState(lead?.phone || "");
-  const [status, setStatus] = useState<string>(lead?.status || "novo");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Sync form with lead data when it changes
-  useEffect(() => {
-    if (lead && open) {
-      setName(lead.name);
-      setValue(lead.value?.toString() || "");
-      setPhone(lead.phone || "");
-      setStatus(lead.status || "novo");
-    }
-  }, [lead?.id, open]);
-
-  const updateLead = useMutation({
-    mutationFn: async (data: z.infer<typeof leadSchema>) => {
-      if (!lead?.id) throw new Error("Lead não encontrado");
-      
-      const { error } = await supabase
-        .from("leads")
-        .update({
-          name: data.name,
-          value: data.value,
-          phone: data.phone || null,
-          status: data.status,
-        })
-        .eq("id", lead.id);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      toast({ title: "Lead atualizado com sucesso!" });
-      onOpenChange(false);
-      onSuccess();
-    },
-    onError: (error) => {
-      toast({ title: "Erro ao atualizar lead", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const deleteLead = useMutation({
-    mutationFn: async () => {
-      if (!lead?.id) throw new Error("Lead não encontrado");
-      
-      const { error } = await supabase
-        .from("leads")
-        .delete()
-        .eq("id", lead.id);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      toast({ title: "Lead excluído com sucesso!" });
-      onOpenChange(false);
-      onSuccess();
-    },
-    onError: (error) => {
-      toast({ title: "Erro ao excluir lead", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-    
-    const result = leadSchema.safeParse({
-      name,
-      value: parseFloat(value) || 0,
-      phone: phone || undefined,
-      status,
-    });
-    
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) fieldErrors[err.path[0].toString()] = err.message;
-      });
-      setErrors(fieldErrors);
-      return;
-    }
-    
-    updateLead.mutate(result.data);
-  };
-
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Editar Lead</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="edit-name">Nome *</Label>
-            <Input
-              id="edit-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nome do lead"
-              className={errors.name ? "border-destructive" : ""}
-            />
-            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="edit-value">Valor Estimado (R$)</Label>
-            <Input
-              id="edit-value"
-              type="number"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="0"
-              min="0"
-              step="0.01"
-            />
-            {errors.value && <p className="text-xs text-destructive">{errors.value}</p>}
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="edit-phone">Telefone/WhatsApp</Label>
-            <Input
-              id="edit-phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="(11) 99999-9999"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="edit-status">Etapa</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {stages.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex justify-between pt-4">
-            <Button 
-              type="button" 
-              variant="destructive" 
-              onClick={() => deleteLead.mutate()}
-              disabled={deleteLead.isPending}
-              className="gap-2"
-            >
-              {deleteLead.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              Excluir
-            </Button>
-            <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={updateLead.isPending}>
-                {updateLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar Alterações
-              </Button>
-            </div>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function NewLeadModal({ onSuccess }: { onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
@@ -560,7 +347,7 @@ export default function CRM() {
 
       const { data, error } = await supabase
         .from("leads")
-        .select("id, name, value, phone, status")
+        .select("id, name, value, phone, status, source, notes")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
@@ -684,7 +471,7 @@ export default function CRM() {
         )}
       </div>
 
-      <EditLeadModal
+      <LeadSidePanel
         lead={editingLead}
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
