@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -15,21 +15,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -39,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ProductSidePanel } from "@/components/products/ProductSidePanel";
 
 interface Product {
   id: string;
@@ -58,20 +44,11 @@ interface ProductFormData {
   status: string;
 }
 
-const initialFormData: ProductFormData = {
-  name: "",
-  category: "",
-  price: "",
-  stock: "",
-  status: "active",
-};
-
 export default function Produtos() {
   const { company } = useCompany();
   const queryClient = useQueryClient();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
@@ -109,7 +86,7 @@ export default function Produtos() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Produto criado com sucesso!");
-      handleCloseModal();
+      handleClosePanel();
     },
     onError: (error) => {
       toast.error("Erro ao criar produto: " + error.message);
@@ -134,7 +111,7 @@ export default function Produtos() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Produto atualizado com sucesso!");
-      handleCloseModal();
+      handleClosePanel();
     },
     onError: (error) => {
       toast.error("Erro ao atualizar produto: " + error.message);
@@ -160,39 +137,29 @@ export default function Produtos() {
 
   const handleOpenCreate = () => {
     setEditingProduct(null);
-    setFormData(initialFormData);
-    setIsModalOpen(true);
+    setIsPanelOpen(true);
   };
 
   const handleOpenEdit = (product: Product) => {
     setEditingProduct(product);
-    setFormData({
-      name: product.name,
-      category: product.category || "",
-      price: product.price.toString(),
-      stock: product.stock?.toString() || "0",
-      status: product.status || "active",
-    });
-    setIsModalOpen(true);
+    setIsPanelOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
+  const handleClosePanel = () => {
+    setIsPanelOpen(false);
     setEditingProduct(null);
-    setFormData(initialFormData);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim()) {
+  const handleSave = (data: ProductFormData, productId?: string) => {
+    if (!data.name.trim()) {
       toast.error("Nome do produto é obrigatório");
       return;
     }
 
-    if (editingProduct) {
-      updateMutation.mutate({ id: editingProduct.id, data: formData });
+    if (productId) {
+      updateMutation.mutate({ id: productId, data });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(data);
     }
   };
 
@@ -277,7 +244,7 @@ export default function Produtos() {
                   <TableHead className="text-muted-foreground">
                     Status
                   </TableHead>
-                  <TableHead className="text-muted-foreground w-20">
+                  <TableHead className="text-muted-foreground w-16">
                     Ações
                   </TableHead>
                 </TableRow>
@@ -303,27 +270,14 @@ export default function Produtos() {
                     </TableCell>
                     <TableCell>{getStatusBadge(product.status)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenEdit(product);
-                          }}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={(e) => handleDelete(product, e)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => handleDelete(product, e)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -332,125 +286,14 @@ export default function Produtos() {
           )}
         </div>
 
-        {/* Create/Edit Modal */}
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">
-                {editingProduct ? "Editar Produto" : "Novo Produto"}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-foreground">
-                  Nome *
-                </Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  placeholder="Nome do produto"
-                  className="bg-background border-border"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category" className="text-foreground">
-                  Categoria
-                </Label>
-                <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) =>
-                    setFormData({ ...formData, category: e.target.value })
-                  }
-                  placeholder="Categoria do produto"
-                  className="bg-background border-border"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price" className="text-foreground">
-                    Preço (R$)
-                  </Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData({ ...formData, price: e.target.value })
-                    }
-                    placeholder="0.00"
-                    className="bg-background border-border"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="stock" className="text-foreground">
-                    Estoque
-                  </Label>
-                  <Input
-                    id="stock"
-                    type="number"
-                    min="0"
-                    value={formData.stock}
-                    onChange={(e) =>
-                      setFormData({ ...formData, stock: e.target.value })
-                    }
-                    placeholder="0"
-                    className="bg-background border-border"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status" className="text-foreground">
-                  Status
-                </Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, status: value })
-                  }
-                >
-                  <SelectTrigger className="bg-background border-border">
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCloseModal}
-                  className="border-border"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  disabled={createMutation.isPending || updateMutation.isPending}
-                >
-                  {createMutation.isPending || updateMutation.isPending
-                    ? "Salvando..."
-                    : "Salvar"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {/* Side Panel */}
+        <ProductSidePanel
+          open={isPanelOpen}
+          onClose={handleClosePanel}
+          product={editingProduct}
+          onSave={handleSave}
+          isSaving={createMutation.isPending || updateMutation.isPending}
+        />
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
