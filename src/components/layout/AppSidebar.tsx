@@ -15,6 +15,7 @@ import {
   Users2,
   Wallet,
   ShieldCheck,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const menuItems = [
   { title: "Revendedores", icon: Users2, path: "/revendedores" },
   { title: "Financeiro", icon: Wallet, path: "/financeiro" },
   { title: "Garantias & Retornos", icon: ShieldCheck, path: "/garantias" },
+  { title: "Meu Negócio", icon: Building2, path: "/meu-negocio" },
   { title: "Configurações", icon: Settings, path: "/configuracoes" },
 ];
 
