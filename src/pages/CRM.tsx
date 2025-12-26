@@ -17,11 +17,13 @@ import {
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   useDroppable,
   useDraggable,
+  closestCenter,
 } from "@dnd-kit/core";
 
 const stages = [
@@ -46,14 +48,15 @@ interface Lead {
   status: string | null;
 }
 
-function DraggableLeadCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onClick: () => void; isDraggingThis: boolean }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: lead.id,
   });
 
   const style = transform
     ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        transition: 'none',
       }
     : undefined;
 
@@ -65,8 +68,10 @@ function DraggableLeadCard({ lead, onClick }: { lead: Lead; onClick: () => void 
       style={style}
       {...listeners}
       {...attributes}
-      className={`p-4 bg-card border-border/50 hover:border-primary/30 transition-all duration-200 cursor-grab group touch-none ${
-        isDragging ? "opacity-50 scale-105 shadow-xl shadow-primary/20 z-50" : ""
+      className={`p-4 bg-card border-border/50 hover:border-primary/30 cursor-grab group touch-none transition-all duration-150 ${
+        isDraggingThis 
+          ? "opacity-40 scale-[0.98] border-dashed border-primary/40" 
+          : "hover:scale-[1.01] hover:shadow-md"
       }`}
       onClick={onClick}
     >
@@ -114,7 +119,13 @@ function DragOverlayCard({ lead }: { lead: Lead }) {
   const phoneNumber = lead.phone?.replace(/\D/g, "") || "";
 
   return (
-    <Card className="p-4 bg-card border-primary/50 shadow-2xl shadow-primary/30 scale-105 cursor-grabbing">
+    <Card 
+      className="p-4 bg-card border-primary/60 cursor-grabbing animate-in zoom-in-95 duration-150"
+      style={{
+        transform: 'scale(1.03) rotate(1deg)',
+        boxShadow: '0 20px 40px -12px hsl(var(--primary) / 0.35), 0 8px 16px -8px hsl(var(--primary) / 0.2)',
+      }}
+    >
       <div className="flex items-start justify-between mb-3">
         <div>
           <h4 className="font-medium text-foreground">{lead.name}</h4>
@@ -142,7 +153,17 @@ function DragOverlayCard({ lead }: { lead: Lead }) {
   );
 }
 
-function DroppableColumn({ stage, leads, onLeadClick }: { stage: typeof stages[0]; leads: Lead[]; onLeadClick: (lead: Lead) => void }) {
+function DroppableColumn({ 
+  stage, 
+  leads, 
+  onLeadClick, 
+  activeLeadId 
+}: { 
+  stage: typeof stages[0]; 
+  leads: Lead[]; 
+  onLeadClick: (lead: Lead) => void;
+  activeLeadId: string | null;
+}) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
   });
@@ -162,12 +183,19 @@ function DroppableColumn({ stage, leads, onLeadClick }: { stage: typeof stages[0
 
       <div
         ref={setNodeRef}
-        className={`space-y-3 min-h-[200px] p-2 rounded-lg transition-all duration-200 ${
-          isOver ? "bg-primary/10 ring-2 ring-primary/30" : "bg-transparent"
+        className={`space-y-3 min-h-[300px] p-3 rounded-xl transition-all duration-200 ${
+          isOver 
+            ? "bg-primary/15 ring-2 ring-primary/40 scale-[1.01]" 
+            : "bg-muted/20 ring-1 ring-border/30"
         }`}
       >
         {stageLeads.map((lead) => (
-          <DraggableLeadCard key={lead.id} lead={lead} onClick={() => onLeadClick(lead)} />
+          <DraggableLeadCard 
+            key={lead.id} 
+            lead={lead} 
+            onClick={() => onLeadClick(lead)} 
+            isDraggingThis={activeLeadId === lead.id}
+          />
         ))}
       </div>
     </div>
@@ -519,9 +547,15 @@ export default function CRM() {
   const queryClient = useQueryClient();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
       },
     })
   );
@@ -629,6 +663,7 @@ export default function CRM() {
         ) : (
           <DndContext
             sensors={sensors}
+            collisionDetection={closestCenter}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
@@ -640,12 +675,16 @@ export default function CRM() {
                     stage={stage}
                     leads={filteredLeads}
                     onLeadClick={handleLeadClick}
+                    activeLeadId={activeLead?.id || null}
                   />
                 ))}
               </div>
             </div>
 
-            <DragOverlay>
+            <DragOverlay dropAnimation={{
+              duration: 200,
+              easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+            }}>
               {activeLead ? <DragOverlayCard lead={activeLead} /> : null}
             </DragOverlay>
           </DndContext>
