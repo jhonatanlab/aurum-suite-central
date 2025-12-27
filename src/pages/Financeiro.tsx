@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +9,8 @@ import {
   TrendingDown, 
   AlertTriangle,
   Pencil,
-  Trash2
+  Trash2,
+  Plus
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,7 @@ import {
 } from "@/components/ui/table";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { TransactionSidePanel } from "@/components/financeiro/TransactionSidePanel";
 
 interface FinancialTransaction {
   id: string;
@@ -41,8 +44,9 @@ interface FinancialTransaction {
 
 export default function Financeiro() {
   const { company } = useCompany();
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
 
-  const { data: transactions = [], isLoading } = useQuery({
+  const { data: transactions = [], isLoading, refetch } = useQuery({
     queryKey: ["financial_transactions", company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
@@ -121,11 +125,20 @@ export default function Financeiro() {
     <AppLayout title="Financeiro">
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Gestão Financeira</h1>
-          <p className="text-muted-foreground mt-1">
-            Controle de entradas, saídas e fluxo de caixa
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Gestão Financeira</h1>
+            <p className="text-muted-foreground mt-1">
+              Controle de entradas, saídas e fluxo de caixa
+            </p>
+          </div>
+          <Button 
+            onClick={() => setSidePanelOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Movimentação
+          </Button>
         </div>
 
         {/* Summary Cards */}
@@ -230,6 +243,12 @@ export default function Financeiro() {
           </CardContent>
         </Card>
       </div>
+
+      <TransactionSidePanel
+        open={sidePanelOpen}
+        onOpenChange={setSidePanelOpen}
+        onSuccess={() => refetch()}
+      />
     </AppLayout>
   );
 }
