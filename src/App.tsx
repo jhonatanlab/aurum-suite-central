@@ -1,3 +1,4 @@
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,113 +23,111 @@ import Garantias from "./pages/Garantias";
 import Configuracoes from "./pages/Configuracoes";
 import MeuNegocio from "./pages/MeuNegocio";
 import NotFound from "./pages/NotFound";
-import { useState } from "react";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      retry: 1,
+    },
+  },
+});
 
 function App() {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 1000 * 60 * 5,
-            retry: 1,
-          },
-        },
-      })
-  );
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <CompanyProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                {/* Public routes */}
-                <Route path="/auth" element={<Auth />} />
-                
-                {/* Create company route (requires auth but not company) */}
-                <Route path="/criar-empresa" element={
-                  <ProtectedRoute requireCompany={false}>
-                    <CriarEmpresa />
-                  </ProtectedRoute>
-                } />
-                
-                {/* Protected routes (require auth and company) */}
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/crm" element={
-                  <ProtectedRoute>
-                    <CRM />
-                  </ProtectedRoute>
-                } />
-                <Route path="/vendas" element={
-                  <ProtectedRoute>
-                    <Vendas />
-                  </ProtectedRoute>
-                } />
-                <Route path="/equipe" element={
-                  <ProtectedRoute>
-                    <Equipe />
-                  </ProtectedRoute>
-                } />
-                <Route path="/produtos" element={
-                  <ProtectedRoute>
-                    <Produtos />
-                  </ProtectedRoute>
-                } />
-                <Route path="/whatsapp" element={
-                  <ProtectedRoute>
-                    <Whatsapp />
-                  </ProtectedRoute>
-                } />
-                <Route path="/campanhas" element={
-                  <ProtectedRoute>
-                    <Campanhas />
-                  </ProtectedRoute>
-                } />
-                <Route path="/automacoes" element={
-                  <ProtectedRoute>
-                    <Automacoes />
-                  </ProtectedRoute>
-                } />
-                <Route path="/revendedores" element={
-                  <ProtectedRoute>
-                    <Revendedores />
-                  </ProtectedRoute>
-                } />
-                <Route path="/financeiro" element={
-                  <ProtectedRoute>
-                    <Financeiro />
-                  </ProtectedRoute>
-                } />
-                <Route path="/garantias" element={
-                  <ProtectedRoute>
-                    <Garantias />
-                  </ProtectedRoute>
-                } />
-                <Route path="/configuracoes" element={
-                  <ProtectedRoute>
-                    <Configuracoes />
-                  </ProtectedRoute>
-                } />
-                <Route path="/meu-negocio" element={
-                  <ProtectedRoute>
-                    <MeuNegocio />
-                  </ProtectedRoute>
-                } />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </CompanyProvider>
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <React.Fragment>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <AuthProvider>
+            <CompanyProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/auth" element={<Auth />} />
+                  
+                  {/* Create company route (requires auth but not company) */}
+                  <Route path="/criar-empresa" element={
+                    <ProtectedRoute requireCompany={false}>
+                      <CriarEmpresa />
+                    </ProtectedRoute>
+                  } />
+                  
+                  {/* Protected routes (require auth and company) */}
+                  <Route path="/" element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/crm" element={
+                    <ProtectedRoute>
+                      <CRM />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/vendas" element={
+                    <ProtectedRoute>
+                      <Vendas />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/equipe" element={
+                    <ProtectedRoute>
+                      <Equipe />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/produtos" element={
+                    <ProtectedRoute>
+                      <Produtos />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/whatsapp" element={
+                    <ProtectedRoute>
+                      <Whatsapp />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/campanhas" element={
+                    <ProtectedRoute>
+                      <Campanhas />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/automacoes" element={
+                    <ProtectedRoute>
+                      <Automacoes />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/revendedores" element={
+                    <ProtectedRoute>
+                      <Revendedores />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/financeiro" element={
+                    <ProtectedRoute>
+                      <Financeiro />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/garantias" element={
+                    <ProtectedRoute>
+                      <Garantias />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/configuracoes" element={
+                    <ProtectedRoute>
+                      <Configuracoes />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/meu-negocio" element={
+                    <ProtectedRoute>
+                      <MeuNegocio />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </CompanyProvider>
+          </AuthProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </React.Fragment>
   );
 }
 
