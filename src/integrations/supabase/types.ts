@@ -249,30 +249,43 @@ export type Database = {
       }
       sales: {
         Row: {
+          client_id: string | null
           company_id: string
           created_at: string | null
           customer_name: string | null
+          discount_value: number | null
           id: string
           payment_method: string | null
           total: number
         }
         Insert: {
+          client_id?: string | null
           company_id: string
           created_at?: string | null
           customer_name?: string | null
+          discount_value?: number | null
           id?: string
           payment_method?: string | null
           total: number
         }
         Update: {
+          client_id?: string | null
           company_id?: string
           created_at?: string | null
           customer_name?: string | null
+          discount_value?: number | null
           id?: string
           payment_method?: string | null
           total?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_company_id_fkey"
             columns: ["company_id"]
