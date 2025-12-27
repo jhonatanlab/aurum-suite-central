@@ -1,12 +1,20 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { 
   Search, 
   ShoppingCart, 
@@ -14,7 +22,10 @@ import {
   Minus, 
   Trash2, 
   Package,
-  DollarSign
+  DollarSign,
+  User,
+  CreditCard,
+  Percent
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +37,11 @@ interface Product {
   category: string | null;
 }
 
+interface Lead {
+  id: string;
+  name: string;
+}
+
 interface CartItem {
   product: Product;
   quantity: number;
@@ -33,8 +49,13 @@ interface CartItem {
 
 export default function Vendas() {
   const { company } = useCompany();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("");
+  const [discountPercent, setDiscountPercent] = useState<string>("");
+  const [discountValue, setDiscountValue] = useState<string>("");
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products-pdv", company?.id],
@@ -48,6 +69,21 @@ export default function Vendas() {
         .order("name");
       if (error) throw error;
       return data as Product[];
+    },
+    enabled: !!company?.id,
+  });
+
+  const { data: leads } = useQuery({
+    queryKey: ["leads-pdv", company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, name")
+        .eq("company_id", company.id)
+        .order("name");
+      if (error) throw error;
+      return data as Lead[];
     },
     enabled: !!company?.id,
   });
@@ -101,16 +137,110 @@ export default function Vendas() {
     setCart((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
-  const cartTotal = useMemo(() => {
+  const cartSubtotal = useMemo(() => {
     return cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
   }, [cart]);
+
+  const calculatedDiscount = useMemo(() => {
+    const percentVal = parseFloat(discountPercent) || 0;
+    const valueVal = parseFloat(discountValue) || 0;
+    
+    if (percentVal > 0) {
+      return (cartSubtotal * percentVal) / 100;
+    }
+    return valueVal;
+  }, [cartSubtotal, discountPercent, discountValue]);
+
+  const cartTotal = useMemo(() => {
+    return Math.max(0, cartSubtotal - calculatedDiscount);
+  }, [cartSubtotal, calculatedDiscount]);
+
+  const handleDiscountPercentChange = (value: string) => {
+    setDiscountPercent(value);
+    if (value && cartSubtotal > 0) {
+      const percent = parseFloat(value) || 0;
+      const calculated = (cartSubtotal * percent) / 100;
+      setDiscountValue(calculated.toFixed(2));
+    } else {
+      setDiscountValue("");
+    }
+  };
+
+  const handleDiscountValueChange = (value: string) => {
+    setDiscountValue(value);
+    if (value && cartSubtotal > 0) {
+      const val = parseFloat(value) || 0;
+      const percent = (val / cartSubtotal) * 100;
+      setDiscountPercent(percent.toFixed(2));
+    } else {
+      setDiscountPercent("");
+    }
+  };
+
+  const finalizeSaleMutation = useMutation({
+    mutationFn: async () => {
+      if (!company?.id) throw new Error("Empresa não encontrada");
+      if (cart.length === 0) throw new Error("Carrinho vazio");
+      if (!paymentMethod) throw new Error("Selecione a forma de pagamento");
+
+      // Create sale record
+      const { data: sale, error: saleError } = await supabase
+        .from("sales")
+        .insert({
+          company_id: company.id,
+          client_id: selectedClientId || null,
+          payment_method: paymentMethod,
+          discount_value: calculatedDiscount,
+          total: cartTotal,
+        })
+        .select("id")
+        .single();
+
+      if (saleError) throw saleError;
+
+      // Create sale items
+      const saleItems = cart.map((item) => ({
+        sale_id: sale.id,
+        product_id: item.product.id,
+        quantity: item.quantity,
+        price: item.product.price,
+        subtotal: item.product.price * item.quantity,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("sale_items")
+        .insert(saleItems);
+
+      if (itemsError) throw itemsError;
+
+      return sale;
+    },
+    onSuccess: () => {
+      toast.success("Venda registrada com sucesso!");
+      // Reset cart and form
+      setCart([]);
+      setSelectedClientId("");
+      setPaymentMethod("");
+      setDiscountPercent("");
+      setDiscountValue("");
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["products-pdv"] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Erro ao finalizar venda");
+    },
+  });
 
   const handleFinalizeSale = () => {
     if (cart.length === 0) {
       toast.error("Carrinho vazio");
       return;
     }
-    toast.success("Função de finalizar venda será implementada");
+    if (!paymentMethod) {
+      toast.error("Selecione a forma de pagamento");
+      return;
+    }
+    finalizeSaleMutation.mutate();
   };
 
   const formatCurrency = (value: number) => {
@@ -265,21 +395,110 @@ export default function Vendas() {
 
           {/* Cart Footer */}
           <div className="p-5 border-t border-border space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Total</span>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
-                <span className="text-2xl font-bold text-foreground">
-                  {formatCurrency(cartTotal)}
-                </span>
+            {/* Cliente Select */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Cliente
+              </Label>
+              <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                <SelectTrigger className="bg-card border-border focus:border-primary">
+                  <SelectValue placeholder="Venda sem cliente" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="none">Venda sem cliente</SelectItem>
+                  {leads?.map((lead) => (
+                    <SelectItem key={lead.id} value={lead.id}>
+                      {lead.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Forma de Pagamento */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                Forma de Pagamento
+              </Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="bg-card border-border focus:border-primary">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="cartao">Cartão</SelectItem>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Discount Fields */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Percent className="h-3 w-3" />
+                  Desconto (%)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  placeholder="0"
+                  value={discountPercent}
+                  onChange={(e) => handleDiscountPercentChange(e.target.value)}
+                  className="bg-card border-border focus:border-primary"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                  <DollarSign className="h-3 w-3" />
+                  Desconto (R$)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={discountValue}
+                  onChange={(e) => handleDiscountValueChange(e.target.value)}
+                  className="bg-card border-border focus:border-primary"
+                />
               </div>
             </div>
+
+            {/* Totals */}
+            <div className="space-y-2 pt-2 border-t border-border">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-foreground">{formatCurrency(cartSubtotal)}</span>
+              </div>
+              {calculatedDiscount > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Desconto</span>
+                  <span className="text-destructive">-{formatCurrency(calculatedDiscount)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-muted-foreground font-medium">Total</span>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  <span className="text-2xl font-bold text-foreground">
+                    {formatCurrency(cartTotal)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <Button
               onClick={handleFinalizeSale}
               className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base"
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || finalizeSaleMutation.isPending}
             >
-              Finalizar Venda
+              {finalizeSaleMutation.isPending ? "Processando..." : "Finalizar Venda"}
             </Button>
           </div>
         </div>
