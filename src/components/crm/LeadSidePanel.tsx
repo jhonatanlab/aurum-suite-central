@@ -12,14 +12,9 @@ import { Loader2, Trash2, Send, User, MessageSquare, StickyNote, History } from 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCompany } from "@/hooks/useCompany";
+import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-
-const stages = [
-  { id: "novo", title: "Novo Lead" },
-  { id: "qualificado", title: "Qualificado" },
-  { id: "proposta", title: "Proposta Enviada" },
-  { id: "negociacao", title: "Negociação" },
-];
 
 const sourceOptions = [
   { id: "trafego_pago", label: "Tráfego Pago" },
@@ -33,10 +28,16 @@ const leadSchema = z.object({
   name: z.string().trim().min(1, "Nome é obrigatório").max(100),
   value: z.number().min(0, "Valor deve ser positivo"),
   phone: z.string().trim().max(20).optional(),
-  status: z.enum(["novo", "qualificado", "proposta", "negociacao"]),
+  status: z.string().min(1, "Status é obrigatório"),
   source: z.string().optional(),
   notes: z.string().optional(),
 });
+
+interface Stage {
+  id: string;
+  name: string;
+  position: number;
+}
 
 interface Lead {
   id: string;
@@ -66,7 +67,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
   const [phone, setPhone] = useState("");
-  const [status, setStatus] = useState("novo");
+  const [status, setStatus] = useState("");
   const [source, setSource] = useState("outros");
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -76,7 +77,26 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   const [newMessage, setNewMessage] = useState("");
   
   const { toast } = useToast();
+  const { company } = useCompany();
   const queryClient = useQueryClient();
+
+  // Fetch stages from database
+  const { data: stages = [] } = useQuery({
+    queryKey: ["crm_stages", company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+
+      const { data, error } = await supabase
+        .from("crm_stages")
+        .select("id, name, position")
+        .eq("company_id", company.id)
+        .order("position", { ascending: true });
+
+      if (error) throw error;
+      return data as Stage[];
+    },
+    enabled: !!company?.id,
+  });
 
   // Sync form with lead data
   useEffect(() => {
@@ -84,12 +104,12 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
       setName(lead.name);
       setValue(lead.value?.toString() || "");
       setPhone(lead.phone || "");
-      setStatus(lead.status || "novo");
+      setStatus(lead.status || (stages.length > 0 ? stages[0].id : ""));
       setSource(lead.source || "outros");
       setNotes(lead.notes || "");
       setErrors({});
     }
-  }, [lead?.id, open]);
+  }, [lead?.id, open, stages]);
 
   const updateLead = useMutation({
     mutationFn: async (data: z.infer<typeof leadSchema>) => {
@@ -313,7 +333,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                   <SelectContent>
                     {stages.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.title}
+                        {s.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Search, Settings, Loader2, X, CalendarIcon, Filter } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Plus, Search, Loader2, X, CalendarIcon, Filter, MoreHorizontal, Pencil, Trash2, Check } from "lucide-react";
 import { LeadSidePanel } from "@/components/crm/LeadSidePanel";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,12 +35,13 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 
-const stages = [
-  { id: "novo", title: "Novo Lead" },
-  { id: "qualificado", title: "Qualificado" },
-  { id: "proposta", title: "Proposta Enviada" },
-  { id: "negociacao", title: "Negociação" },
-];
+interface Stage {
+  id: string;
+  name: string;
+  position: number;
+}
+
+const DEFAULT_STAGES = ["Novo", "Qualificado", "Proposta", "Negociação", "Fechado"];
 
 const sources = [
   { id: "trafego_pago", label: "Tráfego Pago" },
@@ -53,7 +55,7 @@ const leadSchema = z.object({
   name: z.string().trim().min(1, "Nome é obrigatório").max(100),
   value: z.number().min(0, "Valor deve ser positivo"),
   phone: z.string().trim().max(20).optional(),
-  status: z.enum(["novo", "qualificado", "proposta", "negociacao"]),
+  status: z.string().min(1, "Status é obrigatório"),
 });
 
 interface Lead {
@@ -137,28 +139,105 @@ function DroppableColumn({
   stage, 
   leads, 
   onLeadClick, 
-  activeLeadId 
+  activeLeadId,
+  onRename,
+  onDelete,
+  isFirst,
+  isLast,
+  stagesCount,
 }: { 
-  stage: typeof stages[0]; 
+  stage: Stage; 
   leads: Lead[]; 
   onLeadClick: (lead: Lead) => void;
   activeLeadId: string | null;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+  isFirst: boolean;
+  isLast: boolean;
+  stagesCount: number;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(stage.name);
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
   });
 
   const stageLeads = leads.filter((lead) => lead.status === stage.id);
 
+  const handleSaveRename = () => {
+    if (editName.trim() && editName.trim() !== stage.name) {
+      onRename(stage.id, editName.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSaveRename();
+    } else if (e.key === "Escape") {
+      setEditName(stage.name);
+      setIsEditing(false);
+    }
+  };
+
   return (
     <div className="flex-1 min-w-[280px] max-w-[320px]">
       <div className="flex items-center justify-between mb-4 px-1">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-foreground">{stage.title}</h3>
-          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary">
-            {stageLeads.length}
-          </span>
+        <div className="flex items-center gap-2 flex-1">
+          {isEditing ? (
+            <div className="flex items-center gap-2 flex-1">
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={handleSaveRename}
+                className="h-8 text-sm font-semibold bg-card border-primary/50"
+                autoFocus
+              />
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleSaveRename}>
+                <Check className="h-4 w-4 text-primary" />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <h3 className="font-semibold text-foreground">{stage.name}</h3>
+              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary">
+                {stageLeads.length}
+              </span>
+            </>
+          )}
         </div>
+        
+        {!isEditing && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-card border-border">
+              <DropdownMenuItem 
+                onClick={() => {
+                  setEditName(stage.name);
+                  setIsEditing(true);
+                }}
+                className="gap-2 cursor-pointer"
+              >
+                <Pencil className="h-4 w-4" />
+                Renomear
+              </DropdownMenuItem>
+              {stagesCount > 2 && !isFirst && !isLast && (
+                <DropdownMenuItem 
+                  onClick={() => onDelete(stage.id)}
+                  className="gap-2 cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Excluir
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       <div
@@ -183,17 +262,24 @@ function DroppableColumn({
 }
 
 
-function NewLeadModal({ onSuccess }: { onSuccess: () => void }) {
+function NewLeadModal({ onSuccess, stages }: { onSuccess: () => void; stages: Stage[] }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
   const [phone, setPhone] = useState("");
-  const [status, setStatus] = useState<string>("novo");
+  const [status, setStatus] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   const { company } = useCompany();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Set default status when stages change
+  useEffect(() => {
+    if (stages.length > 0 && !status) {
+      setStatus(stages[0].id);
+    }
+  }, [stages, status]);
 
   const createLead = useMutation({
     mutationFn: async (data: z.infer<typeof leadSchema>) => {
@@ -225,7 +311,7 @@ function NewLeadModal({ onSuccess }: { onSuccess: () => void }) {
     setName("");
     setValue("");
     setPhone("");
-    setStatus("novo");
+    setStatus(stages.length > 0 ? stages[0].id : "");
     setErrors({});
   };
 
@@ -310,7 +396,7 @@ function NewLeadModal({ onSuccess }: { onSuccess: () => void }) {
               <SelectContent>
                 {stages.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.title}
+                    {s.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -324,6 +410,94 @@ function NewLeadModal({ onSuccess }: { onSuccess: () => void }) {
             <Button type="submit" disabled={createLead.isPending}>
               {createLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Salvar
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddStageModal({ onSuccess }: { onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  
+  const { company } = useCompany();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const addStage = useMutation({
+    mutationFn: async (stageName: string) => {
+      if (!company?.id) throw new Error("Empresa não encontrada");
+      
+      // Get current max position
+      const { data: existingStages } = await supabase
+        .from("crm_stages")
+        .select("position")
+        .eq("company_id", company.id)
+        .order("position", { ascending: false })
+        .limit(1);
+      
+      const maxPosition = existingStages && existingStages.length > 0 ? existingStages[0].position : -1;
+      
+      const { error } = await supabase.from("crm_stages").insert({
+        name: stageName,
+        position: maxPosition + 1,
+        company_id: company.id,
+      });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm_stages"] });
+      toast({ title: "Coluna adicionada!" });
+      setOpen(false);
+      setName("");
+      onSuccess();
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao adicionar coluna", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (name.trim()) {
+      addStage.mutate(name.trim());
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2 border-dashed border-primary/30 text-primary hover:bg-primary/10">
+          <Plus className="h-4 w-4" />
+          Nova Coluna
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Adicionar Nova Coluna</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="stageName">Nome da Coluna *</Label>
+            <Input
+              id="stageName"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Em Análise"
+              autoFocus
+            />
+          </div>
+          
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={addStage.isPending || !name.trim()}>
+              {addStage.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Adicionar
             </Button>
           </div>
         </form>
@@ -360,7 +534,43 @@ export default function CRM() {
     })
   );
 
-  const { data: leads = [], isLoading, refetch } = useQuery({
+  // Fetch stages from database
+  const { data: stages = [], isLoading: stagesLoading, refetch: refetchStages } = useQuery({
+    queryKey: ["crm_stages", company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+
+      const { data, error } = await supabase
+        .from("crm_stages")
+        .select("id, name, position")
+        .eq("company_id", company.id)
+        .order("position", { ascending: true });
+
+      if (error) throw error;
+      
+      // If no stages exist, create default ones
+      if (data.length === 0) {
+        const defaultStages = DEFAULT_STAGES.map((name, index) => ({
+          company_id: company.id,
+          name,
+          position: index,
+        }));
+        
+        const { data: insertedData, error: insertError } = await supabase
+          .from("crm_stages")
+          .insert(defaultStages)
+          .select("id, name, position");
+        
+        if (insertError) throw insertError;
+        return insertedData as Stage[];
+      }
+      
+      return data as Stage[];
+    },
+    enabled: !!company?.id,
+  });
+
+  const { data: leads = [], isLoading: leadsLoading, refetch } = useQuery({
     queryKey: ["leads", company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
@@ -376,6 +586,8 @@ export default function CRM() {
     },
     enabled: !!company?.id,
   });
+
+  const isLoading = stagesLoading || leadsLoading;
 
   const updateLeadStage = useMutation({
     mutationFn: async ({ leadId, newStage }: { leadId: string; newStage: string }) => {
@@ -394,6 +606,52 @@ export default function CRM() {
       refetch();
     },
   });
+
+  // Rename stage mutation
+  const renameStage = useMutation({
+    mutationFn: async ({ stageId, newName }: { stageId: string; newName: string }) => {
+      const { error } = await supabase
+        .from("crm_stages")
+        .update({ name: newName })
+        .eq("id", stageId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm_stages"] });
+      toast({ title: "Coluna renomeada!" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao renomear", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Delete stage mutation
+  const deleteStage = useMutation({
+    mutationFn: async (stageId: string) => {
+      const { error } = await supabase
+        .from("crm_stages")
+        .delete()
+        .eq("id", stageId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm_stages"] });
+      toast({ title: "Coluna excluída!" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleRenameStage = (stageId: string, newName: string) => {
+    renameStage.mutate({ stageId, newName });
+  };
+
+  const handleDeleteStage = (stageId: string) => {
+    deleteStage.mutate(stageId);
+  };
 
   const hasActiveFilters = filterSource !== "all" || filterStatus !== "all" || filterDateStart || filterDateEnd;
 
@@ -505,11 +763,8 @@ export default function CRM() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2">
-              <Settings className="h-4 w-4" />
-              Editar Pipeline
-            </Button>
-            <NewLeadModal onSuccess={() => refetch()} />
+            <AddStageModal onSuccess={() => refetchStages()} />
+            <NewLeadModal onSuccess={() => refetch()} stages={stages} />
           </div>
         </div>
 
@@ -541,7 +796,7 @@ export default function CRM() {
             <SelectContent>
               <SelectItem value="all">Todos Status</SelectItem>
               {stages.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -631,13 +886,18 @@ export default function CRM() {
           >
             <div className="overflow-x-auto pb-4">
               <div className="flex gap-6 min-w-max">
-                {stages.map((stage) => (
+                {stages.map((stage, index) => (
                   <DroppableColumn
                     key={stage.id}
                     stage={stage}
                     leads={filteredLeads}
                     onLeadClick={handleLeadClick}
                     activeLeadId={activeLead?.id || null}
+                    onRename={handleRenameStage}
+                    onDelete={handleDeleteStage}
+                    isFirst={index === 0}
+                    isLast={index === stages.length - 1}
+                    stagesCount={stages.length}
                   />
                 ))}
               </div>
