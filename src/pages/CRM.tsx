@@ -63,9 +63,12 @@ interface Lead {
   name: string;
   value: number | null;
   phone: string | null;
+  email: string | null;
   status: string | null;
   source: string | null;
   notes: string | null;
+  tags: string[] | null;
+  created_at: string | null;
 }
 
 function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onClick: () => void; isDraggingThis: boolean }) {

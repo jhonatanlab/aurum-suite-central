@@ -114,6 +114,41 @@ export type Database = {
           },
         ]
       }
+      crm_history: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          lead_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          lead_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          lead_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_history_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_stages: {
         Row: {
           company_id: string
@@ -249,6 +284,7 @@ export type Database = {
           phone: string | null
           source: string | null
           status: string | null
+          tags: string[] | null
           value: number | null
         }
         Insert: {
@@ -261,6 +297,7 @@ export type Database = {
           phone?: string | null
           source?: string | null
           status?: string | null
+          tags?: string[] | null
           value?: number | null
         }
         Update: {
@@ -273,6 +310,7 @@ export type Database = {
           phone?: string | null
           source?: string | null
           status?: string | null
+          tags?: string[] | null
           value?: number | null
         }
         Relationships: [

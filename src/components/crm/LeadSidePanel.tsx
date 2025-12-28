@@ -8,13 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Trash2, Send, User, MessageSquare, StickyNote, History } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Loader2, Trash2, Send, User, MessageSquare, History, Plus, X, Mail, Phone, Calendar } from "lucide-react";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCompany } from "@/hooks/useCompany";
-import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const sourceOptions = [
   { id: "trafego_pago", label: "Tráfego Pago" },
@@ -28,9 +31,11 @@ const leadSchema = z.object({
   name: z.string().trim().min(1, "Nome é obrigatório").max(100),
   value: z.number().min(0, "Valor deve ser positivo"),
   phone: z.string().trim().max(20).optional(),
+  email: z.string().trim().email("E-mail inválido").optional().or(z.literal("")),
   status: z.string().min(1, "Status é obrigatório"),
   source: z.string().optional(),
   notes: z.string().optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 interface Stage {
@@ -39,14 +44,25 @@ interface Stage {
   position: number;
 }
 
+interface HistoryEntry {
+  id: string;
+  type: string;
+  description: string;
+  created_at: string;
+  created_by: string | null;
+}
+
 interface Lead {
   id: string;
   name: string;
   value: number | null;
   phone: string | null;
+  email: string | null;
   status: string | null;
   source: string | null;
   notes: string | null;
+  tags: string[] | null;
+  created_at: string | null;
 }
 
 interface ChatMessage {
@@ -67,10 +83,22 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
   const [source, setSource] = useState("outros");
   const [notes, setNotes] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Track original values for history
+  const [originalStatus, setOriginalStatus] = useState("");
+  const [originalSource, setOriginalSource] = useState("");
+  const [originalTags, setOriginalTags] = useState<string[]>([]);
+  
+  // Note modal state
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [newNote, setNewNote] = useState("");
   
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -78,6 +106,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   
   const { toast } = useToast();
   const { company } = useCompany();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   // Fetch stages from database
@@ -98,36 +127,117 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
     enabled: !!company?.id,
   });
 
+  // Fetch history for this lead
+  const { data: history = [], refetch: refetchHistory } = useQuery({
+    queryKey: ["crm_history", lead?.id],
+    queryFn: async () => {
+      if (!lead?.id) return [];
+
+      const { data, error } = await supabase
+        .from("crm_history")
+        .select("*")
+        .eq("lead_id", lead.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as HistoryEntry[];
+    },
+    enabled: !!lead?.id && open,
+  });
+
   // Sync form with lead data
   useEffect(() => {
     if (lead && open) {
       setName(lead.name);
       setValue(lead.value?.toString() || "");
       setPhone(lead.phone || "");
+      setEmail(lead.email || "");
       setStatus(lead.status || (stages.length > 0 ? stages[0].id : ""));
       setSource(lead.source || "outros");
       setNotes(lead.notes || "");
+      setTags(lead.tags || []);
       setErrors({});
+      
+      // Set original values for tracking changes
+      setOriginalStatus(lead.status || "");
+      setOriginalSource(lead.source || "outros");
+      setOriginalTags(lead.tags || []);
     }
   }, [lead?.id, open, stages]);
+
+  // Add history entry
+  const addHistoryEntry = async (type: string, description: string) => {
+    if (!lead?.id) return;
+
+    await supabase.from("crm_history").insert({
+      lead_id: lead.id,
+      type,
+      description,
+      created_by: user?.email || null,
+    });
+
+    refetchHistory();
+  };
 
   const updateLead = useMutation({
     mutationFn: async (data: z.infer<typeof leadSchema>) => {
       if (!lead?.id) throw new Error("Lead não encontrado");
       
+      // Check for changes that need history entries
+      const historyPromises: Promise<void>[] = [];
+
+      // Status change
+      if (data.status !== originalStatus && originalStatus) {
+        const oldStageName = stages.find(s => s.id === originalStatus)?.name || originalStatus;
+        const newStageName = stages.find(s => s.id === data.status)?.name || data.status;
+        historyPromises.push(
+          addHistoryEntry("status_update", `Status alterado de "${oldStageName}" para "${newStageName}"`)
+        );
+      }
+
+      // Source change
+      if (data.source !== originalSource && originalSource) {
+        const oldSourceLabel = sourceOptions.find(s => s.id === originalSource)?.label || originalSource;
+        const newSourceLabel = sourceOptions.find(s => s.id === data.source)?.label || data.source;
+        historyPromises.push(
+          addHistoryEntry("source_update", `Origem alterada de "${oldSourceLabel}" para "${newSourceLabel}"`)
+        );
+      }
+
+      // Tags changes
+      const addedTags = (data.tags || []).filter(t => !originalTags.includes(t));
+      const removedTags = originalTags.filter(t => !(data.tags || []).includes(t));
+
+      for (const tag of addedTags) {
+        historyPromises.push(addHistoryEntry("tag_added", `Tag adicionada: "${tag}"`));
+      }
+      for (const tag of removedTags) {
+        historyPromises.push(addHistoryEntry("tag_removed", `Tag removida: "${tag}"`));
+      }
+
+      // Execute all history entries
+      await Promise.all(historyPromises);
+
       const { error } = await supabase
         .from("leads")
         .update({
           name: data.name,
           value: data.value,
           phone: data.phone || null,
+          email: data.email || null,
           status: data.status,
           source: data.source || null,
           notes: data.notes || null,
+          tags: data.tags || [],
         })
         .eq("id", lead.id);
       
       if (error) throw error;
+
+      // Update original values after successful save
+      setOriginalStatus(data.status);
+      setOriginalSource(data.source || "outros");
+      setOriginalTags(data.tags || []);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
@@ -161,6 +271,22 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
     },
   });
 
+  const addNoteMutation = useMutation({
+    mutationFn: async (noteText: string) => {
+      if (!lead?.id) throw new Error("Lead não encontrado");
+
+      await addHistoryEntry("manual_note", noteText);
+    },
+    onSuccess: () => {
+      toast({ title: "Nota adicionada!" });
+      setNoteModalOpen(false);
+      setNewNote("");
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao adicionar nota", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -169,9 +295,11 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
       name,
       value: parseFloat(value) || 0,
       phone: phone || undefined,
+      email: email || undefined,
       status,
       source,
       notes,
+      tags,
     });
     
     if (!result.success) {
@@ -184,6 +312,18 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
     }
     
     updateLead.mutate(result.data);
+  };
+
+  const handleAddTag = () => {
+    const trimmed = newTag.trim();
+    if (trimmed && !tags.includes(trimmed)) {
+      setTags([...tags, trimmed]);
+      setNewTag("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter(t => t !== tagToRemove));
   };
 
   const handleSendMessage = () => {
@@ -199,7 +339,6 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
     setChatMessages((prev) => [...prev, message]);
     setNewMessage("");
     
-    // Simulate received message
     setTimeout(() => {
       setChatMessages((prev) => [
         ...prev,
@@ -217,241 +356,384 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
     return sourceOptions.find((s) => s.id === sourceId)?.label || sourceId;
   };
 
-  const mockHistory = [
-    { date: "26/12/2024 10:30", event: "Lead criado" },
-    { date: "26/12/2024 14:15", event: "Movido de Novo → Qualificado" },
-    { date: "26/12/2024 16:45", event: "Notas atualizadas" },
-  ];
+  const getHistoryTypeLabel = (type: string) => {
+    switch (type) {
+      case "manual_note": return "Nota manual";
+      case "status_update": return "Alteração de status";
+      case "source_update": return "Alteração de origem";
+      case "tag_added": return "Tag adicionada";
+      case "tag_removed": return "Tag removida";
+      case "lead_created": return "Lead criado";
+      default: return type;
+    }
+  };
+
+  const getHistoryTypeColor = (type: string) => {
+    switch (type) {
+      case "manual_note": return "bg-blue-500";
+      case "status_update": return "bg-primary";
+      case "source_update": return "bg-purple-500";
+      case "tag_added": return "bg-green-500";
+      case "tag_removed": return "bg-red-500";
+      default: return "bg-muted-foreground";
+    }
+  };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
-        {/* Header */}
-        <SheetHeader className="p-6 pb-4 border-b border-border/50 bg-card/50">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <SheetTitle className="text-xl font-semibold text-foreground">
-                {lead?.name || "Lead"}
-              </SheetTitle>
-              <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold text-primary">
-                  R$ {(lead?.value || 0).toLocaleString("pt-BR")}
-                </span>
-                <Badge 
-                  variant="secondary" 
-                  className="bg-primary/10 text-primary border-primary/20"
-                >
-                  {getSourceLabel(lead?.source || "outros")}
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </SheetHeader>
-
-        {/* Tabs */}
-        <Tabs defaultValue="info" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="mx-6 mt-4 grid grid-cols-4 bg-muted/50">
-            <TabsTrigger value="info" className="gap-1.5 text-xs sm:text-sm">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">Informações</span>
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="gap-1.5 text-xs sm:text-sm">
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Chat</span>
-            </TabsTrigger>
-            <TabsTrigger value="notes" className="gap-1.5 text-xs sm:text-sm">
-              <StickyNote className="h-4 w-4" />
-              <span className="hidden sm:inline">Notas</span>
-            </TabsTrigger>
-            <TabsTrigger value="history" className="gap-1.5 text-xs sm:text-sm">
-              <History className="h-4 w-4" />
-              <span className="hidden sm:inline">Histórico</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Info Tab */}
-          <TabsContent value="info" className="flex-1 overflow-auto mt-0">
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Nome *</Label>
-                <Input
-                  id="edit-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Nome do lead"
-                  className={errors.name ? "border-destructive" : ""}
-                />
-                {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit-phone">Telefone/WhatsApp</Label>
-                <Input
-                  id="edit-phone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit-value">Valor Estimado (R$)</Label>
-                <Input
-                  id="edit-value"
-                  type="number"
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  placeholder="0"
-                  min="0"
-                  step="0.01"
-                />
-                {errors.value && <p className="text-xs text-destructive">{errors.value}</p>}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit-source">Origem</Label>
-                <Select value={source} onValueChange={setSource}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sourceOptions.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit-status">Etapa</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stages.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex justify-between pt-4">
-                <Button 
-                  type="button" 
-                  variant="destructive" 
-                  size="sm"
-                  onClick={() => deleteLead.mutate()}
-                  disabled={deleteLead.isPending}
-                  className="gap-2"
-                >
-                  {deleteLead.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  Excluir
-                </Button>
-                <Button type="submit" disabled={updateLead.isPending}>
-                  {updateLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Salvar
-                </Button>
-              </div>
-            </form>
-          </TabsContent>
-
-          {/* Chat Tab */}
-          <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden mt-0">
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-3">
-                {chatMessages.length === 0 && (
-                  <div className="text-center text-muted-foreground py-8">
-                    <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                    <p>Nenhuma mensagem ainda</p>
-                    <p className="text-xs mt-1">Integração WhatsApp em breve!</p>
-                  </div>
-                )}
-                {chatMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sent ? "justify-end" : "justify-start"}`}
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
+          {/* Header */}
+          <SheetHeader className="p-6 pb-4 border-b border-border/50 bg-card/50">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <SheetTitle className="text-xl font-semibold text-foreground">
+                  {lead?.name || "Lead"}
+                </SheetTitle>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl font-bold text-primary">
+                    R$ {(lead?.value || 0).toLocaleString("pt-BR")}
+                  </span>
+                  <Badge 
+                    variant="secondary" 
+                    className="bg-primary/10 text-primary border-primary/20"
                   >
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                        msg.sent
-                          ? "bg-primary text-primary-foreground rounded-br-sm"
-                          : "bg-muted text-foreground rounded-bl-sm"
-                      }`}
-                    >
-                      <p className="text-sm">{msg.text}</p>
-                      <p className={`text-xs mt-1 ${msg.sent ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                        {msg.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                      </p>
+                    {getSourceLabel(lead?.source || "outros")}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </SheetHeader>
+
+          {/* Tabs */}
+          <Tabs defaultValue="info" className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="mx-6 mt-4 grid grid-cols-3 bg-muted/50">
+              <TabsTrigger value="info" className="gap-1.5 text-xs sm:text-sm">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">Informações</span>
+              </TabsTrigger>
+              <TabsTrigger value="chat" className="gap-1.5 text-xs sm:text-sm">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Chat</span>
+              </TabsTrigger>
+              <TabsTrigger value="history" className="gap-1.5 text-xs sm:text-sm">
+                <History className="h-4 w-4" />
+                <span className="hidden sm:inline">Histórico</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Info Tab */}
+            <TabsContent value="info" className="flex-1 overflow-auto mt-0">
+              <ScrollArea className="h-full">
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                  {/* Nome */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Nome *</Label>
+                    <Input
+                      id="edit-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Nome do lead"
+                      className={errors.name ? "border-destructive" : ""}
+                    />
+                    {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+                  </div>
+                  
+                  {/* Telefone */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-phone" className="flex items-center gap-2">
+                      <Phone className="h-3.5 w-3.5" />
+                      Telefone/WhatsApp
+                    </Label>
+                    <Input
+                      id="edit-phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="(11) 99999-9999"
+                    />
+                  </div>
+
+                  {/* E-mail */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email" className="flex items-center gap-2">
+                      <Mail className="h-3.5 w-3.5" />
+                      E-mail
+                    </Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="email@exemplo.com"
+                      className={errors.email ? "border-destructive" : ""}
+                    />
+                    {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                  </div>
+                  
+                  {/* Valor */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-value">Valor Estimado (R$)</Label>
+                    <Input
+                      id="edit-value"
+                      type="number"
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                    />
+                    {errors.value && <p className="text-xs text-destructive">{errors.value}</p>}
+                  </div>
+                  
+                  {/* Origem */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-source">Origem</Label>
+                    <Select value={source} onValueChange={setSource}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sourceOptions.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Status/Etapa */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-status">Etapa</Label>
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stages.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Tags */}
+                  <div className="space-y-2">
+                    <Label>Tags</Label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {tags.map((tag) => (
+                        <Badge 
+                          key={tag} 
+                          variant="secondary" 
+                          className="gap-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 cursor-pointer"
+                          onClick={() => handleRemoveTag(tag)}
+                        >
+                          {tag}
+                          <X className="h-3 w-3" />
+                        </Badge>
+                      ))}
+                      {tags.length === 0 && (
+                        <span className="text-xs text-muted-foreground">Nenhuma tag</span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Nova tag..."
+                        value={newTag}
+                        onChange={(e) => setNewTag(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddTag();
+                          }
+                        }}
+                        className="flex-1"
+                      />
+                      <Button type="button" size="icon" variant="outline" onClick={handleAddTag}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                ))}
+
+                  {/* Observações */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-notes">Observações</Label>
+                    <Textarea
+                      id="edit-notes"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Adicione observações sobre o lead..."
+                      className="min-h-[80px] resize-none"
+                    />
+                  </div>
+
+                  {/* Datas (somente leitura) */}
+                  <div className="pt-2 border-t border-border/50 space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span>Criado em:</span>
+                      <span className="text-foreground">
+                        {lead?.created_at 
+                          ? format(new Date(lead.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                          : "—"
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Actions */}
+                  <div className="flex justify-between pt-4">
+                    <Button 
+                      type="button" 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => deleteLead.mutate()}
+                      disabled={deleteLead.isPending}
+                      className="gap-2"
+                    >
+                      {deleteLead.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      Excluir
+                    </Button>
+                    <Button type="submit" disabled={updateLead.isPending}>
+                      {updateLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Salvar
+                    </Button>
+                  </div>
+                </form>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Chat Tab */}
+            <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden mt-0">
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-3">
+                  {chatMessages.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p>Nenhuma mensagem ainda</p>
+                      <p className="text-xs mt-1">Integração WhatsApp em breve!</p>
+                    </div>
+                  )}
+                  {chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.sent ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                          msg.sent
+                            ? "bg-primary text-primary-foreground rounded-br-sm"
+                            : "bg-muted text-foreground rounded-bl-sm"
+                        }`}
+                      >
+                        <p className="text-sm">{msg.text}</p>
+                        <p className={`text-xs mt-1 ${msg.sent ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                          {msg.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+              
+              <div className="p-4 border-t border-border/50">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Digite sua mensagem..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                    className="flex-1"
+                  />
+                  <Button size="icon" onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </ScrollArea>
-            
-            <div className="p-4 border-t border-border/50">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Digite sua mensagem..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                  className="flex-1"
-                />
-                <Button size="icon" onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                  <Send className="h-4 w-4" />
+            </TabsContent>
+
+            {/* History Tab */}
+            <TabsContent value="history" className="flex-1 flex flex-col overflow-hidden mt-0">
+              {/* Add Note Button */}
+              <div className="p-4 border-b border-border/50">
+                <Button 
+                  variant="outline" 
+                  className="w-full gap-2"
+                  onClick={() => setNoteModalOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Adicionar nota
                 </Button>
               </div>
-            </div>
-          </TabsContent>
 
-          {/* Notes Tab */}
-          <TabsContent value="notes" className="flex-1 flex flex-col overflow-hidden mt-0">
-            <div className="p-6 flex-1 flex flex-col">
-              <Label htmlFor="notes" className="mb-2">Anotações sobre o lead</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Adicione suas observações sobre este lead..."
-                className="flex-1 min-h-[200px] resize-none"
-              />
-              <Button 
-                onClick={handleSubmit} 
-                disabled={updateLead.isPending}
-                className="mt-4 w-full"
-              >
-                {updateLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar Notas
-              </Button>
-            </div>
-          </TabsContent>
-
-          {/* History Tab */}
-          <TabsContent value="history" className="flex-1 overflow-auto mt-0">
-            <div className="p-6">
-              <div className="space-y-4">
-                {mockHistory.map((item, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
-                    <div>
-                      <p className="text-sm text-foreground">{item.event}</p>
-                      <p className="text-xs text-muted-foreground">{item.date}</p>
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-3">
+                  {history.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">
+                      <History className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p>Nenhum histórico ainda</p>
+                      <p className="text-xs mt-1">As alterações serão registradas automaticamente</p>
                     </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground text-center mt-8">
-                Histórico completo será implementado em breve
-              </p>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </SheetContent>
-    </Sheet>
+                  )}
+                  {history.map((entry) => (
+                    <div 
+                      key={entry.id} 
+                      className="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${getHistoryTypeColor(entry.type)}`} />
+                        <Badge variant="outline" className="text-xs">
+                          {getHistoryTypeLabel(entry.type)}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {format(new Date(entry.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground">{entry.description}</p>
+                      {entry.created_by && (
+                        <p className="text-xs text-muted-foreground">
+                          Por: {entry.created_by}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </SheetContent>
+      </Sheet>
+
+      {/* Add Note Modal */}
+      <Dialog open={noteModalOpen} onOpenChange={setNoteModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Nota</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="Digite sua nota..."
+              className="min-h-[120px] resize-none"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoteModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => addNoteMutation.mutate(newNote)}
+              disabled={!newNote.trim() || addNoteMutation.isPending}
+            >
+              {addNoteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
