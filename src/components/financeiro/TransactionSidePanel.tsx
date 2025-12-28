@@ -15,10 +15,22 @@ import { useCompany } from "@/hooks/useCompany";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+interface FinancialTransaction {
+  id: string;
+  date: string;
+  description: string;
+  category_id: string | null;
+  type: string;
+  value: number;
+  method: string | null;
+  status: string;
+}
+
 interface TransactionSidePanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  editingTransaction?: FinancialTransaction | null;
 }
 
 interface Category {
@@ -42,7 +54,7 @@ const STATUS_OPTIONS = [
   { value: "atrasado", label: "Atrasado" },
 ];
 
-export function TransactionSidePanel({ open, onOpenChange, onSuccess }: TransactionSidePanelProps) {
+export function TransactionSidePanel({ open, onOpenChange, onSuccess, editingTransaction }: TransactionSidePanelProps) {
   const { company } = useCompany();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -53,6 +65,8 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess }: Transact
   const [value, setValue] = useState<string>("");
   const [method, setMethod] = useState<string>("");
   const [status, setStatus] = useState<string>("pendente");
+
+  const isEditing = !!editingTransaction;
 
   const { data: categories = [] } = useQuery({
     queryKey: ["financial_categories", company?.id],
@@ -86,10 +100,18 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess }: Transact
   };
 
   useEffect(() => {
-    if (!open) {
+    if (open && editingTransaction) {
+      setType(editingTransaction.type);
+      setDate(new Date(editingTransaction.date + "T00:00:00"));
+      setDescription(editingTransaction.description);
+      setCategoryId(editingTransaction.category_id || "");
+      setValue(editingTransaction.value.toString());
+      setMethod(editingTransaction.method || "");
+      setStatus(editingTransaction.status);
+    } else if (!open) {
       resetForm();
     }
-  }, [open]);
+  }, [open, editingTransaction]);
 
   const handleSubmit = async () => {
     if (!company?.id) {
@@ -110,7 +132,7 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess }: Transact
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.from("financial_transactions").insert({
+      const transactionData = {
         company_id: company.id,
         type,
         date: format(date, "yyyy-MM-dd"),
@@ -119,11 +141,25 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess }: Transact
         value: parseFloat(value),
         method: method || null,
         status,
-      });
+      };
 
-      if (error) throw error;
+      if (isEditing) {
+        const { error } = await supabase
+          .from("financial_transactions")
+          .update(transactionData)
+          .eq("id", editingTransaction.id);
 
-      toast.success("Movimentação registrada com sucesso");
+        if (error) throw error;
+        toast.success("Movimentação atualizada com sucesso");
+      } else {
+        const { error } = await supabase
+          .from("financial_transactions")
+          .insert(transactionData);
+
+        if (error) throw error;
+        toast.success("Movimentação registrada com sucesso");
+      }
+
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -134,11 +170,20 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess }: Transact
     }
   };
 
+  // Dynamic value input styling based on type
+  const valueInputClassName = cn(
+    "bg-background border-border font-semibold",
+    type === "entrada" && "text-emerald-500 focus:ring-emerald-500",
+    type === "saida" && "text-red-500 focus:ring-red-500"
+  );
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md bg-card border-border overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="text-foreground">Nova Movimentação</SheetTitle>
+          <SheetTitle className="text-foreground">
+            {isEditing ? "Editar Movimentação" : "Nova Movimentação"}
+          </SheetTitle>
         </SheetHeader>
 
         <div className="space-y-5 py-6">
@@ -229,7 +274,7 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess }: Transact
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder="0,00"
-              className="bg-background border-border"
+              className={valueInputClassName}
             />
           </div>
 
@@ -281,7 +326,7 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess }: Transact
             disabled={isSubmitting}
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
-            {isSubmitting ? "Salvando..." : "Salvar Movimentação"}
+            {isSubmitting ? "Salvando..." : isEditing ? "Atualizar" : "Salvar Movimentação"}
           </Button>
         </SheetFooter>
       </SheetContent>
