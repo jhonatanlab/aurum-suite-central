@@ -24,8 +24,10 @@ import {
   useSensors,
   useDroppable,
   useDraggable,
-  closestCenter,
+  pointerWithin,
+  MeasuringStrategy,
 } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 
 const stages = [
   { id: "novo", title: "Novo Lead" },
@@ -52,16 +54,16 @@ interface Lead {
 }
 
 function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onClick: () => void; isDraggingThis: boolean }) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
   });
 
-  const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        transition: 'none',
-      }
-    : undefined;
+  // When dragging, we hide this card (DragOverlay takes over)
+  // When not dragging, no transform needed
+  const style: React.CSSProperties = {
+    // Keep the space occupied during drag (placeholder)
+    visibility: isDragging ? 'hidden' : 'visible',
+  };
 
   return (
     <Card
@@ -69,10 +71,10 @@ function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onCl
       style={style}
       {...listeners}
       {...attributes}
-      className={`p-4 bg-card border-border/50 hover:border-primary/30 cursor-grab group touch-none transition-all duration-150 ${
+      className={`p-4 bg-card border-border/50 hover:border-primary/30 cursor-grab group touch-none transition-colors duration-150 ${
         isDraggingThis 
-          ? "opacity-40 scale-[0.98] border-dashed border-primary/40" 
-          : "hover:scale-[1.01] hover:shadow-md"
+          ? "opacity-40 border-dashed border-primary/40" 
+          : "hover:shadow-md"
       }`}
       onClick={onClick}
     >
@@ -443,9 +445,14 @@ export default function CRM() {
         ) : (
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={pointerWithin}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            measuring={{
+              droppable: {
+                strategy: MeasuringStrategy.Always,
+              },
+            }}
           >
             <div className="overflow-x-auto pb-4">
               <div className="flex gap-6 min-w-max">
@@ -461,10 +468,12 @@ export default function CRM() {
               </div>
             </div>
 
-            <DragOverlay dropAnimation={{
-              duration: 200,
-              easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
-            }}>
+            <DragOverlay 
+              dropAnimation={{
+                duration: 200,
+                easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+              }}
+            >
               {activeLead ? <DragOverlayCard lead={activeLead} /> : null}
             </DragOverlay>
           </DndContext>
