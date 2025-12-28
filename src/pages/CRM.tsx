@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -324,6 +324,7 @@ export default function CRM() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
+  const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const { company } = useCompany();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -391,6 +392,27 @@ export default function CRM() {
   const handleDragStart = (event: DragStartEvent) => {
     const lead = leads.find((l) => l.id === event.active.id);
     setActiveLead(lead || null);
+    
+    // Capture offset from cursor to card origin using activatorEvent
+    const activatorEvent = event.activatorEvent as MouseEvent | TouchEvent;
+    const activeRect = event.active.rect.current.initial;
+    
+    if (activeRect && activatorEvent) {
+      let clientX: number, clientY: number;
+      
+      if ('touches' in activatorEvent) {
+        clientX = activatorEvent.touches[0].clientX;
+        clientY = activatorEvent.touches[0].clientY;
+      } else {
+        clientX = activatorEvent.clientX;
+        clientY = activatorEvent.clientY;
+      }
+      
+      dragOffsetRef.current = {
+        x: clientX - activeRect.left,
+        y: clientY - activeRect.top,
+      };
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -473,6 +495,13 @@ export default function CRM() {
                 duration: 200,
                 easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
               }}
+              modifiers={[
+                ({ transform }) => ({
+                  ...transform,
+                  x: transform.x + dragOffsetRef.current.x,
+                  y: transform.y + dragOffsetRef.current.y,
+                }),
+              ]}
             >
               {activeLead ? <DragOverlayCard lead={activeLead} /> : null}
             </DragOverlay>
