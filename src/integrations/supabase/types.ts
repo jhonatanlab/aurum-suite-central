@@ -155,6 +155,7 @@ export type Database = {
           description: string
           id: string
           method: string | null
+          origin: string | null
           status: string
           type: string
           updated_at: string
@@ -168,6 +169,7 @@ export type Database = {
           description: string
           id?: string
           method?: string | null
+          origin?: string | null
           status: string
           type: string
           updated_at?: string
@@ -181,6 +183,7 @@ export type Database = {
           description?: string
           id?: string
           method?: string | null
+          origin?: string | null
           status?: string
           type?: string
           updated_at?: string
@@ -287,6 +290,81 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurring_transactions: {
+        Row: {
+          category_id: string | null
+          company_id: string
+          created_at: string
+          custom_interval_days: number | null
+          id: string
+          installments_remaining: number | null
+          installments_total: number | null
+          is_limited: boolean
+          name: string
+          next_execution: string
+          payment_method_default: string | null
+          recurrence_type: string
+          start_date: string
+          status: string
+          type: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          category_id?: string | null
+          company_id: string
+          created_at?: string
+          custom_interval_days?: number | null
+          id?: string
+          installments_remaining?: number | null
+          installments_total?: number | null
+          is_limited?: boolean
+          name: string
+          next_execution: string
+          payment_method_default?: string | null
+          recurrence_type: string
+          start_date: string
+          status?: string
+          type: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          category_id?: string | null
+          company_id?: string
+          created_at?: string
+          custom_interval_days?: number | null
+          id?: string
+          installments_remaining?: number | null
+          installments_total?: number | null
+          is_limited?: boolean
+          name?: string
+          next_execution?: string
+          payment_method_default?: string | null
+          recurrence_type?: string
+          start_date?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "financial_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_transactions_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"

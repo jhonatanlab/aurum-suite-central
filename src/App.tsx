@@ -19,6 +19,7 @@ import Campanhas from "./pages/Campanhas";
 import Automacoes from "./pages/Automacoes";
 import Revendedores from "./pages/Revendedores";
 import Financeiro from "./pages/Financeiro";
+import Recorrencias from "./pages/Recorrencias";
 import Garantias from "./pages/Garantias";
 import Configuracoes from "./pages/Configuracoes";
 import MeuNegocio from "./pages/MeuNegocio";
@@ -103,6 +104,11 @@ function App() {
                   <Route path="/financeiro" element={
                     <ProtectedRoute>
                       <Financeiro />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/financeiro/recorrencias" element={
+                    <ProtectedRoute>
+                      <Recorrencias />
                     </ProtectedRoute>
                   } />
                   <Route path="/garantias" element={

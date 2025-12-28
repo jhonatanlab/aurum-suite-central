@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +11,8 @@ import {
   AlertTriangle,
   Pencil,
   Trash2,
-  Plus
+  Plus,
+  RefreshCw
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -132,13 +134,24 @@ export default function Financeiro() {
               Controle de entradas, saídas e fluxo de caixa
             </p>
           </div>
-          <Button 
-            onClick={() => setSidePanelOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Movimentação
-          </Button>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline"
+              asChild
+            >
+              <Link to="/financeiro/recorrencias">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Recorrências
+              </Link>
+            </Button>
+            <Button 
+              onClick={() => setSidePanelOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Movimentação
+            </Button>
+          </div>
         </div>
 
         {/* Summary Cards */}
