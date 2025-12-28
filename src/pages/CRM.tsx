@@ -6,13 +6,18 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Settings, Loader2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, Search, Settings, Loader2, X, CalendarIcon, Filter } from "lucide-react";
 import { LeadSidePanel } from "@/components/crm/LeadSidePanel";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import {
   DndContext,
   DragEndEvent,
@@ -34,6 +39,14 @@ const stages = [
   { id: "qualificado", title: "Qualificado" },
   { id: "proposta", title: "Proposta Enviada" },
   { id: "negociacao", title: "Negociação" },
+];
+
+const sources = [
+  { id: "trafego_pago", label: "Tráfego Pago" },
+  { id: "instagram", label: "Instagram" },
+  { id: "influencer", label: "Influencer" },
+  { id: "loja", label: "Loja" },
+  { id: "outros", label: "Outros" },
 ];
 
 const leadSchema = z.object({
@@ -321,6 +334,10 @@ function NewLeadModal({ onSuccess }: { onSuccess: () => void }) {
 
 export default function CRM() {
   const [search, setSearch] = useState("");
+  const [filterSource, setFilterSource] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDateStart, setFilterDateStart] = useState<Date | undefined>(undefined);
+  const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
@@ -350,12 +367,12 @@ export default function CRM() {
 
       const { data, error } = await supabase
         .from("leads")
-        .select("id, name, value, phone, status, source, notes")
+        .select("id, name, value, phone, status, source, notes, created_at")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as Lead[];
+      return data as (Lead & { created_at: string })[];
     },
     enabled: !!company?.id,
   });
@@ -378,9 +395,46 @@ export default function CRM() {
     },
   });
 
-  const filteredLeads = leads.filter((lead) =>
-    lead.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const hasActiveFilters = filterSource !== "all" || filterStatus !== "all" || filterDateStart || filterDateEnd;
+
+  const clearFilters = () => {
+    setFilterSource("all");
+    setFilterStatus("all");
+    setFilterDateStart(undefined);
+    setFilterDateEnd(undefined);
+    setSearch("");
+  };
+
+  const filteredLeads = leads.filter((lead) => {
+    // Text search
+    if (search && !lead.name.toLowerCase().includes(search.toLowerCase())) {
+      return false;
+    }
+    // Source filter
+    if (filterSource !== "all" && lead.source !== filterSource) {
+      return false;
+    }
+    // Status filter
+    if (filterStatus !== "all" && lead.status !== filterStatus) {
+      return false;
+    }
+    // Date range filter
+    if (filterDateStart || filterDateEnd) {
+      const createdAt = lead.created_at ? parseISO(lead.created_at) : null;
+      if (!createdAt) return false;
+      
+      if (filterDateStart && filterDateEnd) {
+        if (!isWithinInterval(createdAt, { start: startOfDay(filterDateStart), end: endOfDay(filterDateEnd) })) {
+          return false;
+        }
+      } else if (filterDateStart) {
+        if (createdAt < startOfDay(filterDateStart)) return false;
+      } else if (filterDateEnd) {
+        if (createdAt > endOfDay(filterDateEnd)) return false;
+      }
+    }
+    return true;
+  });
 
   const handleLeadClick = (lead: Lead) => {
     if (!activeLead) {
@@ -457,6 +511,105 @@ export default function CRM() {
             </Button>
             <NewLeadModal onSuccess={() => refetch()} />
           </div>
+        </div>
+
+        {/* Filters Bar */}
+        <div className="flex flex-wrap gap-3 items-center p-4 bg-card/50 border border-border/30 rounded-xl">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Filter className="h-4 w-4" />
+            <span className="font-medium">Filtros:</span>
+          </div>
+
+          {/* Source Filter */}
+          <Select value={filterSource} onValueChange={setFilterSource}>
+            <SelectTrigger className="w-[150px] h-9 bg-card border-border/50">
+              <SelectValue placeholder="Origem" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas Origens</SelectItem>
+              {sources.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Status Filter */}
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[160px] h-9 bg-card border-border/50">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos Status</SelectItem>
+              {stages.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Date Range - Start */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-9 w-[130px] justify-start text-left font-normal bg-card border-border/50",
+                  !filterDateStart && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {filterDateStart ? format(filterDateStart, "dd/MM/yy", { locale: ptBR }) : "Data início"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={filterDateStart}
+                onSelect={setFilterDateStart}
+                initialFocus
+                className="pointer-events-auto"
+                locale={ptBR}
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* Date Range - End */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-9 w-[130px] justify-start text-left font-normal bg-card border-border/50",
+                  !filterDateEnd && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {filterDateEnd ? format(filterDateEnd, "dd/MM/yy", { locale: ptBR }) : "Data fim"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={filterDateEnd}
+                onSelect={setFilterDateEnd}
+                initialFocus
+                className="pointer-events-auto"
+                locale={ptBR}
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* Clear Filters Button */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-9 gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+              Limpar Filtros
+            </Button>
+          )}
         </div>
 
         {/* Kanban Board */}
