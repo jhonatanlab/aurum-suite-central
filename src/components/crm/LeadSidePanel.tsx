@@ -432,7 +432,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
               value="info"
               className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
             >
-              <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-76">
+              <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
                 {/* Scrollable content area */}
                 <ScrollArea className="flex-1 min-h-0">
                   <div className="px-6 py-4 space-y-4">
