@@ -90,20 +90,20 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   // Track original values for history
   const [originalStatus, setOriginalStatus] = useState("");
   const [originalSource, setOriginalSource] = useState("");
   const [originalTags, setOriginalTags] = useState<string[]>([]);
-  
+
   // Note modal state
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
-  
+
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  
+
   const { toast } = useToast();
   const { company } = useCompany();
   const { user } = useAuth();
@@ -157,7 +157,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
       setNotes(lead.notes || "");
       setTags(lead.tags || []);
       setErrors({});
-      
+
       // Set original values for tracking changes
       setOriginalStatus(lead.status || "");
       setOriginalSource(lead.source || "outros");
@@ -182,31 +182,31 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   const updateLead = useMutation({
     mutationFn: async (data: z.infer<typeof leadSchema>) => {
       if (!lead?.id) throw new Error("Lead não encontrado");
-      
+
       // Check for changes that need history entries
       const historyPromises: Promise<void>[] = [];
 
       // Status change
       if (data.status !== originalStatus && originalStatus) {
-        const oldStageName = stages.find(s => s.id === originalStatus)?.name || originalStatus;
-        const newStageName = stages.find(s => s.id === data.status)?.name || data.status;
+        const oldStageName = stages.find((s) => s.id === originalStatus)?.name || originalStatus;
+        const newStageName = stages.find((s) => s.id === data.status)?.name || data.status;
         historyPromises.push(
-          addHistoryEntry("status_update", `Status alterado de "${oldStageName}" para "${newStageName}"`)
+          addHistoryEntry("status_update", `Status alterado de "${oldStageName}" para "${newStageName}"`),
         );
       }
 
       // Source change
       if (data.source !== originalSource && originalSource) {
-        const oldSourceLabel = sourceOptions.find(s => s.id === originalSource)?.label || originalSource;
-        const newSourceLabel = sourceOptions.find(s => s.id === data.source)?.label || data.source;
+        const oldSourceLabel = sourceOptions.find((s) => s.id === originalSource)?.label || originalSource;
+        const newSourceLabel = sourceOptions.find((s) => s.id === data.source)?.label || data.source;
         historyPromises.push(
-          addHistoryEntry("source_update", `Origem alterada de "${oldSourceLabel}" para "${newSourceLabel}"`)
+          addHistoryEntry("source_update", `Origem alterada de "${oldSourceLabel}" para "${newSourceLabel}"`),
         );
       }
 
       // Tags changes
-      const addedTags = (data.tags || []).filter(t => !originalTags.includes(t));
-      const removedTags = originalTags.filter(t => !(data.tags || []).includes(t));
+      const addedTags = (data.tags || []).filter((t) => !originalTags.includes(t));
+      const removedTags = originalTags.filter((t) => !(data.tags || []).includes(t));
 
       for (const tag of addedTags) {
         historyPromises.push(addHistoryEntry("tag_added", `Tag adicionada: "${tag}"`));
@@ -231,7 +231,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
           tags: data.tags || [],
         })
         .eq("id", lead.id);
-      
+
       if (error) throw error;
 
       // Update original values after successful save
@@ -252,12 +252,9 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   const deleteLead = useMutation({
     mutationFn: async () => {
       if (!lead?.id) throw new Error("Lead não encontrado");
-      
-      const { error } = await supabase
-        .from("leads")
-        .delete()
-        .eq("id", lead.id);
-      
+
+      const { error } = await supabase.from("leads").delete().eq("id", lead.id);
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -290,7 +287,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-    
+
     const result = leadSchema.safeParse({
       name,
       value: parseFloat(value) || 0,
@@ -301,7 +298,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
       notes,
       tags,
     });
-    
+
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
@@ -310,7 +307,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
       setErrors(fieldErrors);
       return;
     }
-    
+
     updateLead.mutate(result.data);
   };
 
@@ -323,22 +320,22 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter(t => t !== tagToRemove));
+    setTags(tags.filter((t) => t !== tagToRemove));
   };
 
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
-    
+
     const message: ChatMessage = {
       id: Date.now().toString(),
       text: newMessage,
       sent: true,
       timestamp: new Date(),
     };
-    
+
     setChatMessages((prev) => [...prev, message]);
     setNewMessage("");
-    
+
     setTimeout(() => {
       setChatMessages((prev) => [
         ...prev,
@@ -358,24 +355,37 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
 
   const getHistoryTypeLabel = (type: string) => {
     switch (type) {
-      case "manual_note": return "Nota manual";
-      case "status_update": return "Alteração de status";
-      case "source_update": return "Alteração de origem";
-      case "tag_added": return "Tag adicionada";
-      case "tag_removed": return "Tag removida";
-      case "lead_created": return "Lead criado";
-      default: return type;
+      case "manual_note":
+        return "Nota manual";
+      case "status_update":
+        return "Alteração de status";
+      case "source_update":
+        return "Alteração de origem";
+      case "tag_added":
+        return "Tag adicionada";
+      case "tag_removed":
+        return "Tag removida";
+      case "lead_created":
+        return "Lead criado";
+      default:
+        return type;
     }
   };
 
   const getHistoryTypeColor = (type: string) => {
     switch (type) {
-      case "manual_note": return "bg-blue-500";
-      case "status_update": return "bg-primary";
-      case "source_update": return "bg-purple-500";
-      case "tag_added": return "bg-green-500";
-      case "tag_removed": return "bg-red-500";
-      default: return "bg-muted-foreground";
+      case "manual_note":
+        return "bg-blue-500";
+      case "status_update":
+        return "bg-primary";
+      case "source_update":
+        return "bg-purple-500";
+      case "tag_added":
+        return "bg-green-500";
+      case "tag_removed":
+        return "bg-red-500";
+      default:
+        return "bg-muted-foreground";
     }
   };
 
@@ -387,17 +397,12 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
           <SheetHeader className="p-6 pb-4 border-b border-border/50 bg-card/50">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                <SheetTitle className="text-xl font-semibold text-foreground">
-                  {lead?.name || "Lead"}
-                </SheetTitle>
+                <SheetTitle className="text-xl font-semibold text-foreground">{lead?.name || "Lead"}</SheetTitle>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl font-bold text-primary">
                     R$ {(lead?.value || 0).toLocaleString("pt-BR")}
                   </span>
-                  <Badge 
-                    variant="secondary" 
-                    className="bg-primary/10 text-primary border-primary/20"
-                  >
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                     {getSourceLabel(lead?.source || "outros")}
                   </Badge>
                 </div>
@@ -423,14 +428,19 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
             </TabsList>
 
             {/* Info Tab */}
-            <TabsContent value="info" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+            <TabsContent
+              value="info"
+              className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+            >
               <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
                 {/* Scrollable content area */}
                 <ScrollArea className="flex-1 min-h-0">
-                  <div className="px-6 py-4 space-y-4">
+                  <div className="px-20 py-4 space-y-4">
                     {/* Nome */}
                     <div className="space-y-1.5">
-                      <Label htmlFor="edit-name" className="text-xs font-medium text-muted-foreground">Nome *</Label>
+                      <Label htmlFor="edit-name" className="text-xs font-medium text-muted-foreground">
+                        Nome *
+                      </Label>
                       <Input
                         id="edit-name"
                         value={name}
@@ -440,10 +450,13 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                       />
                       {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
                     </div>
-                    
+
                     {/* Telefone */}
                     <div className="space-y-1.5">
-                      <Label htmlFor="edit-phone" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <Label
+                        htmlFor="edit-phone"
+                        className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"
+                      >
                         <Phone className="h-3 w-3" />
                         Telefone / WhatsApp
                       </Label>
@@ -458,7 +471,10 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
 
                     {/* E-mail */}
                     <div className="space-y-1.5">
-                      <Label htmlFor="edit-email" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <Label
+                        htmlFor="edit-email"
+                        className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"
+                      >
                         <Mail className="h-3 w-3" />
                         E-mail
                       </Label>
@@ -472,11 +488,13 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                       />
                       {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                     </div>
-                    
+
                     {/* Origem e Status em row */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label htmlFor="edit-source" className="text-xs font-medium text-muted-foreground">Origem</Label>
+                        <Label htmlFor="edit-source" className="text-xs font-medium text-muted-foreground">
+                          Origem
+                        </Label>
                         <Select value={source} onValueChange={setSource}>
                           <SelectTrigger className="h-10">
                             <SelectValue />
@@ -490,9 +508,11 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                           </SelectContent>
                         </Select>
                       </div>
-                      
+
                       <div className="space-y-1.5">
-                        <Label htmlFor="edit-status" className="text-xs font-medium text-muted-foreground">Etapa</Label>
+                        <Label htmlFor="edit-status" className="text-xs font-medium text-muted-foreground">
+                          Etapa
+                        </Label>
                         <Select value={status} onValueChange={setStatus}>
                           <SelectTrigger className="h-10">
                             <SelectValue />
@@ -510,7 +530,9 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
 
                     {/* Valor */}
                     <div className="space-y-1.5">
-                      <Label htmlFor="edit-value" className="text-xs font-medium text-muted-foreground">Valor Estimado (R$)</Label>
+                      <Label htmlFor="edit-value" className="text-xs font-medium text-muted-foreground">
+                        Valor Estimado (R$)
+                      </Label>
                       <Input
                         id="edit-value"
                         type="number"
@@ -529,9 +551,9 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                       <Label className="text-xs font-medium text-muted-foreground">Tags</Label>
                       <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-md border border-border/50 bg-background">
                         {tags.map((tag) => (
-                          <Badge 
-                            key={tag} 
-                            variant="secondary" 
+                          <Badge
+                            key={tag}
+                            variant="secondary"
                             className="gap-1 text-xs py-0.5 px-2 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 cursor-pointer"
                             onClick={() => handleRemoveTag(tag)}
                           >
@@ -539,9 +561,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                             <X className="h-3 w-3" />
                           </Badge>
                         ))}
-                        {tags.length === 0 && (
-                          <span className="text-xs text-muted-foreground">Nenhuma tag</span>
-                        )}
+                        {tags.length === 0 && <span className="text-xs text-muted-foreground">Nenhuma tag</span>}
                       </div>
                       <div className="flex gap-2">
                         <Input
@@ -564,7 +584,9 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
 
                     {/* Observações */}
                     <div className="space-y-1.5">
-                      <Label htmlFor="edit-notes" className="text-xs font-medium text-muted-foreground">Observações</Label>
+                      <Label htmlFor="edit-notes" className="text-xs font-medium text-muted-foreground">
+                        Observações
+                      </Label>
                       <Textarea
                         id="edit-notes"
                         value={notes}
@@ -580,27 +602,30 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                         <Calendar className="h-3 w-3" />
                         <span>Criado em:</span>
                         <span className="text-foreground/80">
-                          {lead?.created_at 
+                          {lead?.created_at
                             ? format(new Date(lead.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                            : "—"
-                          }
+                            : "—"}
                         </span>
                       </div>
                     </div>
                   </div>
                 </ScrollArea>
-                
+
                 {/* Fixed footer with actions */}
                 <div className="flex justify-between px-6 py-4 border-t border-border/30 shrink-0 bg-background mt-auto">
-                  <Button 
-                    type="button" 
-                    variant="destructive" 
+                  <Button
+                    type="button"
+                    variant="destructive"
                     size="sm"
                     onClick={() => deleteLead.mutate()}
                     disabled={deleteLead.isPending}
                     className="gap-2"
                   >
-                    {deleteLead.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    {deleteLead.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
                     Excluir
                   </Button>
                   <Button type="submit" disabled={updateLead.isPending} size="sm">
@@ -623,10 +648,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                     </div>
                   )}
                   {chatMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.sent ? "justify-end" : "justify-start"}`}
-                    >
+                    <div key={msg.id} className={`flex ${msg.sent ? "justify-end" : "justify-start"}`}>
                       <div
                         className={`max-w-[80%] rounded-2xl px-4 py-2 ${
                           msg.sent
@@ -635,7 +657,9 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                         }`}
                       >
                         <p className="text-sm">{msg.text}</p>
-                        <p className={`text-xs mt-1 ${msg.sent ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                        <p
+                          className={`text-xs mt-1 ${msg.sent ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+                        >
                           {msg.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
@@ -643,7 +667,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                   ))}
                 </div>
               </ScrollArea>
-              
+
               <div className="p-4 border-t border-border/50">
                 <div className="flex gap-2">
                   <Input
@@ -665,12 +689,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
               {/* Header with title and add button */}
               <div className="px-6 py-4 border-b border-border/30 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground">Histórico</h3>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="gap-1.5 h-8"
-                  onClick={() => setNoteModalOpen(true)}
-                >
+                <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => setNoteModalOpen(true)}>
                   <Plus className="h-3.5 w-3.5" />
                   Nova nota
                 </Button>
@@ -688,39 +707,37 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                     <div className="relative">
                       {/* Timeline line */}
                       <div className="absolute left-[5px] top-2 bottom-2 w-px bg-border/50" />
-                      
+
                       <div className="space-y-4">
                         {history.map((entry) => (
                           <div key={entry.id} className="relative pl-6">
                             {/* Timeline dot */}
-                            <div className={`absolute left-0 top-1.5 w-[11px] h-[11px] rounded-full border-2 border-background ${getHistoryTypeColor(entry.type)}`} />
-                            
+                            <div
+                              className={`absolute left-0 top-1.5 w-[11px] h-[11px] rounded-full border-2 border-background ${getHistoryTypeColor(entry.type)}`}
+                            />
+
                             <div className="space-y-1">
                               {/* Date and time */}
                               <p className="text-[11px] text-muted-foreground font-medium">
                                 {format(new Date(entry.created_at), "dd 'de' MMMM, yyyy 'às' HH:mm", { locale: ptBR })}
                               </p>
-                              
+
                               {/* Type badge */}
                               <div className="flex items-center gap-2">
-                                <Badge 
-                                  variant="secondary" 
+                                <Badge
+                                  variant="secondary"
                                   className="text-[10px] px-1.5 py-0 h-5 bg-muted/50 text-muted-foreground border-border/50"
                                 >
                                   {getHistoryTypeLabel(entry.type)}
                                 </Badge>
                               </div>
-                              
+
                               {/* Description */}
-                              <p className="text-sm text-foreground leading-relaxed">
-                                {entry.description}
-                              </p>
-                              
+                              <p className="text-sm text-foreground leading-relaxed">{entry.description}</p>
+
                               {/* Author */}
                               {entry.created_by && (
-                                <p className="text-[11px] text-muted-foreground/70">
-                                  por {entry.created_by}
-                                </p>
+                                <p className="text-[11px] text-muted-foreground/70">por {entry.created_by}</p>
                               )}
                             </div>
                           </div>
@@ -753,7 +770,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
             <Button variant="outline" onClick={() => setNoteModalOpen(false)}>
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={() => addNoteMutation.mutate(newNote)}
               disabled={!newNote.trim() || addNoteMutation.isPending}
             >
