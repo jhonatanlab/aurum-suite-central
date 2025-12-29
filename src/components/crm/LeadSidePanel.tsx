@@ -423,11 +423,11 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
             </TabsList>
 
             {/* Info Tab */}
-            <TabsContent value="info" className="flex-1 mt-0 flex flex-col overflow-hidden">
-              <form onSubmit={handleSubmit} className="flex flex-col h-full">
+            <TabsContent value="info" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+              <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
                 {/* Scrollable content area */}
-                <ScrollArea className="flex-1 px-6 py-4">
-                  <div className="space-y-4">
+                <ScrollArea className="flex-1 min-h-0">
+                  <div className="px-6 py-4 space-y-4">
                     {/* Nome */}
                     <div className="space-y-1.5">
                       <Label htmlFor="edit-name" className="text-xs font-medium text-muted-foreground">Nome *</Label>
@@ -591,7 +591,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                 </ScrollArea>
                 
                 {/* Fixed footer with actions */}
-                <div className="flex justify-between px-6 py-4 border-t border-border/30 shrink-0 bg-background">
+                <div className="flex justify-between px-6 py-4 border-t border-border/30 shrink-0 bg-background mt-auto">
                   <Button 
                     type="button" 
                     variant="destructive" 
