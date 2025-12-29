@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, Trash2, Send, User, MessageSquare, History, Plus, X, Mail, Phone, Calendar } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Loader2, Trash2, Send, User, MessageSquare, History, Plus, X, Mail, Phone, DollarSign, Tag, FileText, Clock } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -96,8 +98,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   const [originalSource, setOriginalSource] = useState("");
   const [originalTags, setOriginalTags] = useState<string[]>([]);
 
-  // Note modal state
-  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  // Note input state (inline in history tab)
   const [newNote, setNewNote] = useState("");
 
   // Chat state
@@ -276,7 +277,6 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
     },
     onSuccess: () => {
       toast({ title: "Nota adicionada!" });
-      setNoteModalOpen(false);
       setNewNote("");
     },
     onError: (error) => {
@@ -356,287 +356,421 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
   const getHistoryTypeLabel = (type: string) => {
     switch (type) {
       case "manual_note":
-        return "Nota manual";
+        return "Nota";
       case "status_update":
-        return "Alteração de status";
+        return "Status";
       case "source_update":
-        return "Alteração de origem";
+        return "Origem";
       case "tag_added":
-        return "Tag adicionada";
+        return "Tag +";
       case "tag_removed":
-        return "Tag removida";
+        return "Tag -";
       case "lead_created":
-        return "Lead criado";
+        return "Criação";
       default:
         return type;
     }
   };
 
-  const getHistoryTypeColor = (type: string) => {
+  const getHistoryTypeBadgeClass = (type: string) => {
     switch (type) {
       case "manual_note":
-        return "bg-blue-500";
+        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
       case "status_update":
-        return "bg-primary";
+        return "bg-primary/20 text-primary border-primary/30";
       case "source_update":
-        return "bg-purple-500";
+        return "bg-purple-500/20 text-purple-400 border-purple-500/30";
       case "tag_added":
-        return "bg-green-500";
+        return "bg-green-500/20 text-green-400 border-green-500/30";
       case "tag_removed":
-        return "bg-red-500";
+        return "bg-red-500/20 text-red-400 border-red-500/30";
       default:
-        return "bg-muted-foreground";
+        return "bg-muted text-muted-foreground border-border";
     }
   };
 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
-          {/* Header */}
-          <SheetHeader className="p-6 pb-4 border-b border-border/50 bg-card/50">
+        <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col bg-background border-l border-border/50">
+          {/* Header - Nome do Lead em destaque */}
+          <div className="p-6 pb-4 border-b border-border/30 bg-card/30">
             <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <SheetTitle className="text-xl font-semibold text-foreground">{lead?.name || "Lead"}</SheetTitle>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl font-bold text-primary">
+              <div className="space-y-2 flex-1">
+                <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                  {lead?.name || "Lead"}
+                </h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className="bg-primary/10 text-primary border-primary/30 gap-1.5">
+                    <DollarSign className="h-3 w-3" />
                     R$ {(lead?.value || 0).toLocaleString("pt-BR")}
-                  </span>
-                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                    {getSourceLabel(lead?.source || "outros")}
                   </Badge>
+                  {tags.length > 0 && tags.slice(0, 2).map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs bg-muted/50 text-muted-foreground border-border/50">
+                      {tag}
+                    </Badge>
+                  ))}
+                  {tags.length > 2 && (
+                    <Badge variant="secondary" className="text-xs bg-muted/50 text-muted-foreground border-border/50">
+                      +{tags.length - 2}
+                    </Badge>
+                  )}
                 </div>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => onOpenChange(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
             </div>
-          </SheetHeader>
+          </div>
 
           {/* Tabs */}
           <Tabs defaultValue="info" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="mx-6 mt-4 grid grid-cols-3 bg-muted/50">
-              <TabsTrigger value="info" className="gap-1.5 text-xs sm:text-sm">
+            <TabsList className="mx-6 mt-4 grid grid-cols-4 bg-muted/30 p-1 h-11">
+              <TabsTrigger value="info" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Informações</span>
               </TabsTrigger>
-              <TabsTrigger value="chat" className="gap-1.5 text-xs sm:text-sm">
-                <MessageSquare className="h-4 w-4" />
-                <span className="hidden sm:inline">Chat</span>
-              </TabsTrigger>
-              <TabsTrigger value="history" className="gap-1.5 text-xs sm:text-sm">
+              <TabsTrigger value="history" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                 <History className="h-4 w-4" />
                 <span className="hidden sm:inline">Histórico</span>
               </TabsTrigger>
+              <TabsTrigger value="chat" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Chat</span>
+              </TabsTrigger>
+              <TabsTrigger value="whatsapp" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <Phone className="h-4 w-4" />
+                <span className="hidden sm:inline">WhatsApp</span>
+              </TabsTrigger>
             </TabsList>
 
-            {/* Info Tab */}
+            {/* Info Tab - Cards Layout */}
             <TabsContent
               value="info"
               className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
             >
               <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                {/* Scrollable content area */}
                 <ScrollArea className="flex-1 min-h-0">
-                  <div className="px-6 py-4 space-y-4">
-                    {/* Nome */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="edit-name" className="text-xs font-medium text-muted-foreground">
-                        Nome *
-                      </Label>
-                      <Input
-                        id="edit-name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Nome do lead"
-                        className={`h-10 ${errors.name ? "border-destructive" : ""}`}
-                      />
-                      {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-                    </div>
+                  <div className="p-6 space-y-5">
+                    {/* Card 1: Dados do Cliente */}
+                    <Card className="border-border/50 shadow-sm bg-card/50">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2 text-foreground">
+                          <User className="h-4 w-4 text-primary" />
+                          Dados do Cliente
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Nome */}
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-name" className="text-sm font-medium text-muted-foreground">
+                            Nome *
+                          </Label>
+                          <Input
+                            id="edit-name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Nome do lead"
+                            className={`h-11 bg-background ${errors.name ? "border-destructive" : "border-border/50"}`}
+                          />
+                          {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+                        </div>
 
-                    {/* Telefone */}
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="edit-phone"
-                        className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"
-                      >
-                        <Phone className="h-3 w-3" />
-                        Telefone / WhatsApp
-                      </Label>
-                      <Input
-                        id="edit-phone"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="(11) 99999-9999"
-                        className="h-10"
-                      />
-                    </div>
+                        {/* Telefone */}
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-phone" className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <Phone className="h-3.5 w-3.5" />
+                            Telefone / WhatsApp
+                          </Label>
+                          <Input
+                            id="edit-phone"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder="(11) 99999-9999"
+                            className="h-11 bg-background border-border/50"
+                          />
+                        </div>
 
-                    {/* E-mail */}
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="edit-email"
-                        className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"
-                      >
-                        <Mail className="h-3 w-3" />
-                        E-mail
-                      </Label>
-                      <Input
-                        id="edit-email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="email@exemplo.com"
-                        className={`h-10 ${errors.email ? "border-destructive" : ""}`}
-                      />
-                      {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-                    </div>
+                        {/* E-mail */}
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-email" className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <Mail className="h-3.5 w-3.5" />
+                            E-mail
+                          </Label>
+                          <Input
+                            id="edit-email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="email@exemplo.com"
+                            className={`h-11 bg-background ${errors.email ? "border-destructive" : "border-border/50"}`}
+                          />
+                          {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                    {/* Origem e Status em row */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="edit-source" className="text-xs font-medium text-muted-foreground">
-                          Origem
-                        </Label>
-                        <Select value={source} onValueChange={setSource}>
-                          <SelectTrigger className="h-10">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sourceOptions.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>
-                                {s.label}
-                              </SelectItem>
+                    {/* Card 2: Dados Comerciais */}
+                    <Card className="border-border/50 shadow-sm bg-card/50">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2 text-foreground">
+                          <DollarSign className="h-4 w-4 text-primary" />
+                          Dados Comerciais
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Origem */}
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-source" className="text-sm font-medium text-muted-foreground">
+                            Origem
+                          </Label>
+                          <Select value={source} onValueChange={setSource}>
+                            <SelectTrigger className="h-11 bg-background border-border/50">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sourceOptions.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>
+                                  {s.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Status/Etapa */}
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-status" className="text-sm font-medium text-muted-foreground">
+                            Status / Etapa
+                          </Label>
+                          <Select value={status} onValueChange={setStatus}>
+                            <SelectTrigger className="h-11 bg-background border-border/50">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {stages.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>
+                                  {s.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Valor */}
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-value" className="text-sm font-medium text-muted-foreground">
+                            Valor Estimado (R$)
+                          </Label>
+                          <Input
+                            id="edit-value"
+                            type="number"
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                            placeholder="0"
+                            min="0"
+                            step="0.01"
+                            className="h-11 bg-background border-border/50"
+                          />
+                          {errors.value && <p className="text-xs text-destructive">{errors.value}</p>}
+                        </div>
+
+                        {/* Tags */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <Tag className="h-3.5 w-3.5" />
+                            Tags
+                          </Label>
+                          <div className="flex flex-wrap gap-2 min-h-[40px] p-3 rounded-lg border border-border/50 bg-background">
+                            {tags.map((tag) => (
+                              <Badge
+                                key={tag}
+                                variant="secondary"
+                                className="gap-1.5 text-xs py-1 px-2.5 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 cursor-pointer transition-colors"
+                                onClick={() => handleRemoveTag(tag)}
+                              >
+                                {tag}
+                                <X className="h-3 w-3" />
+                              </Badge>
                             ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                            {tags.length === 0 && (
+                              <span className="text-sm text-muted-foreground">Nenhuma tag</span>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Adicionar tag..."
+                              value={newTag}
+                              onChange={(e) => setNewTag(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleAddTag();
+                                }
+                              }}
+                              className="flex-1 h-10 bg-background border-border/50"
+                            />
+                            <Button type="button" variant="outline" onClick={handleAddTag} className="h-10 px-4 border-border/50">
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
 
-                      <div className="space-y-1.5">
-                        <Label htmlFor="edit-status" className="text-xs font-medium text-muted-foreground">
-                          Etapa
-                        </Label>
-                        <Select value={status} onValueChange={setStatus}>
-                          <SelectTrigger className="h-10">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {stages.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>
-                                {s.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Valor */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="edit-value" className="text-xs font-medium text-muted-foreground">
-                        Valor Estimado (R$)
-                      </Label>
-                      <Input
-                        id="edit-value"
-                        type="number"
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                        placeholder="0"
-                        min="0"
-                        step="0.01"
-                        className="h-10"
-                      />
-                      {errors.value && <p className="text-xs text-destructive">{errors.value}</p>}
-                    </div>
-
-                    {/* Tags */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">Tags</Label>
-                      <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-md border border-border/50 bg-background">
-                        {tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="secondary"
-                            className="gap-1 text-xs py-0.5 px-2 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 cursor-pointer"
-                            onClick={() => handleRemoveTag(tag)}
-                          >
-                            {tag}
-                            <X className="h-3 w-3" />
-                          </Badge>
-                        ))}
-                        {tags.length === 0 && <span className="text-xs text-muted-foreground">Nenhuma tag</span>}
-                      </div>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Nova tag..."
-                          value={newTag}
-                          onChange={(e) => setNewTag(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleAddTag();
-                            }
-                          }}
-                          className="flex-1 h-9"
-                        />
-                        <Button type="button" size="icon" variant="outline" onClick={handleAddTag} className="h-9 w-9">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Observações */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="edit-notes" className="text-xs font-medium text-muted-foreground">
-                        Observações
-                      </Label>
-                      <Textarea
-                        id="edit-notes"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Adicione observações sobre o lead..."
-                        className="min-h-[80px] resize-none text-sm"
-                      />
-                    </div>
-
-                    {/* Data de criação */}
-                    <div className="pt-3 border-t border-border/30">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        <span>Criado em:</span>
-                        <span className="text-foreground/80">
-                          {lead?.created_at
-                            ? format(new Date(lead.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                            : "—"}
-                        </span>
-                      </div>
-                    </div>
+                        {/* Observações */}
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-notes" className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <FileText className="h-3.5 w-3.5" />
+                            Observações
+                          </Label>
+                          <Textarea
+                            id="edit-notes"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="Adicione observações sobre o lead..."
+                            className="min-h-[100px] resize-none bg-background border-border/50"
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 </ScrollArea>
 
                 {/* Fixed footer with actions */}
-                <div className="flex justify-between px-6 py-4 border-t border-border/30 shrink-0 bg-background mt-auto">
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => deleteLead.mutate()}
-                    disabled={deleteLead.isPending}
-                    className="gap-2"
-                  >
-                    {deleteLead.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    Excluir
-                  </Button>
-                  <Button type="submit" disabled={updateLead.isPending} size="sm">
-                    {updateLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Salvar
+                <div className="flex justify-between items-center px-6 py-4 border-t border-border/30 bg-background/80 backdrop-blur-sm">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="default"
+                        className="gap-2"
+                        disabled={deleteLead.isPending}
+                      >
+                        {deleteLead.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        Excluir Lead
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir este lead? Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteLead.mutate()}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+
+                  <Button type="submit" disabled={updateLead.isPending} size="default" className="gap-2">
+                    {updateLead.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Salvar Alterações
                   </Button>
                 </div>
               </form>
             </TabsContent>
 
-            {/* Chat Tab */}
+            {/* History Tab - Cards Layout */}
+            <TabsContent value="history" className="flex-1 flex flex-col overflow-hidden mt-0">
+              <ScrollArea className="flex-1">
+                <div className="p-6 space-y-5">
+                  {/* Add Note Card */}
+                  <Card className="border-border/50 shadow-sm bg-card/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-foreground">
+                        <Plus className="h-4 w-4 text-primary" />
+                        Adicionar Nota
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <Textarea
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        placeholder="Digite sua nota sobre o lead..."
+                        className="min-h-[80px] resize-none bg-background border-border/50"
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={() => addNoteMutation.mutate(newNote)}
+                          disabled={!newNote.trim() || addNoteMutation.isPending}
+                          size="default"
+                          className="gap-2"
+                        >
+                          {addNoteMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                          Adicionar Nota
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* History List Card */}
+                  <Card className="border-border/50 shadow-sm bg-card/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-foreground">
+                        <History className="h-4 w-4 text-primary" />
+                        Histórico
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {history.length === 0 ? (
+                        <div className="text-center text-muted-foreground py-8">
+                          <Clock className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                          <p className="text-sm">Nenhum histórico ainda</p>
+                          <p className="text-xs mt-1 opacity-70">As alterações serão registradas automaticamente</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {history.map((entry) => (
+                            <div
+                              key={entry.id}
+                              className="p-4 rounded-lg border border-border/30 bg-background/50 hover:bg-background/80 transition-colors"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1.5 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge className={`text-[11px] px-2 py-0.5 ${getHistoryTypeBadgeClass(entry.type)}`}>
+                                      {getHistoryTypeLabel(entry.type)}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {format(new Date(entry.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-foreground leading-relaxed">{entry.description}</p>
+                                  {entry.created_by && (
+                                    <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
+                                      <User className="h-3 w-3" />
+                                      {entry.created_by}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Chat Tab - Keep as is */}
             <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden mt-0">
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-3">
@@ -684,102 +818,19 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
               </div>
             </TabsContent>
 
-            {/* History Tab */}
-            <TabsContent value="history" className="flex-1 flex flex-col overflow-hidden mt-0">
-              {/* Header with title and add button */}
-              <div className="px-6 py-4 border-b border-border/30 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">Histórico</h3>
-                <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => setNoteModalOpen(true)}>
-                  <Plus className="h-3.5 w-3.5" />
-                  Nova nota
-                </Button>
-              </div>
-
-              <ScrollArea className="flex-1">
-                <div className="px-6 py-4">
-                  {history.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-12">
-                      <History className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm">Nenhum histórico ainda</p>
-                      <p className="text-xs mt-1 opacity-70">As alterações serão registradas automaticamente</p>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      {/* Timeline line */}
-                      <div className="absolute left-[5px] top-2 bottom-2 w-px bg-border/50" />
-
-                      <div className="space-y-4">
-                        {history.map((entry) => (
-                          <div key={entry.id} className="relative pl-6">
-                            {/* Timeline dot */}
-                            <div
-                              className={`absolute left-0 top-1.5 w-[11px] h-[11px] rounded-full border-2 border-background ${getHistoryTypeColor(entry.type)}`}
-                            />
-
-                            <div className="space-y-1">
-                              {/* Date and time */}
-                              <p className="text-[11px] text-muted-foreground font-medium">
-                                {format(new Date(entry.created_at), "dd 'de' MMMM, yyyy 'às' HH:mm", { locale: ptBR })}
-                              </p>
-
-                              {/* Type badge */}
-                              <div className="flex items-center gap-2">
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[10px] px-1.5 py-0 h-5 bg-muted/50 text-muted-foreground border-border/50"
-                                >
-                                  {getHistoryTypeLabel(entry.type)}
-                                </Badge>
-                              </div>
-
-                              {/* Description */}
-                              <p className="text-sm text-foreground leading-relaxed">{entry.description}</p>
-
-                              {/* Author */}
-                              {entry.created_by && (
-                                <p className="text-[11px] text-muted-foreground/70">por {entry.created_by}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+            {/* WhatsApp Tab - Placeholder */}
+            <TabsContent value="whatsapp" className="flex-1 flex flex-col overflow-hidden mt-0">
+              <div className="flex-1 flex items-center justify-center p-6">
+                <div className="text-center text-muted-foreground">
+                  <Phone className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                  <h3 className="text-lg font-medium mb-2">Integração WhatsApp</h3>
+                  <p className="text-sm opacity-70">Em breve você poderá enviar mensagens diretamente por aqui.</p>
                 </div>
-              </ScrollArea>
+              </div>
             </TabsContent>
           </Tabs>
         </SheetContent>
       </Sheet>
-
-      {/* Add Note Modal */}
-      <Dialog open={noteModalOpen} onOpenChange={setNoteModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Adicionar Nota</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Textarea
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              placeholder="Digite sua nota..."
-              className="min-h-[120px] resize-none"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setNoteModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => addNoteMutation.mutate(newNote)}
-              disabled={!newNote.trim() || addNoteMutation.isPending}
-            >
-              {addNoteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
