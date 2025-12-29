@@ -423,26 +423,26 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
             </TabsList>
 
             {/* Info Tab */}
-            <TabsContent value="info" className="flex-1 overflow-auto mt-0">
-              <ScrollArea className="h-full">
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                  {/* Nome */}
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-name">Nome *</Label>
+            <TabsContent value="info" className="flex-1 mt-0 overflow-y-auto bg-background">
+              <form onSubmit={handleSubmit} className="p-5 h-full">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Nome - full width */}
+                  <div className="col-span-2 space-y-1.5">
+                    <Label htmlFor="edit-name" className="text-xs font-medium">Nome *</Label>
                     <Input
                       id="edit-name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Nome do lead"
-                      className={errors.name ? "border-destructive" : ""}
+                      className={`h-9 ${errors.name ? "border-destructive" : ""}`}
                     />
                     {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
                   </div>
                   
-                  {/* Telefone */}
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-phone" className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5" />
+                  {/* Telefone - half width */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-phone" className="text-xs font-medium flex items-center gap-1.5">
+                      <Phone className="h-3 w-3" />
                       Telefone/WhatsApp
                     </Label>
                     <Input
@@ -450,13 +450,14 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="(11) 99999-9999"
+                      className="h-9"
                     />
                   </div>
 
-                  {/* E-mail */}
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-email" className="flex items-center gap-2">
-                      <Mail className="h-3.5 w-3.5" />
+                  {/* E-mail - half width */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-email" className="text-xs font-medium flex items-center gap-1.5">
+                      <Mail className="h-3 w-3" />
                       E-mail
                     </Label>
                     <Input
@@ -465,31 +466,16 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="email@exemplo.com"
-                      className={errors.email ? "border-destructive" : ""}
+                      className={`h-9 ${errors.email ? "border-destructive" : ""}`}
                     />
                     {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                   </div>
                   
-                  {/* Valor */}
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-value">Valor Estimado (R$)</Label>
-                    <Input
-                      id="edit-value"
-                      type="number"
-                      value={value}
-                      onChange={(e) => setValue(e.target.value)}
-                      placeholder="0"
-                      min="0"
-                      step="0.01"
-                    />
-                    {errors.value && <p className="text-xs text-destructive">{errors.value}</p>}
-                  </div>
-                  
-                  {/* Origem */}
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-source">Origem</Label>
+                  {/* Origem - half width */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-source" className="text-xs font-medium">Origem</Label>
                     <Select value={source} onValueChange={setSource}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-9">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -502,11 +488,11 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                     </Select>
                   </div>
                   
-                  {/* Status/Etapa */}
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-status">Etapa</Label>
+                  {/* Status/Etapa - half width */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-status" className="text-xs font-medium">Etapa</Label>
                     <Select value={status} onValueChange={setStatus}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-9">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -519,15 +505,34 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                     </Select>
                   </div>
 
-                  {/* Tags */}
-                  <div className="space-y-2">
-                    <Label>Tags</Label>
-                    <div className="flex flex-wrap gap-2 mb-2">
+                  {/* Valor - half width */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-value" className="text-xs font-medium">Valor Estimado (R$)</Label>
+                    <Input
+                      id="edit-value"
+                      type="number"
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                      className="h-9"
+                    />
+                    {errors.value && <p className="text-xs text-destructive">{errors.value}</p>}
+                  </div>
+
+                  {/* Spacer to balance grid */}
+                  <div className="hidden sm:block" />
+
+                  {/* Tags - full width */}
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs font-medium">Tags</Label>
+                    <div className="flex flex-wrap gap-1.5 min-h-[28px]">
                       {tags.map((tag) => (
                         <Badge 
                           key={tag} 
                           variant="secondary" 
-                          className="gap-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 cursor-pointer"
+                          className="gap-1 text-xs py-0.5 px-2 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 cursor-pointer"
                           onClick={() => handleRemoveTag(tag)}
                         >
                           {tag}
@@ -549,30 +554,30 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                             handleAddTag();
                           }
                         }}
-                        className="flex-1"
+                        className="flex-1 h-9"
                       />
-                      <Button type="button" size="icon" variant="outline" onClick={handleAddTag}>
+                      <Button type="button" size="icon" variant="outline" onClick={handleAddTag} className="h-9 w-9">
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
 
-                  {/* Observações */}
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-notes">Observações</Label>
+                  {/* Observações - full width */}
+                  <div className="col-span-2 space-y-1.5">
+                    <Label htmlFor="edit-notes" className="text-xs font-medium">Observações</Label>
                     <Textarea
                       id="edit-notes"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder="Adicione observações sobre o lead..."
-                      className="min-h-[80px] resize-none"
+                      className="min-h-[72px] max-h-[100px] resize-none text-sm"
                     />
                   </div>
 
-                  {/* Datas (somente leitura) */}
-                  <div className="pt-2 border-t border-border/50 space-y-2">
+                  {/* Datas (somente leitura) - full width */}
+                  <div className="col-span-2 pt-2 border-t border-border/50">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Calendar className="h-3.5 w-3.5" />
+                      <Calendar className="h-3 w-3" />
                       <span>Criado em:</span>
                       <span className="text-foreground">
                         {lead?.created_at 
@@ -583,26 +588,26 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                     </div>
                   </div>
                   
-                  {/* Actions */}
-                  <div className="flex justify-between pt-4">
+                  {/* Actions - full width */}
+                  <div className="col-span-2 flex justify-between pt-3">
                     <Button 
                       type="button" 
                       variant="destructive" 
                       size="sm"
                       onClick={() => deleteLead.mutate()}
                       disabled={deleteLead.isPending}
-                      className="gap-2"
+                      className="gap-2 h-9"
                     >
                       {deleteLead.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       Excluir
                     </Button>
-                    <Button type="submit" disabled={updateLead.isPending}>
+                    <Button type="submit" disabled={updateLead.isPending} size="sm" className="h-9">
                       {updateLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Salvar
                     </Button>
                   </div>
-                </form>
-              </ScrollArea>
+                </div>
+              </form>
             </TabsContent>
 
             {/* Chat Tab */}
