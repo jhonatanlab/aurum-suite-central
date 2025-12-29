@@ -423,42 +423,42 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
             </TabsList>
 
             {/* Info Tab */}
-            <TabsContent value="info" className="flex-1 mt-0 flex flex-col h-full overflow-hidden">
-              <form onSubmit={handleSubmit} className="flex flex-col h-full p-5">
+            <TabsContent value="info" className="flex-1 mt-0 flex flex-col overflow-hidden">
+              <form onSubmit={handleSubmit} className="flex flex-col h-full">
                 {/* Scrollable content area */}
-                <div className="flex-1 overflow-y-auto pr-1.5">
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Nome - full width */}
-                    <div className="col-span-2 space-y-1.5">
-                      <Label htmlFor="edit-name" className="text-xs font-medium">Nome *</Label>
+                <ScrollArea className="flex-1 px-6 py-4">
+                  <div className="space-y-4">
+                    {/* Nome */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="edit-name" className="text-xs font-medium text-muted-foreground">Nome *</Label>
                       <Input
                         id="edit-name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Nome do lead"
-                        className={`h-9 ${errors.name ? "border-destructive" : ""}`}
+                        className={`h-10 ${errors.name ? "border-destructive" : ""}`}
                       />
                       {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
                     </div>
                     
-                    {/* Telefone - half width */}
+                    {/* Telefone */}
                     <div className="space-y-1.5">
-                      <Label htmlFor="edit-phone" className="text-xs font-medium flex items-center gap-1.5">
+                      <Label htmlFor="edit-phone" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                         <Phone className="h-3 w-3" />
-                        Telefone/WhatsApp
+                        Telefone / WhatsApp
                       </Label>
                       <Input
                         id="edit-phone"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="(11) 99999-9999"
-                        className="h-9"
+                        className="h-10"
                       />
                     </div>
 
-                    {/* E-mail - half width */}
+                    {/* E-mail */}
                     <div className="space-y-1.5">
-                      <Label htmlFor="edit-email" className="text-xs font-medium flex items-center gap-1.5">
+                      <Label htmlFor="edit-email" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                         <Mail className="h-3 w-3" />
                         E-mail
                       </Label>
@@ -468,48 +468,49 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="email@exemplo.com"
-                        className={`h-9 ${errors.email ? "border-destructive" : ""}`}
+                        className={`h-10 ${errors.email ? "border-destructive" : ""}`}
                       />
                       {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                     </div>
                     
-                    {/* Origem - half width */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="edit-source" className="text-xs font-medium">Origem</Label>
-                      <Select value={source} onValueChange={setSource}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sourceOptions.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {/* Status/Etapa - half width */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="edit-status" className="text-xs font-medium">Etapa</Label>
-                      <Select value={status} onValueChange={setStatus}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {stages.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    {/* Origem e Status em row */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="edit-source" className="text-xs font-medium text-muted-foreground">Origem</Label>
+                        <Select value={source} onValueChange={setSource}>
+                          <SelectTrigger className="h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sourceOptions.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <Label htmlFor="edit-status" className="text-xs font-medium text-muted-foreground">Etapa</Label>
+                        <Select value={status} onValueChange={setStatus}>
+                          <SelectTrigger className="h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {stages.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
-                    {/* Valor - half width */}
+                    {/* Valor */}
                     <div className="space-y-1.5">
-                      <Label htmlFor="edit-value" className="text-xs font-medium">Valor Estimado (R$)</Label>
+                      <Label htmlFor="edit-value" className="text-xs font-medium text-muted-foreground">Valor Estimado (R$)</Label>
                       <Input
                         id="edit-value"
                         type="number"
@@ -518,18 +519,15 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                         placeholder="0"
                         min="0"
                         step="0.01"
-                        className="h-9"
+                        className="h-10"
                       />
                       {errors.value && <p className="text-xs text-destructive">{errors.value}</p>}
                     </div>
 
-                    {/* Spacer to balance grid */}
-                    <div className="hidden sm:block" />
-
-                    {/* Tags - full width */}
-                    <div className="col-span-2 space-y-1.5">
-                      <Label className="text-xs font-medium">Tags</Label>
-                      <div className="flex flex-wrap gap-1.5 min-h-[28px]">
+                    {/* Tags */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Tags</Label>
+                      <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-md border border-border/50 bg-background">
                         {tags.map((tag) => (
                           <Badge 
                             key={tag} 
@@ -564,24 +562,24 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                       </div>
                     </div>
 
-                    {/* Observações - full width */}
-                    <div className="col-span-2 space-y-1.5">
-                      <Label htmlFor="edit-notes" className="text-xs font-medium">Observações</Label>
+                    {/* Observações */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="edit-notes" className="text-xs font-medium text-muted-foreground">Observações</Label>
                       <Textarea
                         id="edit-notes"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="Adicione observações sobre o lead..."
-                        className="min-h-[72px] max-h-[100px] resize-none text-sm"
+                        className="min-h-[80px] resize-none text-sm"
                       />
                     </div>
 
-                    {/* Datas (somente leitura) - full width */}
-                    <div className="col-span-2 pt-2 border-t border-border/50">
+                    {/* Data de criação */}
+                    <div className="pt-3 border-t border-border/30">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
                         <span>Criado em:</span>
-                        <span className="text-foreground">
+                        <span className="text-foreground/80">
                           {lead?.created_at 
                             ? format(new Date(lead.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
                             : "—"
@@ -590,22 +588,22 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
                       </div>
                     </div>
                   </div>
-                </div>
+                </ScrollArea>
                 
                 {/* Fixed footer with actions */}
-                <div className="flex justify-between pt-4 mt-4 border-t border-border/30 shrink-0">
+                <div className="flex justify-between px-6 py-4 border-t border-border/30 shrink-0 bg-background">
                   <Button 
                     type="button" 
                     variant="destructive" 
                     size="sm"
                     onClick={() => deleteLead.mutate()}
                     disabled={deleteLead.isPending}
-                    className="gap-2 h-9"
+                    className="gap-2"
                   >
                     {deleteLead.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     Excluir
                   </Button>
-                  <Button type="submit" disabled={updateLead.isPending} size="sm" className="h-9">
+                  <Button type="submit" disabled={updateLead.isPending} size="sm">
                     {updateLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Salvar
                   </Button>
@@ -664,49 +662,72 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess }: LeadSideP
 
             {/* History Tab */}
             <TabsContent value="history" className="flex-1 flex flex-col overflow-hidden mt-0">
-              {/* Add Note Button */}
-              <div className="p-4 border-b border-border/50">
+              {/* Header with title and add button */}
+              <div className="px-6 py-4 border-b border-border/30 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground">Histórico</h3>
                 <Button 
                   variant="outline" 
-                  className="w-full gap-2"
+                  size="sm"
+                  className="gap-1.5 h-8"
                   onClick={() => setNoteModalOpen(true)}
                 >
-                  <Plus className="h-4 w-4" />
-                  Adicionar nota
+                  <Plus className="h-3.5 w-3.5" />
+                  Nova nota
                 </Button>
               </div>
 
               <ScrollArea className="flex-1">
-                <div className="p-4 space-y-3">
-                  {history.length === 0 && (
-                    <div className="text-center text-muted-foreground py-8">
-                      <History className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                      <p>Nenhum histórico ainda</p>
-                      <p className="text-xs mt-1">As alterações serão registradas automaticamente</p>
+                <div className="px-6 py-4">
+                  {history.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-12">
+                      <History className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm">Nenhum histórico ainda</p>
+                      <p className="text-xs mt-1 opacity-70">As alterações serão registradas automaticamente</p>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      {/* Timeline line */}
+                      <div className="absolute left-[5px] top-2 bottom-2 w-px bg-border/50" />
+                      
+                      <div className="space-y-4">
+                        {history.map((entry) => (
+                          <div key={entry.id} className="relative pl-6">
+                            {/* Timeline dot */}
+                            <div className={`absolute left-0 top-1.5 w-[11px] h-[11px] rounded-full border-2 border-background ${getHistoryTypeColor(entry.type)}`} />
+                            
+                            <div className="space-y-1">
+                              {/* Date and time */}
+                              <p className="text-[11px] text-muted-foreground font-medium">
+                                {format(new Date(entry.created_at), "dd 'de' MMMM, yyyy 'às' HH:mm", { locale: ptBR })}
+                              </p>
+                              
+                              {/* Type badge */}
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  variant="secondary" 
+                                  className="text-[10px] px-1.5 py-0 h-5 bg-muted/50 text-muted-foreground border-border/50"
+                                >
+                                  {getHistoryTypeLabel(entry.type)}
+                                </Badge>
+                              </div>
+                              
+                              {/* Description */}
+                              <p className="text-sm text-foreground leading-relaxed">
+                                {entry.description}
+                              </p>
+                              
+                              {/* Author */}
+                              {entry.created_by && (
+                                <p className="text-[11px] text-muted-foreground/70">
+                                  por {entry.created_by}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
-                  {history.map((entry) => (
-                    <div 
-                      key={entry.id} 
-                      className="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${getHistoryTypeColor(entry.type)}`} />
-                        <Badge variant="outline" className="text-xs">
-                          {getHistoryTypeLabel(entry.type)}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          {format(new Date(entry.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                        </span>
-                      </div>
-                      <p className="text-sm text-foreground">{entry.description}</p>
-                      {entry.created_by && (
-                        <p className="text-xs text-muted-foreground">
-                          Por: {entry.created_by}
-                        </p>
-                      )}
-                    </div>
-                  ))}
                 </div>
               </ScrollArea>
             </TabsContent>
