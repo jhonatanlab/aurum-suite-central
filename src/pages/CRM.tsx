@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Plus, Search, Loader2, X, CalendarIcon, Filter, MoreHorizontal, Pencil, Trash2, Check } from "lucide-react";
-import { LeadSidePanel } from "@/components/crm/LeadSidePanel";
+
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -926,12 +926,6 @@ export default function CRM() {
         )}
       </div>
 
-      <LeadSidePanel
-        lead={editingLead}
-        open={editModalOpen}
-        onOpenChange={setEditModalOpen}
-        onSuccess={() => refetch()}
-      />
     </AppLayout>
   );
 }
