@@ -128,26 +128,34 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
     return stages.find(s => s.id === stageId)?.name || stageId;
   };
 
+  // Helper to format value (empty/null → "vazio")
+  const formatValue = (value: string | null | undefined): string => {
+    if (!value || value.trim() === "" || value === "—") return "vazio";
+    return value;
+  };
+
   // Detect changed fields and build description
   const getChangedFieldsDescription = () => {
     const changes: string[] = [];
     
     if (name.trim() !== originalValues.name) {
-      changes.push(`Nome: "${originalValues.name}" → "${name.trim()}"`);
+      changes.push(`Nome: ${formatValue(originalValues.name)} → ${formatValue(name.trim())}`);
     }
     if (phone.trim() !== originalValues.phone) {
-      changes.push(`Telefone: "${originalValues.phone || '—'}" → "${phone.trim() || '—'}"`);
+      changes.push(`Telefone: ${formatValue(originalValues.phone)} → ${formatValue(phone.trim())}`);
     }
     if (email.trim() !== originalValues.email) {
-      changes.push(`Email: "${originalValues.email || '—'}" → "${email.trim() || '—'}"`);
+      changes.push(`Email: ${formatValue(originalValues.email)} → ${formatValue(email.trim())}`);
     }
     if (source !== originalValues.source) {
-      const oldSourceLabel = sourceOptions.find(s => s.id === originalValues.source)?.label || originalValues.source || "—";
-      const newSourceLabel = sourceOptions.find(s => s.id === source)?.label || source || "—";
-      changes.push(`Origem: "${oldSourceLabel}" → "${newSourceLabel}"`);
+      const oldSourceLabel = sourceOptions.find(s => s.id === originalValues.source)?.label || originalValues.source;
+      const newSourceLabel = sourceOptions.find(s => s.id === source)?.label || source;
+      changes.push(`Origem: ${formatValue(oldSourceLabel)} → ${formatValue(newSourceLabel)}`);
     }
     if (status !== originalValues.status) {
-      changes.push(`Etapa: "${getStageName(originalValues.status)}" → "${getStageName(status)}"`);
+      const oldStage = getStageName(originalValues.status);
+      const newStage = getStageName(status);
+      changes.push(`Etapa: ${formatValue(oldStage)} → ${formatValue(newStage)}`);
     }
     
     return changes;
@@ -473,40 +481,75 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
                 <span>Histórico de Atividades</span>
               </div>
 
-              <div className="space-y-3">
-                {displayHistory.length > 0 ? (
-                  displayHistory.map((item) => (
-                    <div 
-                      key={item.id} 
-                      className="border-b border-border/30 pb-3 last:border-0"
-                    >
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                        <span className="font-medium text-foreground/80">
-                          {format(new Date(item.timestamp), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                        </span>
-                        <span>•</span>
-                        <span>{item.user}</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium text-primary">{item.action}</span>
-                        {item.details && (
-                          <p className="text-muted-foreground mt-0.5">{item.details}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
-                      <History className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-lg font-medium text-foreground mb-2">Nenhum histórico</h3>
-                    <p className="text-sm text-muted-foreground max-w-sm">
-                      As atividades do lead aparecerão aqui conforme você fizer alterações.
-                    </p>
+              {displayHistory.length > 0 ? (
+                <div className="relative">
+                  {/* Timeline vertical line */}
+                  <div className="absolute left-[7px] top-2 bottom-2 w-[2px] bg-border/50" />
+
+                  <div className="space-y-4">
+                    {displayHistory.map((item) => {
+                      // Parse details to show each change on a separate line
+                      const detailLines = item.details
+                        ? item.details.split("; ").map(line => {
+                            // Clean up any remaining quotes or dashes
+                            return line
+                              .replace(/"/g, "")
+                              .replace(/—/g, "vazio")
+                              .replace(/__/g, "vazio");
+                          })
+                        : [];
+
+                      return (
+                        <div key={item.id} className="relative pl-7">
+                          {/* Timeline dot */}
+                          <div className="absolute left-0 top-1 w-4 h-4 rounded-full bg-primary border-2 border-card flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-card" />
+                          </div>
+
+                          {/* Event card */}
+                          <div className="bg-secondary/30 rounded-lg p-3 border border-border/30">
+                            {/* Date and time */}
+                            <div className="text-sm font-medium text-foreground">
+                              {format(new Date(item.timestamp), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                            </div>
+                            
+                            {/* User */}
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {item.user}
+                            </div>
+                            
+                            {/* Action type */}
+                            <div className="text-sm font-medium text-primary mt-2">
+                              {item.action}
+                            </div>
+                            
+                            {/* Details - each change on its own line */}
+                            {detailLines.length > 0 && (
+                              <div className="mt-1.5 space-y-0.5">
+                                {detailLines.map((line, idx) => (
+                                  <p key={idx} className="text-sm text-muted-foreground">
+                                    {line}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+                    <History className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-medium text-foreground mb-2">Nenhum histórico</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    As atividades do lead aparecerão aqui conforme você fizer alterações.
+                  </p>
+                </div>
+              )}
             </TabsContent>
 
             {/* WhatsApp Tab */}
