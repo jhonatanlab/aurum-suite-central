@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Loader2, MessageCircle, Phone, Mail, User, Building, Calendar, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useCompany } from "@/hooks/useCompany";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -49,16 +49,7 @@ const sourceOptions = [
   { id: "outros", label: "Outros" },
 ];
 
-const statusOptions = [
-  { id: "novo", label: "Novo" },
-  { id: "em_atendimento", label: "Em Atendimento" },
-  { id: "negociacao", label: "Negociação" },
-  { id: "fechado", label: "Fechado" },
-  { id: "perdido", label: "Perdido" },
-];
-
 export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: LeadSidePanelProps) {
-  const { company } = useCompany();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -86,6 +77,19 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
       setCpfCnpj("");
     }
   }, [lead]);
+
+  // Lock body scroll when panel is open
+  useEffect(() => {
+    if (open) {
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    };
+  }, [open]);
 
   // Update lead mutation
   const updateLead = useMutation({
@@ -153,10 +157,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
   };
 
   const formatPhoneInput = (value: string) => {
-    // Remove all non-digits
     const digits = value.replace(/\D/g, "");
-    
-    // Format as +55 (##) #####-####
     if (digits.length <= 2) return digits;
     if (digits.length <= 4) return `+${digits.slice(0, 2)} (${digits.slice(2)}`;
     if (digits.length <= 6) return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4)}`;
@@ -164,42 +165,22 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
     return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9, 13)}`;
   };
 
-  // Lock body scroll when panel is open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.paddingRight = '0px'; // Prevent layout shift
-    } else {
-      document.body.style.overflow = '';
-      document.body.style.paddingRight = '';
-    }
-    
-    return () => {
-      document.body.style.overflow = '';
-      document.body.style.paddingRight = '';
-    };
-  }, [open]);
-
   if (!open || !lead) return null;
 
-  return (
+  // Render via Portal to escape any layout constraints
+  return createPortal(
     <>
-      {/* Overlay - fixed with contain to prevent layout shift */}
+      {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black/50 z-[9998]"
+        className="fixed inset-0 bg-black/60 animate-in fade-in-0 duration-200"
+        style={{ zIndex: 99998 }}
         onClick={() => onOpenChange(false)}
-        style={{ contain: 'strict' }}
       />
 
-      {/* Side Panel - using fixed positioning without affecting layout */}
+      {/* Side Panel */}
       <div 
-        className="fixed top-0 right-0 w-[480px] max-w-full h-full bg-card border-l border-border z-[9999] flex flex-col shadow-2xl"
-        style={{ 
-          contain: 'layout',
-          overflowY: 'auto',
-          overscrollBehavior: 'contain',
-          WebkitOverflowScrolling: 'touch'
-        }}
+        className="fixed top-0 right-0 h-screen w-[480px] max-w-[100vw] bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
+        style={{ zIndex: 99999 }}
       >
         {/* Header */}
         <div className="flex-shrink-0 p-6 border-b border-border">
@@ -235,7 +216,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="informacoes" className="flex-1 flex flex-col min-h-0">
+        <Tabs defaultValue="informacoes" className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="flex-shrink-0 mx-6 mt-4 bg-secondary/50 p-1">
             <TabsTrigger value="informacoes" className="flex-1 data-[state=active]:bg-card data-[state=active]:text-primary">
               Informações
@@ -248,8 +229,8 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
             </TabsTrigger>
           </TabsList>
 
-          {/* Tab Content */}
-          <div className="flex-1">
+          {/* Tab Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto">
             {/* Informações Tab */}
             <TabsContent value="informacoes" className="m-0 p-6 space-y-6">
               {/* Dados Principais */}
@@ -300,7 +281,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
                       <SelectTrigger className="bg-background border-border/50">
                         <SelectValue placeholder="Selecione a origem" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[100000]">
                         {sourceOptions.map((opt) => (
                           <SelectItem key={opt.id} value={opt.id}>
                             {opt.label}
@@ -316,7 +297,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
                       <SelectTrigger className="bg-background border-border/50">
                         <SelectValue placeholder="Selecione a etapa" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[100000]">
                         {stages.map((stage) => (
                           <SelectItem key={stage.id} value={stage.id}>
                             {stage.name}
@@ -426,7 +407,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[100000]">
           <AlertDialogHeader>
             <AlertDialogTitle>Tem certeza que deseja excluir este lead?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -445,6 +426,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </>,
+    document.body
   );
 }
