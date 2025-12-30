@@ -278,6 +278,7 @@ export type Database = {
           company_id: string
           created_at: string | null
           email: string | null
+          history: Json | null
           id: string
           name: string
           notes: string | null
@@ -291,6 +292,7 @@ export type Database = {
           company_id: string
           created_at?: string | null
           email?: string | null
+          history?: Json | null
           id?: string
           name: string
           notes?: string | null
@@ -304,6 +306,7 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           email?: string | null
+          history?: Json | null
           id?: string
           name?: string
           notes?: string | null

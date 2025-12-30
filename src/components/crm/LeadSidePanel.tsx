@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, Loader2, MessageCircle, Phone, Mail, User, Building, Calendar, FileText } from "lucide-react";
+import { X, Loader2, MessageCircle, Phone, Mail, User, Building, Calendar, FileText, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +11,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { HistoryEntry, addLeadHistoryEntry } from "@/hooks/useLeadHistory";
+import type { Json } from "@/integrations/supabase/types";
 
 interface Lead {
   id: string;
@@ -25,6 +28,7 @@ interface Lead {
   notes: string | null;
   tags: string[] | null;
   created_at: string | null;
+  history?: HistoryEntry[];
 }
 
 interface Stage {
@@ -51,6 +55,7 @@ const sourceOptions = [
 
 export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: LeadSidePanelProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   // Form state
@@ -61,6 +66,17 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
   const [status, setStatus] = useState("");
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [notes, setNotes] = useState("");
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+
+  // Original values for change detection
+  const [originalValues, setOriginalValues] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    source: "",
+    status: "",
+    notes: "",
+  });
 
   // Delete confirmation
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -75,6 +91,15 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
       setStatus(lead.status || "");
       setNotes(lead.notes || "");
       setCpfCnpj("");
+      setHistory((lead.history as HistoryEntry[]) || []);
+      setOriginalValues({
+        name: lead.name || "",
+        phone: lead.phone || "",
+        email: lead.email || "",
+        source: lead.source || "",
+        status: lead.status || "",
+        notes: lead.notes || "",
+      });
     }
   }, [lead]);
 
@@ -91,10 +116,74 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
     };
   }, [open]);
 
+  // Get sorted history (most recent first, max 50 for display)
+  const displayHistory = useMemo(() => {
+    return history
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 50);
+  }, [history]);
+
+  // Helper to get stage name
+  const getStageName = (stageId: string) => {
+    return stages.find(s => s.id === stageId)?.name || stageId;
+  };
+
+  // Detect changed fields and build description
+  const getChangedFieldsDescription = () => {
+    const changes: string[] = [];
+    
+    if (name.trim() !== originalValues.name) {
+      changes.push(`Nome: "${originalValues.name}" → "${name.trim()}"`);
+    }
+    if (phone.trim() !== originalValues.phone) {
+      changes.push(`Telefone: "${originalValues.phone || '—'}" → "${phone.trim() || '—'}"`);
+    }
+    if (email.trim() !== originalValues.email) {
+      changes.push(`Email: "${originalValues.email || '—'}" → "${email.trim() || '—'}"`);
+    }
+    if (source !== originalValues.source) {
+      const oldSourceLabel = sourceOptions.find(s => s.id === originalValues.source)?.label || originalValues.source || "—";
+      const newSourceLabel = sourceOptions.find(s => s.id === source)?.label || source || "—";
+      changes.push(`Origem: "${oldSourceLabel}" → "${newSourceLabel}"`);
+    }
+    if (status !== originalValues.status) {
+      changes.push(`Etapa: "${getStageName(originalValues.status)}" → "${getStageName(status)}"`);
+    }
+    
+    return changes;
+  };
+
   // Update lead mutation
   const updateLead = useMutation({
     mutationFn: async () => {
       if (!lead?.id) throw new Error("Lead não encontrado");
+
+      const changedFields = getChangedFieldsDescription();
+      let updatedHistory = history;
+
+      // Add history entry for info changes (excluding notes which are handled separately)
+      if (changedFields.length > 0) {
+        const result = await addLeadHistoryEntry({
+          leadId: lead.id,
+          action: "Edição de informações",
+          details: changedFields.join("; "),
+          userEmail: user?.email,
+          currentHistory: history,
+        });
+        if (result) updatedHistory = result;
+      }
+
+      // Check if notes changed
+      if (notes.trim() !== originalValues.notes) {
+        const noteResult = await addLeadHistoryEntry({
+          leadId: lead.id,
+          action: "Nota adicionada/editada",
+          details: notes.trim().slice(0, 100) + (notes.trim().length > 100 ? "..." : ""),
+          userEmail: user?.email,
+          currentHistory: updatedHistory,
+        });
+        if (noteResult) updatedHistory = noteResult;
+      }
 
       const { error } = await supabase
         .from("leads")
@@ -105,6 +194,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
           source: source || null,
           status: status || null,
           notes: notes.trim() || null,
+          history: updatedHistory as unknown as Json,
         })
         .eq("id", lead.id);
 
@@ -378,14 +468,44 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
 
             {/* Histórico Tab */}
             <TabsContent value="historico" className="m-0 p-6">
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
-                  <FileText className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-medium text-foreground mb-2">Histórico do Lead</h3>
-                <p className="text-sm text-muted-foreground max-w-sm">
-                  Histórico do lead aparecerá aqui em formato de timeline (implementaremos depois).
-                </p>
+              <div className="flex items-center gap-2 text-sm font-medium text-primary mb-4">
+                <History className="h-4 w-4" />
+                <span>Histórico de Atividades</span>
+              </div>
+
+              <div className="space-y-3">
+                {displayHistory.length > 0 ? (
+                  displayHistory.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="border-b border-border/30 pb-3 last:border-0"
+                    >
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                        <span className="font-medium text-foreground/80">
+                          {format(new Date(item.timestamp), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </span>
+                        <span>•</span>
+                        <span>{item.user}</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-medium text-primary">{item.action}</span>
+                        {item.details && (
+                          <p className="text-muted-foreground mt-0.5">{item.details}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+                      <History className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-medium text-foreground mb-2">Nenhum histórico</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm">
+                      As atividades do lead aparecerão aqui conforme você fizer alterações.
+                    </p>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
