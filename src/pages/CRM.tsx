@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -59,6 +60,14 @@ const leadSchema = z.object({
   status: z.string().min(1, "Status é obrigatório"),
 });
 
+interface HistoryEntry {
+  id: string;
+  timestamp: string;
+  user: string;
+  action: string;
+  details: string;
+}
+
 interface Lead {
   id: string;
   name: string;
@@ -70,6 +79,7 @@ interface Lead {
   notes: string | null;
   tags: string[] | null;
   created_at: string | null;
+  history?: HistoryEntry[];
 }
 
 function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onClick: () => void; isDraggingThis: boolean }) {
@@ -521,6 +531,7 @@ export default function CRM() {
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const { company } = useCompany();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -581,12 +592,15 @@ export default function CRM() {
 
       const { data, error } = await supabase
         .from("leads")
-        .select("id, name, value, phone, status, source, notes, created_at")
+        .select("id, name, value, phone, email, status, source, notes, tags, created_at, history")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as (Lead & { created_at: string })[];
+      return data.map(lead => ({
+        ...lead,
+        history: (lead.history as unknown as HistoryEntry[]) || [],
+      })) as Lead[];
     },
     enabled: !!company?.id,
   });
@@ -594,10 +608,35 @@ export default function CRM() {
   const isLoading = stagesLoading || leadsLoading;
 
   const updateLeadStage = useMutation({
-    mutationFn: async ({ leadId, newStage }: { leadId: string; newStage: string }) => {
+    mutationFn: async ({ leadId, newStage, oldStage, currentHistory = [] }: { 
+      leadId: string; 
+      newStage: string; 
+      oldStage: string;
+      currentHistory?: HistoryEntry[];
+    }) => {
+      const oldStageName = stages.find(s => s.id === oldStage)?.name || oldStage;
+      const newStageName = stages.find(s => s.id === newStage)?.name || newStage;
+
+      // Create history entry for column change
+      const newEntry: HistoryEntry = {
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        user: user?.email ?? "Usuário",
+        action: "Mudança de coluna",
+        details: `De "${oldStageName}" para "${newStageName}"`,
+      };
+
+      let updatedHistory = [newEntry, ...currentHistory];
+      if (updatedHistory.length > 200) {
+        updatedHistory = updatedHistory.slice(0, 200);
+      }
+
       const { error } = await supabase
         .from("leads")
-        .update({ status: newStage })
+        .update({ 
+          status: newStage,
+          history: updatedHistory as unknown as any,
+        })
         .eq("id", leadId);
 
       if (error) throw error;
@@ -742,12 +781,19 @@ export default function CRM() {
     const lead = leads.find((l) => l.id === leadId);
 
     if (lead && lead.status !== newStage && stages.some((s) => s.id === newStage)) {
+      const oldStage = lead.status || "";
+      
       // Optimistic update
       queryClient.setQueryData(["leads", company?.id], (old: Lead[] | undefined) =>
         old?.map((l) => (l.id === leadId ? { ...l, status: newStage } : l))
       );
 
-      updateLeadStage.mutate({ leadId, newStage });
+      updateLeadStage.mutate({ 
+        leadId, 
+        newStage, 
+        oldStage,
+        currentHistory: lead.history || [],
+      });
     }
   };
 
