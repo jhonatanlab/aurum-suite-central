@@ -164,18 +164,43 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
     return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9, 13)}`;
   };
 
+  // Lock body scroll when panel is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = '0px'; // Prevent layout shift
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+    
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    };
+  }, [open]);
+
   if (!open || !lead) return null;
 
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay - fixed with contain to prevent layout shift */}
       <div 
-        className="fixed inset-0 bg-black/50 z-40"
+        className="fixed inset-0 bg-black/50 z-[9998]"
         onClick={() => onOpenChange(false)}
+        style={{ contain: 'strict' }}
       />
 
-      {/* Side Panel */}
-      <div className="fixed top-0 right-0 w-[480px] max-w-full h-screen overflow-y-auto bg-card border-l border-border z-[9999] flex flex-col shadow-2xl">
+      {/* Side Panel - using fixed positioning without affecting layout */}
+      <div 
+        className="fixed top-0 right-0 w-[480px] max-w-full h-full bg-card border-l border-border z-[9999] flex flex-col shadow-2xl"
+        style={{ 
+          contain: 'layout',
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
         {/* Header */}
         <div className="flex-shrink-0 p-6 border-b border-border">
           <div className="flex items-start justify-between">
@@ -223,8 +248,8 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
             </TabsTrigger>
           </TabsList>
 
-          {/* Tab Content - Scrollable */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Tab Content */}
+          <div className="flex-1">
             {/* Informações Tab */}
             <TabsContent value="informacoes" className="m-0 p-6 space-y-6">
               {/* Dados Principais */}
