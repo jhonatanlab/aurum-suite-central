@@ -9,10 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Building2, Users, Calendar, Crown, Save } from 'lucide-react';
+import { Loader2, Building2, Users, Calendar, Crown, Save, Tag } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
-
+import { TagManager } from '@/components/tags/TagManager';
 const companySchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100, 'Nome muito longo'),
   cnpj: z.string().max(18, 'CNPJ inválido').optional().or(z.literal('')),
@@ -169,97 +170,124 @@ export default function MeuNegocio() {
           </Card>
         </div>
 
-        {/* Edit Form */}
-        <Card className="card-premium">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gold/10">
-                <Building2 className="h-5 w-5 text-gold" />
-              </div>
-              <div>
-                <CardTitle>Dados da Empresa</CardTitle>
-                <CardDescription>Atualize as informações do seu negócio</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome da Empresa *</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Minha Empresa Ltda"
-                    {...register('name')}
-                    className="bg-secondary border-border"
-                  />
-                  {errors.name && (
-                    <p className="text-sm text-destructive">{errors.name.message}</p>
-                  )}
+        {/* Tabs for different sections */}
+        <Tabs defaultValue="empresa" className="space-y-6">
+          <TabsList className="bg-secondary/50">
+            <TabsTrigger value="empresa" className="data-[state=active]:bg-card data-[state=active]:text-primary">
+              <Building2 className="h-4 w-4 mr-2" />
+              Empresa
+            </TabsTrigger>
+            <TabsTrigger value="tags" className="data-[state=active]:bg-card data-[state=active]:text-primary">
+              <Tag className="h-4 w-4 mr-2" />
+              Tags
+            </TabsTrigger>
+            <TabsTrigger value="equipe" className="data-[state=active]:bg-card data-[state=active]:text-primary">
+              <Users className="h-4 w-4 mr-2" />
+              Equipe
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Empresa Tab */}
+          <TabsContent value="empresa" className="space-y-6 mt-0">
+            <Card className="card-premium">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-gold/10">
+                    <Building2 className="h-5 w-5 text-gold" />
+                  </div>
+                  <div>
+                    <CardTitle>Dados da Empresa</CardTitle>
+                    <CardDescription>Atualize as informações do seu negócio</CardDescription>
+                  </div>
                 </div>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Nome da Empresa *</Label>
+                      <Input
+                        id="name"
+                        type="text"
+                        placeholder="Minha Empresa Ltda"
+                        {...register('name')}
+                        className="bg-secondary border-border"
+                      />
+                      {errors.name && (
+                        <p className="text-sm text-destructive">{errors.name.message}</p>
+                      )}
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="cnpj">CNPJ</Label>
-                  <Input
-                    id="cnpj"
-                    type="text"
-                    placeholder="00.000.000/0000-00"
-                    {...register('cnpj')}
-                    className="bg-secondary border-border"
-                  />
-                  {errors.cnpj && (
-                    <p className="text-sm text-destructive">{errors.cnpj.message}</p>
-                  )}
+                    <div className="space-y-2">
+                      <Label htmlFor="cnpj">CNPJ</Label>
+                      <Input
+                        id="cnpj"
+                        type="text"
+                        placeholder="00.000.000/0000-00"
+                        {...register('cnpj')}
+                        className="bg-secondary border-border"
+                      />
+                      {errors.cnpj && (
+                        <p className="text-sm text-destructive">{errors.cnpj.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      className="gold-gradient text-primary-foreground font-semibold"
+                      disabled={isLoading || !isDirty}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Salvar Alterações
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tags Tab */}
+          <TabsContent value="tags" className="mt-0">
+            <TagManager />
+          </TabsContent>
+
+          {/* Equipe Tab */}
+          <TabsContent value="equipe" className="mt-0">
+            <Card className="card-premium">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-gold/10">
+                    <Users className="h-5 w-5 text-gold" />
+                  </div>
+                  <div>
+                    <CardTitle>Equipe</CardTitle>
+                    <CardDescription>Usuários vinculados à empresa</CardDescription>
+                  </div>
                 </div>
-              </div>
-
-              <Separator />
-
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  className="gold-gradient text-primary-foreground font-semibold"
-                  disabled={isLoading || !isDirty}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Salvar Alterações
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Team Section (Future) */}
-        <Card className="card-premium">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gold/10">
-                <Users className="h-5 w-5 text-gold" />
-              </div>
-              <div>
-                <CardTitle>Equipe</CardTitle>
-                <CardDescription>Usuários vinculados à empresa</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>Gerenciamento de equipe em breve</p>
-              <p className="text-sm">Você poderá convidar membros e gerenciar permissões</p>
-            </div>
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Gerenciamento de equipe em breve</p>
+                  <p className="text-sm">Você poderá convidar membros e gerenciar permissões</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );

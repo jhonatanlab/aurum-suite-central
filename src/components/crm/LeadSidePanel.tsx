@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, Loader2, MessageCircle, Phone, Mail, User, Building, Calendar, FileText, History, Plus, Tag } from "lucide-react";
+import { X, Loader2, MessageCircle, Phone, Mail, User, Building, Calendar, FileText, History, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { HistoryEntry, addLeadHistoryEntry } from "@/hooks/useLeadHistory";
+import { useTags } from "@/hooks/useTags";
+import { TagMultiSelect } from "./TagMultiSelect";
 import type { Json } from "@/integrations/supabase/types";
 
 interface Lead {
@@ -57,6 +59,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { getTagById } = useTags();
 
   // Form state
   const [name, setName] = useState("");
@@ -67,8 +70,8 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [newTag, setNewTag] = useState("");
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [originalTags, setOriginalTags] = useState<string[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>();
 
   // Original values for change detection
   const [originalValues, setOriginalValues] = useState({
@@ -93,8 +96,9 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
       setStatus(lead.status || "");
       setNotes(lead.notes || "");
       setCpfCnpj("");
-      setTags(lead.tags || []);
-      setNewTag("");
+      const leadTags = lead.tags || [];
+      setTags(leadTags);
+      setOriginalTags(leadTags);
       setHistory((lead.history as HistoryEntry[]) || []);
       setOriginalValues({
         name: lead.name || "",
@@ -258,82 +262,61 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
     deleteLead.mutate();
   };
 
-  // Add tag handler
-  const handleAddTag = async () => {
-    const trimmedTag = newTag.trim();
-    if (!trimmedTag || !lead?.id) return;
-    
-    // Check if tag already exists
-    if (tags.some(t => t.toLowerCase() === trimmedTag.toLowerCase())) {
-      toast({ title: "Tag já existe", variant: "destructive" });
-      return;
-    }
-
-    const updatedTags = [...tags, trimmedTag];
-    
-    // Add history entry
-    const updatedHistory = await addLeadHistoryEntry({
-      leadId: lead.id,
-      action: "Tag adicionada",
-      details: trimmedTag,
-      userEmail: user?.email,
-      currentHistory: history,
-    });
-
-    // Update database
-    const { error } = await supabase
-      .from("leads")
-      .update({ 
-        tags: updatedTags,
-        history: (updatedHistory || history) as unknown as Json,
-      })
-      .eq("id", lead.id);
-
-    if (error) {
-      toast({ title: "Erro ao adicionar tag", description: error.message, variant: "destructive" });
-      return;
-    }
-
-    setTags(updatedTags);
-    setNewTag("");
-    if (updatedHistory) setHistory(updatedHistory);
-    queryClient.invalidateQueries({ queryKey: ["leads"] });
-    toast({ title: "Tag adicionada!" });
-  };
-
-  // Remove tag handler
-  const handleRemoveTag = async (tagToRemove: string) => {
+  // Handle tag changes with history logging
+  const handleTagsChange = async (newTagIds: string[]) => {
     if (!lead?.id) return;
 
-    const updatedTags = tags.filter(t => t !== tagToRemove);
-    
-    // Add history entry
-    const updatedHistory = await addLeadHistoryEntry({
-      leadId: lead.id,
-      action: "Tag removida",
-      details: tagToRemove,
-      userEmail: user?.email,
-      currentHistory: history,
-    });
+    const addedTags = newTagIds.filter((id) => !originalTags.includes(id));
+    const removedTags = originalTags.filter((id) => !newTagIds.includes(id));
+
+    let currentHistory = history || [];
+
+    // Log added tags
+    for (const tagId of addedTags) {
+      const tag = getTagById(tagId);
+      const tagName = tag?.name || tagId;
+      const result = await addLeadHistoryEntry({
+        leadId: lead.id,
+        action: "Tag adicionada",
+        details: tagName,
+        userEmail: user?.email,
+        currentHistory,
+      });
+      if (result) currentHistory = result;
+    }
+
+    // Log removed tags
+    for (const tagId of removedTags) {
+      const tag = getTagById(tagId);
+      const tagName = tag?.name || tagId;
+      const result = await addLeadHistoryEntry({
+        leadId: lead.id,
+        action: "Tag removida",
+        details: tagName,
+        userEmail: user?.email,
+        currentHistory,
+      });
+      if (result) currentHistory = result;
+    }
 
     // Update database
     const { error } = await supabase
       .from("leads")
-      .update({ 
-        tags: updatedTags,
-        history: (updatedHistory || history) as unknown as Json,
+      .update({
+        tags: newTagIds,
+        history: currentHistory as unknown as Json,
       })
       .eq("id", lead.id);
 
     if (error) {
-      toast({ title: "Erro ao remover tag", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao atualizar tags", description: error.message, variant: "destructive" });
       return;
     }
 
-    setTags(updatedTags);
-    if (updatedHistory) setHistory(updatedHistory);
+    setTags(newTagIds);
+    setOriginalTags(newTagIds);
+    setHistory(currentHistory);
     queryClient.invalidateQueries({ queryKey: ["leads"] });
-    toast({ title: "Tag removida!" });
   };
 
   const formatPhoneInput = (value: string) => {
@@ -544,57 +527,10 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
                   <span>Tags</span>
                 </div>
 
-                <div className="space-y-3">
-                  {/* Add new tag */}
-                  <div className="flex gap-2">
-                    <Input
-                      value={newTag}
-                      onChange={(e) => setNewTag(e.target.value)}
-                      placeholder="Nova tag..."
-                      className="bg-background border-border/50 focus:border-primary flex-1"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddTag();
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={handleAddTag}
-                      disabled={!newTag.trim()}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {/* Tags list */}
-                  {tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {tags.map((tag) => (
-                        <div
-                          key={tag}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary rounded-full text-sm"
-                        >
-                          <span>{tag}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(tag)}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      Nenhuma tag adicionada
-                    </p>
-                  )}
-                </div>
+                <TagMultiSelect
+                  value={tags}
+                  onChange={handleTagsChange}
+                />
               </div>
 
               {/* Action Buttons */}
