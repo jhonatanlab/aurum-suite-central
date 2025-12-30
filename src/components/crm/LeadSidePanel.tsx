@@ -175,7 +175,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
       />
 
       {/* Side Panel */}
-      <div className="fixed right-0 top-0 h-full w-[520px] max-w-full bg-card border-l border-border z-50 flex flex-col shadow-2xl">
+      <div className="fixed top-0 right-0 w-[480px] max-w-full h-screen overflow-y-auto bg-card border-l border-border z-[9999] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex-shrink-0 p-6 border-b border-border">
           <div className="flex items-start justify-between">
