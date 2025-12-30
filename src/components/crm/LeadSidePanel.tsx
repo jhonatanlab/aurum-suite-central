@@ -71,7 +71,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [originalTags, setOriginalTags] = useState<string[]>([]);
-  const [history, setHistory] = useState<HistoryEntry[]>();
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   // Original values for change detection
   const [originalValues, setOriginalValues] = useState({
