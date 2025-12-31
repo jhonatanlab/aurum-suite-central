@@ -587,9 +587,15 @@ export default function CRM() {
   );
 
   // Ensure sales column exists when feature is enabled
+  const hasInitializedSalesColumn = useRef(false);
   useEffect(() => {
-    if (isSalesColumnEnabled && company?.id) {
+    if (isSalesColumnEnabled && company?.id && !hasInitializedSalesColumn.current) {
+      hasInitializedSalesColumn.current = true;
       ensureSalesColumn.mutate();
+    }
+    // Reset when disabled so it can be created again if re-enabled
+    if (!isSalesColumnEnabled) {
+      hasInitializedSalesColumn.current = false;
     }
   }, [isSalesColumnEnabled, company?.id]);
 
