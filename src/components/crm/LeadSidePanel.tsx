@@ -17,6 +17,8 @@ import { ptBR } from "date-fns/locale";
 import { HistoryEntry, addLeadHistoryEntry } from "@/hooks/useLeadHistory";
 import { useTags } from "@/hooks/useTags";
 import { TagMultiSelect } from "./TagMultiSelect";
+import { ProductSelect } from "./ProductSelect";
+import { useProducts } from "@/hooks/useProducts";
 import type { Json } from "@/integrations/supabase/types";
 
 interface Lead {
@@ -29,6 +31,8 @@ interface Lead {
   source: string | null;
   notes: string | null;
   tags: string[] | null;
+  product_id?: string | null;
+  product_value?: number | null;
   created_at: string | null;
   history?: HistoryEntry[];
 }
@@ -60,6 +64,7 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { getTagById } = useTags();
+  const { getProductById } = useProducts();
 
   // Form state
   const [name, setName] = useState("");
@@ -72,6 +77,10 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
   const [tags, setTags] = useState<string[]>([]);
   const [originalTags, setOriginalTags] = useState<string[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [productId, setProductId] = useState<string | null>(null);
+  const [productValue, setProductValue] = useState<number | null>(null);
+  const [originalProductId, setOriginalProductId] = useState<string | null>(null);
+  const [originalProductValue, setOriginalProductValue] = useState<number | null>(null);
 
   // Original values for change detection
   const [originalValues, setOriginalValues] = useState({
@@ -100,6 +109,10 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
       setTags(leadTags);
       setOriginalTags(leadTags);
       setHistory((lead.history as HistoryEntry[]) || []);
+      setProductId(lead.product_id || null);
+      setProductValue(lead.product_value ?? null);
+      setOriginalProductId(lead.product_id || null);
+      setOriginalProductValue(lead.product_value ?? null);
       setOriginalValues({
         name: lead.name || "",
         phone: lead.phone || "",
@@ -201,6 +214,31 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
         if (noteResult) updatedHistory = noteResult;
       }
 
+      // Check if product changed
+      if (productId !== originalProductId || productValue !== originalProductValue) {
+        const productName = productId ? getProductById(productId)?.name || "Produto" : "Nenhum";
+        const oldProductName = originalProductId ? getProductById(originalProductId)?.name || "Produto" : "Nenhum";
+        
+        let productDetails = "";
+        if (productId !== originalProductId) {
+          productDetails = `Produto: ${oldProductName} → ${productName}`;
+        }
+        if (productValue !== originalProductValue) {
+          const oldVal = originalProductValue !== null ? `R$ ${originalProductValue.toLocaleString("pt-BR")}` : "vazio";
+          const newVal = productValue !== null ? `R$ ${productValue.toLocaleString("pt-BR")}` : "vazio";
+          productDetails += productDetails ? `; Valor: ${oldVal} → ${newVal}` : `Valor do produto: ${oldVal} → ${newVal}`;
+        }
+
+        const productResult = await addLeadHistoryEntry({
+          leadId: lead.id,
+          action: "Produto de interesse alterado",
+          details: productDetails,
+          userEmail: user?.email,
+          currentHistory: updatedHistory,
+        });
+        if (productResult) updatedHistory = productResult;
+      }
+
       const { error } = await supabase
         .from("leads")
         .update({
@@ -210,6 +248,8 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
           source: source || null,
           status: status || null,
           notes: notes.trim() || null,
+          product_id: productId,
+          product_value: productValue,
           history: updatedHistory as unknown as Json,
         })
         .eq("id", lead.id);
@@ -317,6 +357,11 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
     setOriginalTags(newTagIds);
     setHistory(currentHistory);
     queryClient.invalidateQueries({ queryKey: ["leads"] });
+  };
+
+  const handleProductChange = (newProductId: string | null, newProductValue: number | null) => {
+    setProductId(newProductId);
+    setProductValue(newProductValue);
   };
 
   const formatPhoneInput = (value: string) => {
@@ -519,6 +564,13 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
                   </div>
                 </div>
               </div>
+
+              {/* Produto de Interesse */}
+              <ProductSelect
+                productId={productId}
+                productValue={productValue}
+                onProductChange={handleProductChange}
+              />
 
               {/* Tags */}
               <div className="space-y-4">

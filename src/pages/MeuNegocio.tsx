@@ -11,9 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Building2, Users, Calendar, Crown, Save, Tag } from 'lucide-react';
+import { Loader2, Building2, Users, Calendar, Crown, Save, Tag, Kanban } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { TagManager } from '@/components/tags/TagManager';
+import { CrmSettingsPanel } from '@/components/crm/CrmSettingsPanel';
 const companySchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100, 'Nome muito longo'),
   cnpj: z.string().max(18, 'CNPJ inválido').optional().or(z.literal('')),
@@ -181,6 +182,10 @@ export default function MeuNegocio() {
               <Tag className="h-4 w-4 mr-2" />
               Tags
             </TabsTrigger>
+            <TabsTrigger value="crm" className="data-[state=active]:bg-card data-[state=active]:text-primary">
+              <Kanban className="h-4 w-4 mr-2" />
+              CRM
+            </TabsTrigger>
             <TabsTrigger value="equipe" className="data-[state=active]:bg-card data-[state=active]:text-primary">
               <Users className="h-4 w-4 mr-2" />
               Equipe
@@ -262,6 +267,11 @@ export default function MeuNegocio() {
           {/* Tags Tab */}
           <TabsContent value="tags" className="mt-0">
             <TagManager />
+          </TabsContent>
+
+          {/* CRM Settings Tab */}
+          <TabsContent value="crm" className="mt-0">
+            <CrmSettingsPanel />
           </TabsContent>
 
           {/* Equipe Tab */}

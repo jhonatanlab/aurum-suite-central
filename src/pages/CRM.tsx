@@ -10,7 +10,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, Loader2, MoreHorizontal, Pencil, Trash2, Check } from "lucide-react";
 import { LeadSidePanel } from "@/components/crm/LeadSidePanel";
 import { AdvancedFilters } from "@/components/crm/AdvancedFilters";
+import { ContactsTab } from "@/components/crm/ContactsTab";
 import { useCrmFilters } from "@/hooks/useCrmFilters";
+import { useCrmSettings } from "@/hooks/useCrmSettings";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -75,6 +78,8 @@ interface Lead {
   source: string | null;
   notes: string | null;
   tags: string[] | null;
+  product_id?: string | null;
+  product_value?: number | null;
   created_at: string | null;
   history?: HistoryEntry[];
 }
@@ -90,6 +95,9 @@ function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onCl
     // Keep the space occupied during drag (placeholder)
     visibility: isDragging ? 'hidden' : 'visible',
   };
+
+  // Display product value if set, otherwise fall back to lead value
+  const displayValue = lead.product_value ?? lead.value ?? 0;
 
   return (
     <Card
@@ -115,14 +123,21 @@ function DraggableLeadCard({ lead, onClick, isDraggingThis }: { lead: Lead; onCl
 
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-primary">
-          R$ {(lead.value || 0).toLocaleString("pt-BR")}
+          R$ {displayValue.toLocaleString("pt-BR")}
         </span>
+        {lead.product_id && (
+          <span className="text-xs text-muted-foreground bg-primary/10 px-2 py-0.5 rounded">
+            Produto
+          </span>
+        )}
       </div>
     </Card>
   );
 }
 
 function DragOverlayCard({ lead }: { lead: Lead }) {
+  const displayValue = lead.product_value ?? lead.value ?? 0;
+  
   return (
     <Card 
       className="p-4 bg-card border-primary/60 cursor-grabbing animate-in zoom-in-95 duration-150"
@@ -139,7 +154,7 @@ function DragOverlayCard({ lead }: { lead: Lead }) {
       </div>
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-primary">
-          R$ {(lead.value || 0).toLocaleString("pt-BR")}
+          R$ {displayValue.toLocaleString("pt-BR")}
         </span>
       </div>
     </Card>
@@ -598,7 +613,7 @@ export default function CRM() {
 
       const { data, error } = await supabase
         .from("leads")
-        .select("id, name, value, phone, email, status, source, notes, tags, created_at, history")
+        .select("id, name, value, phone, email, status, source, notes, tags, created_at, history, product_id, product_value")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
@@ -765,33 +780,56 @@ export default function CRM() {
     }
   };
 
+  const leadsInFunnel = filteredLeads.filter(l => l.status && stages.some(s => s.id === l.status)).length;
+
+  const handleMoveToStage = (leadId: string, stageId: string) => {
+    const lead = leads.find(l => l.id === leadId);
+    if (lead) {
+      updateLeadStage.mutate({
+        leadId,
+        newStage: stageId,
+        oldStage: lead.status || "",
+        currentHistory: lead.history || [],
+      });
+    }
+  };
+
   return (
     <AppLayout title="CRM">
-      <div className="space-y-6">
-        {/* Header Actions */}
+      <Tabs defaultValue="funil" className="space-y-6">
         <div className="flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex items-center gap-3">
+            <TabsList className="bg-secondary/50">
+              <TabsTrigger value="funil">Funil</TabsTrigger>
+              <TabsTrigger value="contatos">Contatos</TabsTrigger>
+            </TabsList>
+            <span className="text-sm text-muted-foreground">
+              {leadsInFunnel} leads no funil | {leads.length} contatos cadastrados
+            </span>
+          </div>
           <div className="flex items-center gap-3">
             <AddStageModal onSuccess={() => refetchStages()} />
             <NewLeadModal onSuccess={() => refetch()} stages={stages} />
           </div>
         </div>
 
-        {/* Advanced Filters */}
-        <AdvancedFilters
-          filters={filters}
-          updateFilter={updateFilter}
-          clearFilters={clearFilters}
-          hasActiveFilters={hasActiveFilters}
-          presets={presets}
-          savePreset={savePreset}
-          loadPreset={loadPreset}
-          deletePreset={deletePreset}
-          setDateShortcut={setDateShortcut}
-          stages={stages}
-          sources={sources}
-          leadsCount={filteredLeads.length}
-          isFiltering={isLoading}
-        />
+        <TabsContent value="funil" className="mt-0 space-y-6">
+          {/* Advanced Filters */}
+          <AdvancedFilters
+            filters={filters}
+            updateFilter={updateFilter}
+            clearFilters={clearFilters}
+            hasActiveFilters={hasActiveFilters}
+            presets={presets}
+            savePreset={savePreset}
+            loadPreset={loadPreset}
+            deletePreset={deletePreset}
+            setDateShortcut={setDateShortcut}
+            stages={stages}
+            sources={sources}
+            leadsCount={filteredLeads.length}
+            isFiltering={isLoading}
+          />
 
         {/* Kanban Board */}
         {isLoading ? (

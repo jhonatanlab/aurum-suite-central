@@ -2,6 +2,11 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+export interface CrmSettings {
+  enable_sales_column: boolean;
+  auto_move_to_sales: boolean;
+}
+
 interface Company {
   id: string;
   name: string;
@@ -11,6 +16,7 @@ interface Company {
   owner_uid: string | null;
   created_at: string | null;
   updated_at: string | null;
+  crm_settings: CrmSettings | null;
 }
 
 interface CompanyUser {
@@ -76,7 +82,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
       if (cError) throw cError;
 
-      setCompany(companyData);
+      setCompany({
+        ...companyData,
+        crm_settings: companyData.crm_settings as unknown as CrmSettings | null,
+      });
     } catch (error) {
       console.error('Erro ao buscar empresa:', error);
       setCompany(null);
@@ -114,7 +123,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase
         .from('companies')
-        .update(data)
+        .update(data as any)
         .eq('id', company.id);
 
       if (error) throw error;

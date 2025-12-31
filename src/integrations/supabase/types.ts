@@ -53,6 +53,7 @@ export type Database = {
         Row: {
           cnpj: string | null
           created_at: string | null
+          crm_settings: Json | null
           id: string
           name: string
           owner_uid: string | null
@@ -63,6 +64,7 @@ export type Database = {
         Insert: {
           cnpj?: string | null
           created_at?: string | null
+          crm_settings?: Json | null
           id?: string
           name: string
           owner_uid?: string | null
@@ -73,6 +75,7 @@ export type Database = {
         Update: {
           cnpj?: string | null
           created_at?: string | null
+          crm_settings?: Json | null
           id?: string
           name?: string
           owner_uid?: string | null
@@ -283,6 +286,8 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          product_id: string | null
+          product_value: number | null
           source: string | null
           status: string | null
           tags: string[] | null
@@ -297,6 +302,8 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          product_id?: string | null
+          product_value?: number | null
           source?: string | null
           status?: string | null
           tags?: string[] | null
@@ -311,6 +318,8 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          product_id?: string | null
+          product_value?: number | null
           source?: string | null
           status?: string | null
           tags?: string[] | null
@@ -322,6 +331,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
