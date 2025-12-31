@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
-import { useSalesColumn } from "@/hooks/useSalesColumn";
+import { useSalesColumnV2 } from "@/hooks/useSalesColumnV2";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,7 +52,7 @@ interface CartItem {
 export default function Vendas() {
   const { company } = useCompany();
   const { user } = useAuth();
-  const { moveLeadToSales, isAutoMoveEnabled } = useSalesColumn();
+  const { moveLeadToSales, isAutoMoveEnabled } = useSalesColumnV2();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);

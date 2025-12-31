@@ -13,7 +13,7 @@ import { AdvancedFilters } from "@/components/crm/AdvancedFilters";
 import { ContactsTab } from "@/components/crm/ContactsTab";
 import { useCrmFilters } from "@/hooks/useCrmFilters";
 import { useCrmSettings } from "@/hooks/useCrmSettings";
-import { useSalesColumn } from "@/hooks/useSalesColumn";
+import { useSalesColumnV2 } from "@/hooks/useSalesColumnV2";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -556,7 +556,7 @@ export default function CRM() {
 
   // CRM Settings and Sales Column
   const { settings } = useCrmSettings();
-  const { ensureSalesColumn, isSalesColumnEnabled } = useSalesColumn();
+  const { ensureSalesColumn, isSalesColumnEnabled } = useSalesColumnV2();
 
   // Advanced filters hook
   const {
@@ -880,13 +880,18 @@ export default function CRM() {
               <div className="overflow-x-auto pb-4">
                 <div className="flex gap-6 min-w-max">
                   {stages
-                    .filter(stage => {
+                    .filter((stage) => {
                       // Hide sales column if feature is disabled
                       if (stage.name === "Vendas" && !isSalesColumnEnabled) {
                         return false;
                       }
                       return true;
                     })
+                    // Guardrail: if DB has duplicates, render only the first "Vendas"
+                    .filter((stage, index, arr) =>
+                      stage.name !== "Vendas" ||
+                      index === arr.findIndex((s) => s.name === "Vendas")
+                    )
                     .map((stage, index, visibleStages) => (
                       <DroppableColumn
                         key={stage.id}
