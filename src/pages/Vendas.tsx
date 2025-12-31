@@ -3,6 +3,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
+import { useSalesColumn } from "@/hooks/useSalesColumn";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,6 +51,8 @@ interface CartItem {
 
 export default function Vendas() {
   const { company } = useCompany();
+  const { user } = useAuth();
+  const { moveLeadToSales, isAutoMoveEnabled } = useSalesColumn();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -183,12 +187,17 @@ export default function Vendas() {
       if (cart.length === 0) throw new Error("Carrinho vazio");
       if (!paymentMethod) throw new Error("Selecione a forma de pagamento");
 
+      // Get selected client info for CRM integration
+      const selectedLead = selectedClientId && selectedClientId !== "none" 
+        ? leads?.find(l => l.id === selectedClientId) 
+        : null;
+
       // Create sale record
       const { data: sale, error: saleError } = await supabase
         .from("sales")
         .insert({
           company_id: company.id,
-          client_id: selectedClientId || null,
+          client_id: selectedClientId && selectedClientId !== "none" ? selectedClientId : null,
           payment_method: paymentMethod,
           discount_value: calculatedDiscount,
           total: cartTotal,
@@ -198,20 +207,63 @@ export default function Vendas() {
 
       if (saleError) throw saleError;
 
-      // Create sale items
-      const saleItems = cart.map((item) => ({
-        sale_id: sale.id,
-        product_id: item.product.id,
-        quantity: item.quantity,
-        price: item.product.price,
-        subtotal: item.product.price * item.quantity,
-      }));
+      // Create sale items - ensure subtotal is calculated correctly
+      const saleItems = cart.map((item) => {
+        const itemSubtotal = Number(item.product.price) * Number(item.quantity);
+        return {
+          sale_id: sale.id,
+          product_id: item.product.id,
+          quantity: item.quantity,
+          price: Number(item.product.price),
+          subtotal: itemSubtotal,
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from("sale_items")
         .insert(saleItems);
 
       if (itemsError) throw itemsError;
+
+      // CRM Integration: Move lead to sales column if auto-move is enabled
+      if (selectedLead && isAutoMoveEnabled) {
+        try {
+          // Get lead's current history
+          const { data: leadData } = await supabase
+            .from("leads")
+            .select("history, product_id")
+            .eq("id", selectedLead.id)
+            .single();
+
+          // Get product name for history
+          let productName: string | undefined;
+          if (cart.length === 1) {
+            productName = cart[0].product.name;
+          } else if (cart.length > 1) {
+            productName = `${cart.length} produtos`;
+          }
+
+          // Update lead with product value from sale
+          await supabase
+            .from("leads")
+            .update({
+              product_value: cartTotal,
+            })
+            .eq("id", selectedLead.id);
+
+          // Move lead to sales column
+          await moveLeadToSales.mutateAsync({
+            leadId: selectedLead.id,
+            productName,
+            saleTotal: cartTotal,
+            currentHistory: (leadData?.history as any[]) || [],
+            userEmail: user?.email || "Sistema",
+          });
+        } catch (crmError) {
+          console.error("Erro ao integrar com CRM:", crmError);
+          // Don't fail the sale, just log the error
+        }
+      }
 
       return sale;
     },
@@ -225,6 +277,7 @@ export default function Vendas() {
       setDiscountValue("");
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["products-pdv"] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (error: Error) => {
       toast.error(error.message || "Erro ao finalizar venda");

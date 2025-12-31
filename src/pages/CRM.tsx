@@ -7,12 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Loader2, MoreHorizontal, Pencil, Trash2, Check } from "lucide-react";
+import { Plus, Loader2, MoreHorizontal, Pencil, Trash2, Check, Trophy } from "lucide-react";
 import { LeadSidePanel } from "@/components/crm/LeadSidePanel";
 import { AdvancedFilters } from "@/components/crm/AdvancedFilters";
 import { ContactsTab } from "@/components/crm/ContactsTab";
 import { useCrmFilters } from "@/hooks/useCrmFilters";
 import { useCrmSettings } from "@/hooks/useCrmSettings";
+import { useSalesColumn } from "@/hooks/useSalesColumn";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -171,6 +172,7 @@ function DroppableColumn({
   isFirst,
   isLast,
   stagesCount,
+  isSalesColumn = false,
 }: { 
   stage: Stage; 
   leads: Lead[]; 
@@ -181,6 +183,7 @@ function DroppableColumn({
   isFirst: boolean;
   isLast: boolean;
   stagesCount: number;
+  isSalesColumn?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(stage.name);
@@ -226,15 +229,22 @@ function DroppableColumn({
             </div>
           ) : (
             <>
-              <h3 className="font-semibold text-foreground">{stage.name}</h3>
-              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary">
+              {isSalesColumn && <Trophy className="h-4 w-4 text-primary" />}
+              <h3 className={`font-semibold ${isSalesColumn ? "text-primary" : "text-foreground"}`}>
+                {stage.name}
+              </h3>
+              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                isSalesColumn 
+                  ? "bg-primary/20 text-primary" 
+                  : "bg-primary/10 text-primary"
+              }`}>
                 {stageLeads.length}
               </span>
             </>
           )}
         </div>
         
-        {!isEditing && (
+        {!isEditing && !isSalesColumn && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
@@ -271,7 +281,9 @@ function DroppableColumn({
         className={`space-y-3 min-h-[300px] p-3 rounded-xl transition-all duration-200 ${
           isOver 
             ? "bg-primary/15 ring-2 ring-primary/40 scale-[1.01]" 
-            : "bg-muted/20 ring-1 ring-border/30"
+            : isSalesColumn 
+              ? "bg-primary/5 ring-1 ring-primary/20" 
+              : "bg-muted/20 ring-1 ring-border/30"
         }`}
       >
         {stageLeads.map((lead) => (
@@ -542,6 +554,10 @@ export default function CRM() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // CRM Settings and Sales Column
+  const { settings } = useCrmSettings();
+  const { ensureSalesColumn, isSalesColumnEnabled } = useSalesColumn();
+
   // Advanced filters hook
   const {
     filters,
@@ -569,6 +585,13 @@ export default function CRM() {
       },
     })
   );
+
+  // Ensure sales column exists when feature is enabled
+  useEffect(() => {
+    if (isSalesColumnEnabled && company?.id) {
+      ensureSalesColumn.mutate();
+    }
+  }, [isSalesColumnEnabled, company?.id]);
 
   // Fetch stages from database
   const { data: stages = [], isLoading: stagesLoading, refetch: refetchStages } = useQuery({
@@ -850,20 +873,29 @@ export default function CRM() {
             >
               <div className="overflow-x-auto pb-4">
                 <div className="flex gap-6 min-w-max">
-                  {stages.map((stage, index) => (
-                    <DroppableColumn
-                      key={stage.id}
-                      stage={stage}
-                      leads={filteredLeads}
-                      onLeadClick={handleLeadClick}
-                      activeLeadId={activeLead?.id || null}
-                      onRename={handleRenameStage}
-                      onDelete={handleDeleteStage}
-                      isFirst={index === 0}
-                      isLast={index === stages.length - 1}
-                      stagesCount={stages.length}
-                    />
-                  ))}
+                  {stages
+                    .filter(stage => {
+                      // Hide sales column if feature is disabled
+                      if (stage.name === "Vendas" && !isSalesColumnEnabled) {
+                        return false;
+                      }
+                      return true;
+                    })
+                    .map((stage, index, visibleStages) => (
+                      <DroppableColumn
+                        key={stage.id}
+                        stage={stage}
+                        leads={filteredLeads}
+                        onLeadClick={handleLeadClick}
+                        activeLeadId={activeLead?.id || null}
+                        onRename={handleRenameStage}
+                        onDelete={handleDeleteStage}
+                        isFirst={index === 0}
+                        isLast={index === visibleStages.length - 1}
+                        stagesCount={visibleStages.length}
+                        isSalesColumn={stage.name === "Vendas"}
+                      />
+                    ))}
                 </div>
               </div>
 
