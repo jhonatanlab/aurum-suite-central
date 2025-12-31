@@ -831,60 +831,70 @@ export default function CRM() {
             isFiltering={isLoading}
           />
 
-        {/* Kanban Board */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={pointerWithin}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            measuring={{
-              droppable: {
-                strategy: MeasuringStrategy.Always,
-              },
-            }}
-          >
-            <div className="overflow-x-auto pb-4">
-              <div className="flex gap-6 min-w-max">
-                {stages.map((stage, index) => (
-                  <DroppableColumn
-                    key={stage.id}
-                    stage={stage}
-                    leads={filteredLeads}
-                    onLeadClick={handleLeadClick}
-                    activeLeadId={activeLead?.id || null}
-                    onRename={handleRenameStage}
-                    onDelete={handleDeleteStage}
-                    isFirst={index === 0}
-                    isLast={index === stages.length - 1}
-                    stagesCount={stages.length}
-                  />
-                ))}
-              </div>
+          {/* Kanban Board */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-
-            <DragOverlay 
-              dropAnimation={{
-                duration: 200,
-                easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={pointerWithin}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              measuring={{
+                droppable: {
+                  strategy: MeasuringStrategy.Always,
+                },
               }}
-              modifiers={[
-                ({ transform }) => ({
-                  ...transform,
-                  x: transform.x + dragOffsetRef.current.x,
-                  y: transform.y + dragOffsetRef.current.y,
-                }),
-              ]}
             >
-              {activeLead ? <DragOverlayCard lead={activeLead} /> : null}
-            </DragOverlay>
-          </DndContext>
-        )}
-      </div>
+              <div className="overflow-x-auto pb-4">
+                <div className="flex gap-6 min-w-max">
+                  {stages.map((stage, index) => (
+                    <DroppableColumn
+                      key={stage.id}
+                      stage={stage}
+                      leads={filteredLeads}
+                      onLeadClick={handleLeadClick}
+                      activeLeadId={activeLead?.id || null}
+                      onRename={handleRenameStage}
+                      onDelete={handleDeleteStage}
+                      isFirst={index === 0}
+                      isLast={index === stages.length - 1}
+                      stagesCount={stages.length}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <DragOverlay 
+                dropAnimation={{
+                  duration: 200,
+                  easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+                }}
+                modifiers={[
+                  ({ transform }) => ({
+                    ...transform,
+                    x: transform.x + dragOffsetRef.current.x,
+                    y: transform.y + dragOffsetRef.current.y,
+                  }),
+                ]}
+              >
+                {activeLead ? <DragOverlayCard lead={activeLead} /> : null}
+              </DragOverlay>
+            </DndContext>
+          )}
+        </TabsContent>
+
+        <TabsContent value="contatos" className="mt-0">
+          <ContactsTab
+            leads={leads}
+            stages={stages}
+            onMoveToStage={handleMoveToStage}
+            onLeadClick={handleLeadClick}
+          />
+        </TabsContent>
+      </Tabs>
 
       <LeadSidePanel
         lead={editingLead}
