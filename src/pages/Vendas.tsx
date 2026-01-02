@@ -225,6 +225,17 @@ export default function Vendas() {
 
       if (itemsError) throw itemsError;
 
+      // Update product stock
+      for (const item of cart) {
+        if (item.product.stock !== null) {
+          const newStock = Math.max(0, item.product.stock - item.quantity);
+          await supabase
+            .from("products")
+            .update({ stock: newStock })
+            .eq("id", item.product.id);
+        }
+      }
+
       // CRM Integration: Move lead to sales column if auto-move is enabled
       if (selectedLead && isAutoMoveEnabled) {
         try {
