@@ -105,6 +105,7 @@ export function SaleDetailPanel({ sale, items, open, onClose, companyId }: SaleD
         .update({
           status: "cancelled",
           cancelled_by: user.id,
+          cancelled_by_email: user.email || "Usuário",
           cancelled_at: new Date().toISOString(),
           cancellation_reason: cancellationReason || null,
         })
