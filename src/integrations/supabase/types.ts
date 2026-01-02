@@ -57,6 +57,7 @@ export type Database = {
           id: string
           name: string
           owner_uid: string | null
+          payment_settings: Json | null
           plan: string | null
           status: string | null
           updated_at: string | null
@@ -68,6 +69,7 @@ export type Database = {
           id?: string
           name: string
           owner_uid?: string | null
+          payment_settings?: Json | null
           plan?: string | null
           status?: string | null
           updated_at?: string | null
@@ -79,6 +81,7 @@ export type Database = {
           id?: string
           name?: string
           owner_uid?: string | null
+          payment_settings?: Json | null
           plan?: string | null
           status?: string | null
           updated_at?: string | null
@@ -342,6 +345,47 @@ export type Database = {
           },
         ]
       }
+      payment_gateways: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          service_fee_percent: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          service_fee_percent?: number
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          service_fee_percent?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_gateways_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string | null
@@ -503,12 +547,70 @@ export type Database = {
           },
         ]
       }
+      sale_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          gateway_fee_amount: number | null
+          gateway_fee_percent: number | null
+          gateway_id: string | null
+          id: string
+          installments: number | null
+          interest_amount: number | null
+          interest_rate_percent: number | null
+          payment_method: string
+          sale_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          gateway_fee_amount?: number | null
+          gateway_fee_percent?: number | null
+          gateway_id?: string | null
+          id?: string
+          installments?: number | null
+          interest_amount?: number | null
+          interest_rate_percent?: number | null
+          payment_method: string
+          sale_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          gateway_fee_amount?: number | null
+          gateway_fee_percent?: number | null
+          gateway_id?: string | null
+          id?: string
+          installments?: number | null
+          interest_amount?: number | null
+          interest_rate_percent?: number | null
+          payment_method?: string
+          sale_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_payments_gateway_id_fkey"
+            columns: ["gateway_id"]
+            isOneToOne: false
+            referencedRelation: "payment_gateways"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales: {
         Row: {
           cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
           cancelled_by_email: string | null
+          client_freight: number | null
           client_id: string | null
           company_id: string
           created_at: string | null
@@ -516,15 +618,21 @@ export type Database = {
           discount_value: number | null
           id: string
           payment_method: string | null
+          pending_balance: number | null
+          sale_costs: Json | null
           seller_id: string | null
           status: string
+          store_freight: number | null
+          subtotal: number | null
           total: number
+          total_paid: number | null
         }
         Insert: {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_by_email?: string | null
+          client_freight?: number | null
           client_id?: string | null
           company_id: string
           created_at?: string | null
@@ -532,15 +640,21 @@ export type Database = {
           discount_value?: number | null
           id?: string
           payment_method?: string | null
+          pending_balance?: number | null
+          sale_costs?: Json | null
           seller_id?: string | null
           status?: string
+          store_freight?: number | null
+          subtotal?: number | null
           total: number
+          total_paid?: number | null
         }
         Update: {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_by_email?: string | null
+          client_freight?: number | null
           client_id?: string | null
           company_id?: string
           created_at?: string | null
@@ -548,9 +662,14 @@ export type Database = {
           discount_value?: number | null
           id?: string
           payment_method?: string | null
+          pending_balance?: number | null
+          sale_costs?: Json | null
           seller_id?: string | null
           status?: string
+          store_freight?: number | null
+          subtotal?: number | null
           total?: number
+          total_paid?: number | null
         }
         Relationships: [
           {
