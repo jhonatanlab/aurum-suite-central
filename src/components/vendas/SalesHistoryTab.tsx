@@ -37,11 +37,15 @@ interface Sale {
   discount_value: number | null;
   status: string;
   seller_id: string | null;
+  cancelled_by: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
   leads?: { name: string } | null;
 }
 
 interface SaleItem {
   id: string;
+  product_id: string;
   quantity: number;
   price: number;
   subtotal: number | null;
@@ -87,6 +91,9 @@ export function SalesHistoryTab() {
           discount_value,
           status,
           seller_id,
+          cancelled_by,
+          cancelled_at,
+          cancellation_reason,
           leads:client_id (name)
         `)
         .eq("company_id", company.id)
@@ -105,6 +112,7 @@ export function SalesHistoryTab() {
         .from("sale_items")
         .select(`
           id,
+          product_id,
           quantity,
           price,
           subtotal,
@@ -343,6 +351,7 @@ export function SalesHistoryTab() {
         items={saleDetails || []}
         open={!!selectedSaleId}
         onClose={() => setSelectedSaleId(null)}
+        companyId={company?.id}
       />
     </div>
   );

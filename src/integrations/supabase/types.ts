@@ -505,6 +505,9 @@ export type Database = {
       }
       sales: {
         Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           client_id: string | null
           company_id: string
           created_at: string | null
@@ -517,6 +520,9 @@ export type Database = {
           total: number
         }
         Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           client_id?: string | null
           company_id: string
           created_at?: string | null
@@ -529,6 +535,9 @@ export type Database = {
           total: number
         }
         Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           client_id?: string | null
           company_id?: string
           created_at?: string | null
