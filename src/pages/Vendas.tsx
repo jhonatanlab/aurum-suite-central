@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Search, 
   ShoppingCart, 
@@ -27,9 +28,11 @@ import {
   DollarSign,
   User,
   CreditCard,
-  Percent
+  Percent,
+  History
 } from "lucide-react";
 import { toast } from "sonner";
+import { SalesHistoryTab } from "@/components/vendas/SalesHistoryTab";
 
 interface Product {
   id: string;
@@ -192,7 +195,7 @@ export default function Vendas() {
         ? leads?.find(l => l.id === selectedClientId) 
         : null;
 
-      // Create sale record
+      // Create sale record with seller_id
       const { data: sale, error: saleError } = await supabase
         .from("sales")
         .insert({
@@ -201,6 +204,8 @@ export default function Vendas() {
           payment_method: paymentMethod,
           discount_value: calculatedDiscount,
           total: cartTotal,
+          seller_id: user?.id || null,
+          status: "completed",
         })
         .select("id")
         .single();
@@ -294,6 +299,7 @@ export default function Vendas() {
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["products-pdv"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-history"] });
     },
     onError: (error: Error) => {
       toast.error(error.message || "Erro ao finalizar venda");
@@ -321,7 +327,20 @@ export default function Vendas() {
 
   return (
     <AppLayout title="Vendas">
-      <div className="flex h-[calc(100vh-120px)] gap-6">
+      <Tabs defaultValue="pdv" className="w-full">
+        <TabsList className="mb-6 bg-secondary">
+          <TabsTrigger value="pdv" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            PDV
+          </TabsTrigger>
+          <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <History className="h-4 w-4 mr-2" />
+            Histórico de Vendas
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pdv" className="mt-0">
+          <div className="flex h-[calc(100vh-180px)] gap-6">
         {/* Products Grid */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Search */}
@@ -571,7 +590,13 @@ export default function Vendas() {
             </Button>
           </div>
         </div>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-0">
+          <SalesHistoryTab />
+        </TabsContent>
+      </Tabs>
     </AppLayout>
   );
 }

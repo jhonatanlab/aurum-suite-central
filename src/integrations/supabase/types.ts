@@ -512,6 +512,8 @@ export type Database = {
           discount_value: number | null
           id: string
           payment_method: string | null
+          seller_id: string | null
+          status: string
           total: number
         }
         Insert: {
@@ -522,6 +524,8 @@ export type Database = {
           discount_value?: number | null
           id?: string
           payment_method?: string | null
+          seller_id?: string | null
+          status?: string
           total: number
         }
         Update: {
@@ -532,6 +536,8 @@ export type Database = {
           discount_value?: number | null
           id?: string
           payment_method?: string | null
+          seller_id?: string | null
+          status?: string
           total?: number
         }
         Relationships: [
