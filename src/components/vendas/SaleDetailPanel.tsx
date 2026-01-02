@@ -41,6 +41,7 @@ interface Sale {
   cancelled_by: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  cancelled_by_email?: string | null;
   leads?: { name: string } | null;
 }
 
@@ -322,10 +323,12 @@ export function SaleDetailPanel({ sale, items, open, onClose, companyId }: SaleD
                   <AlertTriangle className="h-4 w-4" />
                   <span>Venda Cancelada</span>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  <p>Data: {format(new Date(sale.cancelled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>
+                    Cancelada por <span className="font-medium text-foreground">{sale.cancelled_by_email || "Usuário"}</span> em {format(new Date(sale.cancelled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  </p>
                   {sale.cancellation_reason && (
-                    <p className="mt-1">Motivo: {sale.cancellation_reason}</p>
+                    <p>Motivo: {sale.cancellation_reason}</p>
                   )}
                 </div>
               </div>
