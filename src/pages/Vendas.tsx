@@ -207,23 +207,28 @@ export default function Vendas() {
 
       if (saleError) throw saleError;
 
-      // Create sale items - ensure subtotal is calculated correctly
-      const saleItems = cart.map((item) => {
-        const itemSubtotal = Number(item.product.price) * Number(item.quantity);
-        return {
-          sale_id: sale.id,
-          product_id: item.product.id,
-          quantity: item.quantity,
-          price: Number(item.product.price),
-          subtotal: itemSubtotal,
-        };
-      });
+      // Create sale items (NOTE: subtotal is a GENERATED column in the database, so we must NOT send it)
+      const saleItems = cart.map((item) => ({
+        sale_id: sale.id,
+        product_id: item.product.id,
+        quantity: item.quantity,
+        price: Number(item.product.price),
+      }));
 
       const { error: itemsError } = await supabase
         .from("sale_items")
         .insert(saleItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        // Avoid leaving an orphan sale without items
+        await supabase
+          .from("sales")
+          .delete()
+          .eq("id", sale.id)
+          .eq("company_id", company.id);
+
+        throw itemsError;
+      }
 
       // Update product stock
       for (const item of cart) {
