@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -6,11 +7,26 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Receipt, User, CreditCard, Calendar, Package } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Receipt, User, CreditCard, Calendar, Package, XCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Sale {
   id: string;
@@ -22,11 +38,15 @@ interface Sale {
   discount_value: number | null;
   status: string;
   seller_id: string | null;
+  cancelled_by: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
   leads?: { name: string } | null;
 }
 
 interface SaleItem {
   id: string;
+  product_id: string;
   quantity: number;
   price: number;
   subtotal: number | null;
@@ -38,6 +58,7 @@ interface SaleDetailPanelProps {
   items: SaleItem[];
   open: boolean;
   onClose: () => void;
+  companyId?: string;
 }
 
 const paymentMethodLabels: Record<string, string> = {
@@ -54,7 +75,13 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
   refunded: { label: "Estornada", variant: "secondary" },
 };
 
-export function SaleDetailPanel({ sale, items, open, onClose }: SaleDetailPanelProps) {
+export function SaleDetailPanel({ sale, items, open, onClose, companyId }: SaleDetailPanelProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -65,6 +92,66 @@ export function SaleDetailPanel({ sale, items, open, onClose }: SaleDetailPanelP
   const subtotal = items.reduce((acc, item) => {
     return acc + (item.subtotal || item.price * item.quantity);
   }, 0);
+
+  const handleCancelSale = async () => {
+    if (!sale || !user) return;
+    
+    setIsCancelling(true);
+    try {
+      // 1. Update sale status
+      const { error: saleError } = await supabase
+        .from("sales")
+        .update({
+          status: "cancelled",
+          cancelled_by: user.id,
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: cancellationReason || null,
+        })
+        .eq("id", sale.id);
+
+      if (saleError) throw saleError;
+
+      // 2. Restore stock for each item
+      for (const item of items) {
+        const { data: product } = await supabase
+          .from("products")
+          .select("stock")
+          .eq("id", item.product_id)
+          .maybeSingle();
+
+        if (product) {
+          const newStock = (product.stock || 0) + item.quantity;
+          await supabase
+            .from("products")
+            .update({ stock: newStock })
+            .eq("id", item.product_id);
+        }
+      }
+
+      // 3. Mark financial transaction as cancelled (if exists)
+      if (companyId) {
+        await supabase
+          .from("financial_transactions")
+          .update({ status: "cancelled" })
+          .eq("origin", `sale:${sale.id}`)
+          .eq("company_id", companyId);
+      }
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["sales-history"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+
+      toast.success("Venda cancelada com sucesso! Estoque restaurado.");
+      setShowCancelDialog(false);
+      setCancellationReason("");
+      onClose();
+    } catch (error: any) {
+      console.error("Error cancelling sale:", error);
+      toast.error("Erro ao cancelar venda: " + error.message);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   const handlePrintReceipt = () => {
     if (!sale) return;
@@ -226,6 +313,25 @@ export function SaleDetailPanel({ sale, items, open, onClose }: SaleDetailPanelP
             </div>
           </div>
 
+          {/* Cancellation Info */}
+          {sale.status === "cancelled" && sale.cancelled_at && (
+            <>
+              <Separator className="bg-border" />
+              <div className="bg-destructive/10 rounded-xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-destructive font-medium">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Venda Cancelada</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <p>Data: {format(new Date(sale.cancelled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                  {sale.cancellation_reason && (
+                    <p className="mt-1">Motivo: {sale.cancellation_reason}</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
           <Separator className="bg-border" />
 
           {/* Actions */}
@@ -237,9 +343,72 @@ export function SaleDetailPanel({ sale, items, open, onClose }: SaleDetailPanelP
               <Receipt className="h-4 w-4 mr-2" />
               Imprimir Recibo
             </Button>
+            
+            {sale.status === "completed" && (
+              <Button
+                variant="destructive"
+                onClick={() => setShowCancelDialog(true)}
+                className="flex-1"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Cancelar Venda
+              </Button>
+            )}
           </div>
         </div>
       </SheetContent>
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent className="bg-background border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Cancelar Venda
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Tem certeza que deseja cancelar esta venda? Esta ação irá:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Alterar o status da venda para "Cancelada"</li>
+                <li>Restaurar o estoque dos produtos</li>
+                <li>Marcar a movimentação financeira como cancelada</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-2 py-2">
+            <Label htmlFor="cancellation-reason" className="text-sm text-muted-foreground">
+              Motivo do cancelamento (opcional)
+            </Label>
+            <Textarea
+              id="cancellation-reason"
+              placeholder="Informe o motivo do cancelamento..."
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              className="bg-secondary border-border"
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setCancellationReason("");
+                setShowCancelDialog(false);
+              }}
+              className="border-border"
+            >
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelSale}
+              disabled={isCancelling}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              {isCancelling ? "Cancelando..." : "Confirmar Cancelamento"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
