@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 
+export interface InstallmentRule {
+  installments: number;
+  interest_rate_percent: number;
+  pass_to_customer: boolean;
+}
+
 export interface PaymentGateway {
   id: string;
   company_id: string;
@@ -9,6 +15,7 @@ export interface PaymentGateway {
   type: string;
   service_fee_percent: number;
   active: boolean;
+  installment_rules: InstallmentRule[];
   created_at: string;
   updated_at: string;
 }
@@ -27,7 +34,10 @@ export function usePaymentGateways() {
         .eq("company_id", company.id)
         .order("name");
       if (error) throw error;
-      return data as PaymentGateway[];
+      return (data || []).map(g => ({
+        ...g,
+        installment_rules: (g.installment_rules as unknown as InstallmentRule[]) || [],
+      })) as PaymentGateway[];
     },
     enabled: !!company?.id,
   });
@@ -42,6 +52,7 @@ export function usePaymentGateways() {
         .insert({
           ...data,
           company_id: company.id,
+          installment_rules: data.installment_rules as unknown as any,
         })
         .select()
         .single();
@@ -55,9 +66,13 @@ export function usePaymentGateways() {
 
   const updateGateway = useMutation({
     mutationFn: async ({ id, ...data }: Partial<PaymentGateway> & { id: string }) => {
+      const updateData: Record<string, any> = { ...data };
+      if (data.installment_rules) {
+        updateData.installment_rules = data.installment_rules as unknown as any;
+      }
       const { error } = await supabase
         .from("payment_gateways")
-        .update(data)
+        .update(updateData)
         .eq("id", id);
       if (error) throw error;
     },
@@ -79,6 +94,35 @@ export function usePaymentGateways() {
     },
   });
 
+  // Calculate interest for a gateway-specific installment
+  const calculateGatewayInterest = (
+    gateway: PaymentGateway,
+    amount: number,
+    installments: number,
+    interestStartsAt: number
+  ): { interestAmount: number; passToCustomer: boolean } => {
+    // Check if interest should be applied based on global setting
+    if (installments < interestStartsAt) {
+      return { interestAmount: 0, passToCustomer: false };
+    }
+
+    // Find the specific rule for this installment count
+    const rule = gateway.installment_rules.find(r => r.installments === installments);
+    
+    if (!rule) {
+      return { interestAmount: 0, passToCustomer: false };
+    }
+
+    const interestAmount = amount * (rule.interest_rate_percent / 100);
+    return { interestAmount, passToCustomer: rule.pass_to_customer };
+  };
+
+  // Get max installments for a gateway
+  const getMaxInstallments = (gateway: PaymentGateway): number => {
+    if (gateway.installment_rules.length === 0) return 1;
+    return Math.max(...gateway.installment_rules.map(r => r.installments), 1);
+  };
+
   return {
     gateways: gateways || [],
     activeGateways,
@@ -86,5 +130,7 @@ export function usePaymentGateways() {
     createGateway,
     updateGateway,
     deleteGateway,
+    calculateGatewayInterest,
+    getMaxInstallments,
   };
 }

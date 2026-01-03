@@ -351,6 +351,7 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
+          installment_rules: Json
           name: string
           service_fee_percent: number
           type: string
@@ -361,6 +362,7 @@ export type Database = {
           company_id: string
           created_at?: string
           id?: string
+          installment_rules?: Json
           name: string
           service_fee_percent?: number
           type?: string
@@ -371,6 +373,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           id?: string
+          installment_rules?: Json
           name?: string
           service_fee_percent?: number
           type?: string
