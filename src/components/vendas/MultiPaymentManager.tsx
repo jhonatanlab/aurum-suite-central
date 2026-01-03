@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -32,6 +32,7 @@ export interface PaymentEntry {
   interestAmount: number;
   gatewayFeePercent: number;
   gatewayFeeAmount: number;
+  passToCustomer: boolean;
 }
 
 interface MultiPaymentManagerProps {
@@ -58,8 +59,8 @@ export function MultiPaymentManager({
   onCostsChange,
   onInterestToCustomer,
 }: MultiPaymentManagerProps) {
-  const { activeGateways } = usePaymentGateways();
-  const { settings, calculateInterest } = usePaymentSettings();
+  const { activeGateways, calculateGatewayInterest, getMaxInstallments } = usePaymentGateways();
+  const { settings } = usePaymentSettings();
   
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
 
@@ -75,6 +76,7 @@ export function MultiPaymentManager({
       interestAmount: 0,
       gatewayFeePercent: 0,
       gatewayFeeAmount: 0,
+      passToCustomer: false,
     };
     const newPayments = [...payments, newPayment];
     setPayments(newPayments);
@@ -93,33 +95,59 @@ export function MultiPaymentManager({
       
       const updated = { ...p, [field]: value };
       
-      // Recalculate interest when installments change
-      if (field === "installments" || field === "amount") {
-        const { interestAmount, passToCustomer } = calculateInterest(
-          field === "amount" ? value : p.amount,
-          field === "installments" ? value : p.installments
-        );
-        updated.interestRatePercent = settings.interest_rate_percent;
-        updated.interestAmount = interestAmount;
+      // Get the gateway
+      const gatewayId = field === "gatewayId" ? value : p.gatewayId;
+      const gateway = activeGateways.find(g => g.id === gatewayId);
+      const amount = field === "amount" ? value : p.amount;
+      const installments = field === "installments" ? value : p.installments;
+      
+      // Recalculate interest when installments, amount, or gateway changes
+      if (field === "installments" || field === "amount" || field === "gatewayId") {
+        if (gateway) {
+          const { interestAmount, passToCustomer } = calculateGatewayInterest(
+            gateway,
+            amount,
+            installments,
+            settings.interest_starts_at
+          );
+          
+          // Find the rule to get the rate
+          const rule = gateway.installment_rules.find(r => r.installments === installments);
+          updated.interestRatePercent = rule?.interest_rate_percent || 0;
+          updated.interestAmount = interestAmount;
+          updated.passToCustomer = passToCustomer;
+        } else {
+          updated.interestRatePercent = 0;
+          updated.interestAmount = 0;
+          updated.passToCustomer = false;
+        }
       }
       
-      // Recalculate gateway fee when gateway changes
+      // Recalculate gateway fee when gateway or amount changes
       if (field === "gatewayId" || field === "amount") {
-        const gateway = activeGateways.find(g => g.id === (field === "gatewayId" ? value : p.gatewayId));
         if (gateway) {
           updated.gatewayFeePercent = gateway.service_fee_percent;
-          updated.gatewayFeeAmount = (field === "amount" ? value : p.amount) * (gateway.service_fee_percent / 100);
+          updated.gatewayFeeAmount = amount * (gateway.service_fee_percent / 100);
         } else {
           updated.gatewayFeePercent = 0;
           updated.gatewayFeeAmount = 0;
         }
       }
       
-      // Reset installments if not credit card
+      // Reset installments if not credit card or if gateway changes
       if (field === "method" && value !== "cartao_credito") {
         updated.installments = 1;
         updated.interestAmount = 0;
         updated.interestRatePercent = 0;
+        updated.passToCustomer = false;
+      }
+
+      // Reset installments if gateway changes
+      if (field === "gatewayId") {
+        updated.installments = 1;
+        updated.interestAmount = 0;
+        updated.interestRatePercent = 0;
+        updated.passToCustomer = false;
       }
       
       return updated;
@@ -141,13 +169,13 @@ export function MultiPaymentManager({
     paymentsList.forEach(p => {
       // Check if interest should be passed to customer
       if (p.interestAmount > 0) {
-        const { passToCustomer } = calculateInterest(p.amount, p.installments);
-        if (passToCustomer) {
+        if (p.passToCustomer) {
           interestToCustomer += p.interestAmount;
         } else {
+          const gateway = activeGateways.find(g => g.id === p.gatewayId);
           costs.push({
             type: "interest",
-            description: `Juros ${p.installments}x - ${paymentMethods.find(m => m.value === p.method)?.label || p.method}`,
+            description: `Juros ${p.installments}x - ${gateway?.name || "Gateway"}`,
             amount: p.interestAmount,
           });
         }
@@ -174,8 +202,7 @@ export function MultiPaymentManager({
   const pendingBalance = Math.max(0, totalDue - totalPaid);
   const totalCosts = payments.reduce((sum, p) => sum + p.gatewayFeeAmount, 0);
   const totalInterestNotPassed = payments.reduce((sum, p) => {
-    const { passToCustomer } = calculateInterest(p.amount, p.installments);
-    return sum + (passToCustomer ? 0 : p.interestAmount);
+    return sum + (p.passToCustomer ? 0 : p.interestAmount);
   }, 0);
 
   const formatCurrency = (value: number) => {
@@ -183,6 +210,34 @@ export function MultiPaymentManager({
       style: "currency",
       currency: "BRL",
     }).format(value);
+  };
+
+  const getInstallmentOptions = (payment: PaymentEntry): { value: number; label: string; interestAmount: number }[] => {
+    const gateway = activeGateways.find(g => g.id === payment.gatewayId);
+    if (!gateway || gateway.installment_rules.length === 0) {
+      return [{ value: 1, label: "1x (sem juros)", interestAmount: 0 }];
+    }
+
+    return gateway.installment_rules
+      .sort((a, b) => a.installments - b.installments)
+      .map(rule => {
+        const { interestAmount, passToCustomer } = calculateGatewayInterest(
+          gateway,
+          payment.amount,
+          rule.installments,
+          settings.interest_starts_at
+        );
+
+        const label = interestAmount > 0
+          ? `${rule.installments}x (+${formatCurrency(interestAmount)}${passToCustomer ? "" : " custo"})`
+          : `${rule.installments}x (sem juros)`;
+
+        return {
+          value: rule.installments,
+          label,
+          interestAmount,
+        };
+      });
   };
 
   return (
@@ -263,52 +318,55 @@ export function MultiPaymentManager({
                   </div>
                 </div>
 
-                {payment.method === "cartao_credito" && (
-                  <div className="grid grid-cols-2 gap-2">
+                {payment.method === "cartao_credito" && activeGateways.length > 0 && (
+                  <div className="space-y-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">Parcelas</Label>
+                      <Label className="text-xs">Gateway / Maquininha</Label>
                       <Select
-                        value={payment.installments.toString()}
-                        onValueChange={(value) => updatePayment(payment.id, "installments", parseInt(value))}
+                        value={payment.gatewayId || "none"}
+                        onValueChange={(value) => updatePayment(payment.id, "gatewayId", value === "none" ? null : value)}
                       >
                         <SelectTrigger className="h-8 text-xs bg-secondary border-border">
-                          <SelectValue />
+                          <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {Array.from({ length: settings.max_installments }, (_, i) => i + 1).map((n) => {
-                            const { interestAmount, passToCustomer } = calculateInterest(payment.amount, n);
-                            const hasInterest = interestAmount > 0;
-                            return (
-                              <SelectItem key={n} value={n.toString()}>
-                                {n}x {hasInterest ? `(+${formatCurrency(interestAmount)})` : "(sem juros)"}
-                              </SelectItem>
-                            );
-                          })}
+                          <SelectItem value="none">Selecione um gateway</SelectItem>
+                          {activeGateways.map((gateway) => (
+                            <SelectItem key={gateway.id} value={gateway.id}>
+                              {gateway.name} (taxa: {gateway.service_fee_percent}%)
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
 
-                    {activeGateways.length > 0 && (
+                    {payment.gatewayId && (
                       <div className="space-y-1">
-                        <Label className="text-xs">Gateway</Label>
+                        <Label className="text-xs">Parcelas</Label>
                         <Select
-                          value={payment.gatewayId || "none"}
-                          onValueChange={(value) => updatePayment(payment.id, "gatewayId", value === "none" ? null : value)}
+                          value={payment.installments.toString()}
+                          onValueChange={(value) => updatePayment(payment.id, "installments", parseInt(value))}
                         >
                           <SelectTrigger className="h-8 text-xs bg-secondary border-border">
-                            <SelectValue placeholder="Selecione..." />
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">Nenhum</SelectItem>
-                            {activeGateways.map((gateway) => (
-                              <SelectItem key={gateway.id} value={gateway.id}>
-                                {gateway.name} ({gateway.service_fee_percent}%)
+                            {getInstallmentOptions(payment).map((option) => (
+                              <SelectItem key={option.value} value={option.value.toString()}>
+                                {option.label}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {payment.method === "cartao_credito" && activeGateways.length === 0 && (
+                  <div className="text-xs text-amber-500 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Configure gateways em Meu Negócio → Pagamentos
                   </div>
                 )}
 
@@ -319,6 +377,9 @@ export function MultiPaymentManager({
                         <span className="flex items-center gap-1">
                           <Percent className="h-3 w-3" />
                           Juros ({payment.interestRatePercent}%)
+                          {!payment.passToCustomer && (
+                            <Badge variant="secondary" className="text-[10px] px-1">custo</Badge>
+                          )}
                         </span>
                         <span>{formatCurrency(payment.interestAmount)}</span>
                       </div>
