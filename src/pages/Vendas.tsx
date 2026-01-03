@@ -440,7 +440,7 @@ export default function Vendas() {
         </TabsList>
 
         <TabsContent value="pdv" className="mt-0">
-          <div className="flex h-[calc(100vh-180px)] gap-6">
+          <div className="flex h-[calc(100vh-140px)] gap-6">
             {/* Products Grid */}
             <div className="flex-1 flex flex-col min-w-0">
               {/* Search */}
