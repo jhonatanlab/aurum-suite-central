@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { useSalesColumnV2 } from "@/hooks/useSalesColumnV2";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, ShoppingCart, Plus, Minus, Trash2, Package, DollarSign, User, Percent, History, Truck, AlertCircle } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Search, ShoppingCart, Plus, Minus, Trash2, Package, DollarSign, User, Percent, History, Truck, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { SalesHistoryTab } from "@/components/vendas/SalesHistoryTab";
 import { MultiPaymentManager, PaymentEntry } from "@/components/vendas/MultiPaymentManager";
@@ -37,16 +39,11 @@ interface SaleCost {
   amount: number;
 }
 export default function Vendas() {
-  const {
-    company
-  } = useCompany();
-  const {
-    user
-  } = useAuth();
-  const {
-    moveLeadToSales,
-    isAutoMoveEnabled
-  } = useSalesColumnV2();
+  const { company } = useCompany();
+  const { user } = useAuth();
+  const { moveLeadToSales, isAutoMoveEnabled } = useSalesColumnV2();
+  const isMobile = useIsMobile();
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -389,73 +386,86 @@ export default function Vendas() {
         </TabsList>
 
         <TabsContent value="pdv" className="mt-0">
-          <div className="flex h-[calc(120vh-140px)] gap-6">
-            {/* Products Grid */}
-            <div className="flex-1 flex flex-col min-w-0">
-              {/* Search */}
-              <div className="mb-6">
-                <div className="relative max-w-md">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Buscar produto..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 bg-secondary border-border focus:border-primary" />
-                </div>
-              </div>
-
-              {/* Products */}
-              <div className="flex-1 overflow-y-auto pr-2">
-                {isLoading ? <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {Array.from({
-                  length: 8
-                }).map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}
-                  </div> : filteredProducts.length === 0 ? <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                    <Package className="h-12 w-12 mb-4 opacity-50" />
-                    <p>Nenhum produto encontrado</p>
-                  </div> : <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {filteredProducts.map(product => <Card key={product.id} className="bg-card border-border card-hover group">
-                        <CardContent className="p-4 flex flex-col h-full">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-foreground mb-1 line-clamp-2">
-                              {product.name}
-                            </h3>
-                            <p className="text-primary font-bold text-lg mb-2">
-                              {formatCurrency(product.price)}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Estoque: {product.stock ?? 0}
-                            </p>
-                          </div>
-                          <Button onClick={() => addToCart(product)} className="mt-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={product.stock !== null && product.stock <= 0}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Adicionar
-                          </Button>
-                        </CardContent>
-                      </Card>)}
-                  </div>}
+          {/* Products Grid - full width, with padding for fixed cart on desktop */}
+          <div className={`flex flex-col min-w-0 ${!isMobile ? 'pr-[420px]' : ''}`}>
+            {/* Search */}
+            <div className="mb-6">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Buscar produto..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 bg-secondary border-border focus:border-primary" />
               </div>
             </div>
 
-            {/* Cart Panel */}
-            <div className="w-[420px] flex-shrink-0 bg-secondary rounded-2xl border border-border flex flex-col">
-              {/* Cart Header */}
-              <div className="p-5 border-b border-border">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <ShoppingCart className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-foreground text-lg">Carrinho</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {cart.length} {cart.length === 1 ? "item" : "itens"}
-                    </p>
-                  </div>
-                </div>
-              </div>
+            {/* Products */}
+            <div className="flex-1 overflow-y-auto pr-2">
+              {isLoading ? <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {Array.from({
+                length: 8
+              }).map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}
+                </div> : filteredProducts.length === 0 ? <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                  <Package className="h-12 w-12 mb-4 opacity-50" />
+                  <p>Nenhum produto encontrado</p>
+                </div> : <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filteredProducts.map(product => <Card key={product.id} className="bg-card border-border card-hover group">
+                      <CardContent className="p-4 flex flex-col h-full">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-foreground mb-1 line-clamp-2">
+                            {product.name}
+                          </h3>
+                          <p className="text-primary font-bold text-lg mb-2">
+                            {formatCurrency(product.price)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Estoque: {product.stock ?? 0}
+                          </p>
+                        </div>
+                        <Button onClick={() => addToCart(product)} className="mt-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={product.stock !== null && product.stock <= 0}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Adicionar
+                        </Button>
+                      </CardContent>
+                    </Card>)}
+                </div>}
+            </div>
+          </div>
 
-              {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {cart.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                    <ShoppingCart className="h-10 w-10 mb-3 opacity-40" />
-                    <p className="text-sm">Carrinho vazio</p>
-                  </div> : cart.map(item => <div key={item.product.id} className="bg-card rounded-xl p-4 border border-border">
+          {/* Mobile: Floating cart button */}
+          {isMobile && (
+            <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
+              <SheetTrigger asChild>
+                <Button 
+                  className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 z-40"
+                  size="icon"
+                >
+                  <ShoppingCart className="h-6 w-6" />
+                  {cart.length > 0 && (
+                    <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+                      {cart.reduce((acc, item) => acc + item.quantity, 0)}
+                    </span>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col bg-secondary">
+                <SheetHeader className="p-5 border-b border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <ShoppingCart className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <SheetTitle className="font-bold text-foreground text-lg">Carrinho</SheetTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {cart.length} {cart.length === 1 ? "item" : "itens"}
+                      </p>
+                    </div>
+                  </div>
+                </SheetHeader>
+
+                {/* Cart Content for Mobile */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {cart.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                      <ShoppingCart className="h-10 w-10 mb-3 opacity-40" />
+                      <p className="text-sm">Carrinho vazio</p>
+                    </div> : cart.map(item => <div key={item.product.id} className="bg-card rounded-xl p-4 border border-border">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1 min-w-0 mr-2">
                           <h4 className="font-medium text-foreground text-sm line-clamp-1">
@@ -486,6 +496,170 @@ export default function Vendas() {
                         </p>
                       </div>
                     </div>)}
+                </div>
+
+                {/* Cart Footer for Mobile */}
+                <div className="p-5 border-t border-border space-y-4 max-h-[60vh] overflow-y-auto">
+                  {/* Cliente Select */}
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Cliente
+                    </Label>
+                    <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                      <SelectTrigger className="bg-card border-border focus:border-primary">
+                        <SelectValue placeholder="Venda sem cliente" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="none">Venda sem cliente</SelectItem>
+                        {leads?.map(lead => <SelectItem key={lead.id} value={lead.id}>
+                            {lead.name}
+                          </SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Discount Fields */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Percent className="h-3 w-3" />
+                        Desconto (%)
+                      </Label>
+                      <Input type="number" min="0" max="100" step="0.01" placeholder="0" value={discountPercent} onChange={e => handleDiscountPercentChange(e.target.value)} className="bg-card border-border focus:border-primary" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                        <DollarSign className="h-3 w-3" />
+                        Desconto (R$)
+                      </Label>
+                      <Input type="number" min="0" step="0.01" placeholder="0,00" value={discountValue} onChange={e => handleDiscountValueChange(e.target.value)} className="bg-card border-border focus:border-primary" />
+                    </div>
+                  </div>
+
+                  {/* Freight Fields */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Truck className="h-3 w-3" />
+                        Frete Cliente
+                      </Label>
+                      <Input type="number" min="0" step="0.01" placeholder="0,00" value={clientFreight} onChange={e => setClientFreight(e.target.value)} className="bg-card border-border focus:border-primary" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Truck className="h-3 w-3 text-destructive" />
+                        Frete Loja
+                      </Label>
+                      <Input type="number" min="0" step="0.01" placeholder="0,00" value={storeFreight} onChange={e => setStoreFreight(e.target.value)} className="bg-card border-border focus:border-primary" />
+                    </div>
+                  </div>
+
+                  {/* Multi Payment Manager */}
+                  <MultiPaymentManager totalDue={cartTotal} onPaymentsChange={handlePaymentsChange} onTotalPaidChange={handleTotalPaidChange} onCostsChange={handleCostsChange} onInterestToCustomer={handleInterestToCustomer} />
+
+                  {/* Totals */}
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span className="text-foreground">{formatCurrency(cartSubtotal)}</span>
+                    </div>
+                    {calculatedDiscount > 0 && <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Desconto</span>
+                        <span className="text-destructive">-{formatCurrency(calculatedDiscount)}</span>
+                      </div>}
+                    {clientFreightValue > 0 && <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Frete (cliente)</span>
+                        <span className="text-foreground">+{formatCurrency(clientFreightValue)}</span>
+                      </div>}
+                    {interestToCustomer > 0 && <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Juros</span>
+                        <span className="text-foreground">+{formatCurrency(interestToCustomer)}</span>
+                      </div>}
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-muted-foreground font-medium">Total</span>
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-5 w-5 text-primary" />
+                        <span className="text-2xl font-bold text-foreground">
+                          {formatCurrency(cartTotal)}
+                        </span>
+                      </div>
+                    </div>
+                    {pendingBalance > 0 && payments.length > 0 && <div className="flex items-center justify-between text-sm bg-amber-500/10 rounded-lg p-2">
+                        <span className="text-amber-500 flex items-center gap-1">
+                          <AlertCircle className="h-4 w-4" />
+                          Saldo Pendente
+                        </span>
+                        <span className="text-amber-500 font-semibold">{formatCurrency(pendingBalance)}</span>
+                      </div>}
+                    {totalCostsAmount > 0 && <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>Custos da venda</span>
+                        <span className="text-destructive">{formatCurrency(totalCostsAmount)}</span>
+                      </div>}
+                  </div>
+
+                  <Button onClick={handleFinalizeSale} className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base" disabled={cart.length === 0 || payments.length === 0 || finalizeSaleMutation.isPending}>
+                    {finalizeSaleMutation.isPending ? "Processando..." : "Finalizar Venda"}
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          )}
+
+          {/* Desktop: Fixed Cart Panel */}
+          {!isMobile && (
+            <div className="fixed top-0 right-0 w-[400px] h-screen bg-secondary border-l border-border flex flex-col shadow-2xl z-30">
+              {/* Cart Header */}
+              <div className="p-5 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <ShoppingCart className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-foreground text-lg">Carrinho</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {cart.length} {cart.length === 1 ? "item" : "itens"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cart Items */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {cart.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <ShoppingCart className="h-10 w-10 mb-3 opacity-40" />
+                    <p className="text-sm">Carrinho vazio</p>
+                  </div> : cart.map(item => <div key={item.product.id} className="bg-card rounded-xl p-4 border border-border">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1 min-w-0 mr-2">
+                        <h4 className="font-medium text-foreground text-sm line-clamp-1">
+                          {item.product.name}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCurrency(item.product.price)} un.
+                        </p>
+                      </div>
+                      <button onClick={() => removeFromCart(item.product.id)} className="text-destructive hover:text-destructive/80 transition-colors p-1">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" className="h-8 w-8 border-border" onClick={() => updateQuantity(item.product.id, -1)}>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-8 text-center font-medium text-foreground">
+                          {item.quantity}
+                        </span>
+                        <Button variant="outline" size="icon" className="h-8 w-8 border-border" onClick={() => updateQuantity(item.product.id, 1)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <p className="font-semibold text-primary">
+                        {formatCurrency(item.product.price * item.quantity)}
+                      </p>
+                    </div>
+                  </div>)}
               </div>
 
               {/* Cart Footer */}
@@ -593,7 +767,7 @@ export default function Vendas() {
                 </Button>
               </div>
             </div>
-          </div>
+          )}
         </TabsContent>
 
         <TabsContent value="history" className="mt-0">
