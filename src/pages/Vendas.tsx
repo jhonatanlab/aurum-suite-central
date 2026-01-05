@@ -39,9 +39,16 @@ interface SaleCost {
   amount: number;
 }
 export default function Vendas() {
-  const { company } = useCompany();
-  const { user } = useAuth();
-  const { moveLeadToSales, isAutoMoveEnabled } = useSalesColumnV2();
+  const {
+    company
+  } = useCompany();
+  const {
+    user
+  } = useAuth();
+  const {
+    moveLeadToSales,
+    isAutoMoveEnabled
+  } = useSalesColumnV2();
   const isMobile = useIsMobile();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -430,19 +437,13 @@ export default function Vendas() {
           </div>
 
           {/* Mobile: Floating cart button */}
-          {isMobile && (
-            <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
+          {isMobile && <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
               <SheetTrigger asChild>
-                <Button 
-                  className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 z-40"
-                  size="icon"
-                >
+                <Button className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 z-40" size="icon">
                   <ShoppingCart className="h-6 w-6" />
-                  {cart.length > 0 && (
-                    <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+                  {cart.length > 0 && <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
                       {cart.reduce((acc, item) => acc + item.quantity, 0)}
-                    </span>
-                  )}
+                    </span>}
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col bg-secondary">
@@ -603,12 +604,10 @@ export default function Vendas() {
                   </Button>
                 </div>
               </SheetContent>
-            </Sheet>
-          )}
+            </Sheet>}
 
           {/* Desktop: Fixed Cart Panel */}
-          {!isMobile && (
-            <div className="fixed top-0 right-0 w-[400px] h-screen bg-secondary border-l border-border flex flex-col shadow-2xl z-30">
+          {!isMobile && <div className="fixed top-0 right-0 w-[400px] h-screen bg-secondary border-l border-border flex flex-col shadow-2xl z-30">
               {/* Cart Header - Compact */}
               <div className="px-4 py-3 border-b border-border flex items-center gap-2 shrink-0">
                 <ShoppingCart className="h-4 w-4 text-primary" />
@@ -619,7 +618,7 @@ export default function Vendas() {
               </div>
 
               {/* Cart Items - Limited height */}
-              <div className="overflow-y-auto p-3 space-y-2 max-h-[30vh]">
+              <div className="overflow-y-auto p-3 space-y-2 max-h-[20vh]">
                 {cart.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                     <ShoppingCart className="h-10 w-10 mb-3 opacity-40" />
                     <p className="text-sm">Carrinho vazio</p>
@@ -760,8 +759,7 @@ export default function Vendas() {
                   {finalizeSaleMutation.isPending ? "Processando..." : "Finalizar Venda"}
                 </Button>
               </div>
-            </div>
-          )}
+            </div>}
         </TabsContent>
 
         <TabsContent value="history" className="mt-0">
