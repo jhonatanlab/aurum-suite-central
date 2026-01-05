@@ -609,23 +609,17 @@ export default function Vendas() {
           {/* Desktop: Fixed Cart Panel */}
           {!isMobile && (
             <div className="fixed top-0 right-0 w-[400px] h-screen bg-secondary border-l border-border flex flex-col shadow-2xl z-30">
-              {/* Cart Header */}
-              <div className="p-5 border-b border-border">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <ShoppingCart className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-foreground text-lg">Carrinho</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {cart.length} {cart.length === 1 ? "item" : "itens"}
-                    </p>
-                  </div>
-                </div>
+              {/* Cart Header - Compact */}
+              <div className="px-4 py-3 border-b border-border flex items-center gap-2 shrink-0">
+                <ShoppingCart className="h-4 w-4 text-primary" />
+                <span className="font-semibold text-foreground text-sm">Carrinho</span>
+                <span className="text-xs text-muted-foreground">
+                  ({cart.length} {cart.length === 1 ? "item" : "itens"})
+                </span>
               </div>
 
-              {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {/* Cart Items - Limited height */}
+              <div className="overflow-y-auto p-3 space-y-2 max-h-[30vh]">
                 {cart.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                     <ShoppingCart className="h-10 w-10 mb-3 opacity-40" />
                     <p className="text-sm">Carrinho vazio</p>
@@ -662,8 +656,8 @@ export default function Vendas() {
                   </div>)}
               </div>
 
-              {/* Cart Footer */}
-              <div className="p-5 border-t border-border space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Cart Footer - Scrollable with flex-1 */}
+              <div className="flex-1 overflow-y-auto p-4 border-t border-border space-y-3">
                 {/* Cliente Select */}
                 <div className="space-y-2">
                   <Label className="text-sm text-muted-foreground flex items-center gap-2">
