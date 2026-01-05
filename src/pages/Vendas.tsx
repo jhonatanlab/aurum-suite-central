@@ -655,7 +655,7 @@ export default function Vendas() {
                   </div>)}
               </div>
 
-              {/* Cart Footer - Scrollable with flex-1 */}
+              {/* Cart Options - Scrollable */}
               <div className="flex-1 overflow-y-auto p-4 border-t border-border space-y-3">
                 {/* Cliente Select */}
                 <div className="space-y-2">
@@ -714,9 +714,12 @@ export default function Vendas() {
 
                 {/* Multi Payment Manager */}
                 <MultiPaymentManager totalDue={cartTotal} onPaymentsChange={handlePaymentsChange} onTotalPaidChange={handleTotalPaidChange} onCostsChange={handleCostsChange} onInterestToCustomer={handleInterestToCustomer} />
+              </div>
 
+              {/* Cart Footer - Fixed at bottom */}
+              <div className="shrink-0 p-4 border-t border-border bg-secondary space-y-3">
                 {/* Totals */}
-                <div className="space-y-2 pt-2 border-t border-border">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="text-foreground">{formatCurrency(cartSubtotal)}</span>
