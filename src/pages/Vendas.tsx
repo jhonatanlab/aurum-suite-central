@@ -618,7 +618,7 @@ export default function Vendas() {
               </div>
 
               {/* Cart Items - Limited height */}
-              <div className="overflow-y-auto p-3 space-y-2 max-h-[20vh]">
+              <div className="overflow-y-auto p-3 space-y-2 max-h-[30vh]">
                 {cart.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                     <ShoppingCart className="h-10 w-10 mb-3 opacity-40" />
                     <p className="text-sm">Carrinho vazio</p>
