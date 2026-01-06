@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Receipt, User, CreditCard, Calendar, Package, XCircle, AlertTriangle } from "lucide-react";
+import { Receipt, User, CreditCard, Calendar, Package, XCircle, AlertTriangle, Truck, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,7 +35,10 @@ interface Sale {
   client_id: string | null;
   payment_method: string | null;
   total: number;
+  subtotal: number | null;
   discount_value: number | null;
+  client_freight: number | null;
+  store_freight: number | null;
   status: string;
   seller_id: string | null;
   cancelled_by: string | null;
@@ -43,6 +46,15 @@ interface Sale {
   cancellation_reason: string | null;
   cancelled_by_email?: string | null;
   leads?: { name: string } | null;
+}
+
+interface SalePayment {
+  id: string;
+  payment_method: string;
+  amount: number;
+  installments: number | null;
+  gateway_fee_amount: number | null;
+  interest_amount: number | null;
 }
 
 interface SaleItem {
@@ -57,6 +69,7 @@ interface SaleItem {
 interface SaleDetailPanelProps {
   sale: Sale | null;
   items: SaleItem[];
+  payments: SalePayment[];
   open: boolean;
   onClose: () => void;
   companyId?: string;
@@ -76,7 +89,7 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
   refunded: { label: "Estornada", variant: "secondary" },
 };
 
-export function SaleDetailPanel({ sale, items, open, onClose, companyId }: SaleDetailPanelProps) {
+export function SaleDetailPanel({ sale, items, payments, open, onClose, companyId }: SaleDetailPanelProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -293,12 +306,74 @@ export function SaleDetailPanel({ sale, items, open, onClose, companyId }: SaleD
             </div>
           </div>
 
+          {/* Freight Details */}
+          {((sale.client_freight && sale.client_freight > 0) || (sale.store_freight && sale.store_freight > 0)) && (
+            <>
+              <Separator className="bg-border" />
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                  <Truck className="h-4 w-4" />
+                  Frete
+                </h3>
+                <div className="bg-secondary rounded-xl p-4 space-y-2">
+                  {sale.client_freight && sale.client_freight > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Frete Cliente</span>
+                      <span className="text-foreground">{formatCurrency(sale.client_freight)}</span>
+                    </div>
+                  )}
+                  {sale.store_freight && sale.store_freight > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Frete Loja</span>
+                      <span className="text-foreground">{formatCurrency(sale.store_freight)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Payments Details */}
+          {payments.length > 0 && (
+            <>
+              <Separator className="bg-border" />
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                  <Wallet className="h-4 w-4" />
+                  Pagamentos
+                </h3>
+                <div className="bg-secondary rounded-xl divide-y divide-border">
+                  {payments.map((payment) => (
+                    <div key={payment.id} className="p-4 flex justify-between items-center">
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {paymentMethodLabels[payment.payment_method] || payment.payment_method}
+                        </p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          {payment.installments && payment.installments > 1 && (
+                            <span>{payment.installments}x</span>
+                          )}
+                          <Badge variant="outline" className="text-xs">
+                            Concluído
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="font-semibold text-foreground">
+                        {formatCurrency(payment.amount)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
           <Separator className="bg-border" />
 
           {/* Totals */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
+              <span className="text-muted-foreground">Subtotal Produtos</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
             
@@ -308,9 +383,16 @@ export function SaleDetailPanel({ sale, items, open, onClose, companyId }: SaleD
                 <span className="text-destructive">-{formatCurrency(sale.discount_value)}</span>
               </div>
             )}
+
+            {sale.client_freight && sale.client_freight > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Frete Cliente</span>
+                <span>{formatCurrency(sale.client_freight)}</span>
+              </div>
+            )}
             
-            <div className="flex justify-between text-lg font-bold pt-2">
-              <span>Total</span>
+            <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
+              <span>Total da Venda</span>
               <span className="text-primary">{formatCurrency(sale.total)}</span>
             </div>
           </div>

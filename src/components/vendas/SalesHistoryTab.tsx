@@ -34,7 +34,10 @@ interface Sale {
   client_id: string | null;
   payment_method: string | null;
   total: number;
+  subtotal: number | null;
   discount_value: number | null;
+  client_freight: number | null;
+  store_freight: number | null;
   status: string;
   seller_id: string | null;
   cancelled_by: string | null;
@@ -42,6 +45,15 @@ interface Sale {
   cancellation_reason: string | null;
   cancelled_by_email?: string | null;
   leads?: { name: string } | null;
+}
+
+interface SalePayment {
+  id: string;
+  payment_method: string;
+  amount: number;
+  installments: number | null;
+  gateway_fee_amount: number | null;
+  interest_amount: number | null;
 }
 
 interface SaleItem {
@@ -89,12 +101,16 @@ export function SalesHistoryTab() {
           client_id,
           payment_method,
           total,
+          subtotal,
           discount_value,
+          client_freight,
+          store_freight,
           status,
           seller_id,
           cancelled_by,
           cancelled_at,
           cancellation_reason,
+          cancelled_by_email,
           leads:client_id (name)
         `)
         .eq("company_id", company.id)
@@ -109,19 +125,39 @@ export function SalesHistoryTab() {
     queryKey: ["sale-details", selectedSaleId],
     queryFn: async () => {
       if (!selectedSaleId) return null;
-      const { data, error } = await supabase
-        .from("sale_items")
-        .select(`
-          id,
-          product_id,
-          quantity,
-          price,
-          subtotal,
-          products:product_id (name)
-        `)
-        .eq("sale_id", selectedSaleId);
-      if (error) throw error;
-      return data as SaleItem[];
+      
+      const [itemsResult, paymentsResult] = await Promise.all([
+        supabase
+          .from("sale_items")
+          .select(`
+            id,
+            product_id,
+            quantity,
+            price,
+            subtotal,
+            products:product_id (name)
+          `)
+          .eq("sale_id", selectedSaleId),
+        supabase
+          .from("sale_payments")
+          .select(`
+            id,
+            payment_method,
+            amount,
+            installments,
+            gateway_fee_amount,
+            interest_amount
+          `)
+          .eq("sale_id", selectedSaleId)
+      ]);
+      
+      if (itemsResult.error) throw itemsResult.error;
+      if (paymentsResult.error) throw paymentsResult.error;
+      
+      return {
+        items: itemsResult.data as SaleItem[],
+        payments: paymentsResult.data as SalePayment[]
+      };
     },
     enabled: !!selectedSaleId,
   });
@@ -349,7 +385,8 @@ export function SalesHistoryTab() {
       {/* Sale Detail Panel */}
       <SaleDetailPanel
         sale={selectedSale}
-        items={saleDetails || []}
+        items={saleDetails?.items || []}
+        payments={saleDetails?.payments || []}
         open={!!selectedSaleId}
         onClose={() => setSelectedSaleId(null)}
         companyId={company?.id}
