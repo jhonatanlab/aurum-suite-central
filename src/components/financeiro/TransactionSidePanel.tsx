@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Upload, FileText, X, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ interface FinancialTransaction {
   value: number;
   method: string | null;
   status: string;
+  receipt_path?: string | null;
 }
 
 interface TransactionSidePanelProps {
@@ -57,6 +58,7 @@ const STATUS_OPTIONS = [
 export function TransactionSidePanel({ open, onOpenChange, onSuccess, editingTransaction }: TransactionSidePanelProps) {
   const { company } = useCompany();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [type, setType] = useState<string>("entrada");
   const [date, setDate] = useState<Date>(new Date());
@@ -65,6 +67,9 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess, editingTra
   const [value, setValue] = useState<string>("");
   const [method, setMethod] = useState<string>("");
   const [status, setStatus] = useState<string>("pendente");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [existingReceiptPath, setExistingReceiptPath] = useState<string | null>(null);
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
 
   const isEditing = !!editingTransaction;
 
@@ -97,6 +102,8 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess, editingTra
     setValue("");
     setMethod("");
     setStatus("pendente");
+    setReceiptFile(null);
+    setExistingReceiptPath(null);
   };
 
   useEffect(() => {
@@ -108,10 +115,77 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess, editingTra
       setValue(editingTransaction.value.toString());
       setMethod(editingTransaction.method || "");
       setStatus(editingTransaction.status);
+      setExistingReceiptPath(editingTransaction.receipt_path || null);
+      setReceiptFile(null);
     } else if (!open) {
       resetForm();
     }
   }, [open, editingTransaction]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        toast.error("Formato inválido. Use JPG, PNG, WebP ou PDF.");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Arquivo muito grande. Máximo 5MB.");
+        return;
+      }
+      setReceiptFile(file);
+    }
+  };
+
+  const uploadReceipt = async (transactionId: string): Promise<string | null> => {
+    if (!receiptFile || !company?.id) return existingReceiptPath;
+
+    const fileExt = receiptFile.name.split('.').pop();
+    const filePath = `${company.id}/${transactionId}.${fileExt}`;
+
+    const { error } = await supabase.storage
+      .from('financial-receipts')
+      .upload(filePath, receiptFile, { upsert: true });
+
+    if (error) {
+      console.error("Erro ao fazer upload:", error);
+      throw error;
+    }
+
+    return filePath;
+  };
+
+  const getReceiptUrl = () => {
+    if (!existingReceiptPath) return null;
+    const { data } = supabase.storage
+      .from('financial-receipts')
+      .getPublicUrl(existingReceiptPath);
+    return data.publicUrl;
+  };
+
+  const handleViewReceipt = async () => {
+    if (!existingReceiptPath) return;
+    
+    const { data, error } = await supabase.storage
+      .from('financial-receipts')
+      .createSignedUrl(existingReceiptPath, 60);
+    
+    if (error || !data?.signedUrl) {
+      toast.error("Erro ao acessar comprovante");
+      return;
+    }
+    
+    window.open(data.signedUrl, '_blank');
+  };
+
+  const removeReceipt = () => {
+    setReceiptFile(null);
+    setExistingReceiptPath(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async () => {
     if (!company?.id) {
@@ -132,7 +206,7 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess, editingTra
     setIsSubmitting(true);
 
     try {
-      const transactionData = {
+      const baseData = {
         company_id: company.id,
         type,
         date: format(date, "yyyy-MM-dd"),
@@ -143,20 +217,49 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess, editingTra
         status,
       };
 
+      let transactionId = editingTransaction?.id;
+
       if (isEditing) {
+        // Handle receipt upload for existing transaction
+        let updateData: typeof baseData & { receipt_path?: string | null } = { ...baseData };
+        
+        if (receiptFile) {
+          const receiptPath = await uploadReceipt(editingTransaction.id);
+          updateData.receipt_path = receiptPath;
+        } else if (existingReceiptPath === null && editingTransaction.receipt_path) {
+          // Receipt was removed
+          updateData.receipt_path = null;
+        }
+
         const { error } = await supabase
           .from("financial_transactions")
-          .update(transactionData)
+          .update(updateData)
           .eq("id", editingTransaction.id);
 
         if (error) throw error;
         toast.success("Movimentação atualizada com sucesso");
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("financial_transactions")
-          .insert(transactionData);
+          .insert(baseData)
+          .select('id')
+          .single();
 
         if (error) throw error;
+        
+        transactionId = data.id;
+
+        // Upload receipt for new transaction
+        if (receiptFile && transactionId) {
+          const receiptPath = await uploadReceipt(transactionId);
+          if (receiptPath) {
+            await supabase
+              .from("financial_transactions")
+              .update({ receipt_path: receiptPath })
+              .eq("id", transactionId);
+          }
+        }
+
         toast.success("Movimentação registrada com sucesso");
       }
 
@@ -311,6 +414,63 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess, editingTra
               </SelectContent>
             </Select>
           </div>
+
+          {/* Comprovante - apenas para status "pago" */}
+          {status === "pago" && (
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Comprovante (opcional)</Label>
+              
+              {/* Existing receipt or new file preview */}
+              {(existingReceiptPath || receiptFile) ? (
+                <div className="flex items-center gap-2 p-3 bg-background rounded-lg border border-border">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <span className="flex-1 text-sm text-foreground truncate">
+                    {receiptFile?.name || "Comprovante anexado"}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {existingReceiptPath && !receiptFile && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleViewReceipt}
+                        className="h-8 w-8 text-primary hover:text-primary/80"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={removeReceipt}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                >
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Clique para anexar (JPG, PNG, PDF)
+                  </span>
+                </div>
+              )}
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+          )}
         </div>
 
         <SheetFooter className="gap-2 sm:gap-0">

@@ -14,7 +14,8 @@ import {
   Plus,
   RefreshCw,
   Search,
-  CalendarIcon
+  CalendarIcon,
+  Eye
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ interface FinancialTransaction {
   method: string | null;
   status: string;
   created_at: string;
+  receipt_path: string | null;
   category?: {
     name: string;
   } | null;
@@ -213,6 +215,19 @@ export default function Financeiro() {
       setDeleteDialogOpen(false);
       setDeletingTransaction(null);
     }
+  };
+
+  const handleViewReceipt = async (receiptPath: string) => {
+    const { data, error } = await supabase.storage
+      .from('financial-receipts')
+      .createSignedUrl(receiptPath, 60);
+    
+    if (error || !data?.signedUrl) {
+      toast.error("Erro ao acessar comprovante");
+      return;
+    }
+    
+    window.open(data.signedUrl, '_blank');
   };
 
   const handlePanelClose = (open: boolean) => {
@@ -464,7 +479,18 @@ export default function Financeiro() {
                         {transaction.method || "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
+                          {transaction.receipt_path && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-primary hover:text-primary/80"
+                              onClick={() => handleViewReceipt(transaction.receipt_path!)}
+                              title="Ver comprovante"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"

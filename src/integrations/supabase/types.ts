@@ -229,6 +229,7 @@ export type Database = {
           id: string
           method: string | null
           origin: string | null
+          receipt_path: string | null
           status: string
           type: string
           updated_at: string
@@ -243,6 +244,7 @@ export type Database = {
           id?: string
           method?: string | null
           origin?: string | null
+          receipt_path?: string | null
           status: string
           type: string
           updated_at?: string
@@ -257,6 +259,7 @@ export type Database = {
           id?: string
           method?: string | null
           origin?: string | null
+          receipt_path?: string | null
           status?: string
           type?: string
           updated_at?: string
