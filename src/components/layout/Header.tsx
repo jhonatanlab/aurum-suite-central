@@ -1,4 +1,4 @@
-import { Bell, Search, User, ChevronRight, Home, LogOut, Building2, Settings } from "lucide-react";
+import { Bell, Search, User, ChevronRight, Home, LogOut, Building2, Settings, AlertTriangle, Clock } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
-
+import { useFinancialNotifications, FinancialNotification } from "@/hooks/useFinancialNotifications";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 interface HeaderProps {
   title: string;
 }
@@ -40,9 +43,17 @@ export function Header({ title }: HeaderProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { company, companyUser } = useCompany();
+  const { notifications, totalCount, overdueCount } = useFinancialNotifications({ dueSoonDays: 3 });
   
   const currentPath = location.pathname;
   const pageTitle = routeTitles[currentPath] || title;
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -110,10 +121,81 @@ export function Header({ title }: HeaderProps) {
           </div>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[hsl(var(--gold))]" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
+                <Bell className="h-5 w-5" />
+                {totalCount > 0 && (
+                  <span className={`absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${
+                    overdueCount > 0 ? "bg-destructive" : "bg-[hsl(var(--gold))]"
+                  }`}>
+                    {totalCount > 9 ? "9+" : totalCount}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-80 bg-card border-border" align="end">
+              <DropdownMenuLabel className="font-semibold text-foreground flex items-center justify-between">
+                <span>Notificações</span>
+                {totalCount > 0 && (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {totalCount} pendente{totalCount !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-border" />
+              
+              {notifications.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground text-sm">
+                  Nenhuma notificação no momento
+                </div>
+              ) : (
+                <ScrollArea className="h-[300px]">
+                  {notifications.map((notification) => (
+                    <DropdownMenuItem
+                      key={notification.id}
+                      className="flex flex-col items-start gap-1 p-3 cursor-pointer focus:bg-secondary"
+                      onClick={() => navigate("/financeiro")}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        {notification.type === "overdue" ? (
+                          <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
+                        ) : (
+                          <Clock className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                        )}
+                        <span className={`text-sm font-medium ${
+                          notification.type === "overdue" ? "text-destructive" : "text-amber-500"
+                        }`}>
+                          {notification.title}
+                        </span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {format(new Date(notification.date + "T00:00:00"), "dd/MM", { locale: ptBR })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-1 w-full">
+                        {notification.description}
+                      </p>
+                      <span className="text-sm font-semibold text-foreground">
+                        {formatCurrency(notification.value)}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </ScrollArea>
+              )}
+              
+              {notifications.length > 0 && (
+                <>
+                  <DropdownMenuSeparator className="bg-border" />
+                  <DropdownMenuItem
+                    className="text-center justify-center text-primary hover:text-primary focus:bg-secondary cursor-pointer"
+                    onClick={() => navigate("/financeiro")}
+                  >
+                    Ver todas no Financeiro
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* User Menu */}
           <DropdownMenu>
