@@ -17,6 +17,7 @@ import {
   CalendarIcon,
   Eye
 } from "lucide-react";
+import { ExportMenu } from "@/components/financeiro/ExportMenu";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -287,6 +288,10 @@ export default function Financeiro() {
             </p>
           </div>
           <div className="flex gap-3">
+            <ExportMenu 
+              transactions={filteredTransactions} 
+              companyName={company?.name} 
+            />
             <Button 
               variant="outline"
               asChild
