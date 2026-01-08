@@ -215,6 +215,7 @@ export function TransactionSidePanel({ open, onOpenChange, onSuccess, editingTra
         value: parseFloat(value),
         method: method || null,
         status,
+        paid_at: status === "pago" ? new Date().toISOString() : null,
       };
 
       let transactionId = editingTransaction?.id;

@@ -229,7 +229,9 @@ export type Database = {
           id: string
           method: string | null
           origin: string | null
+          paid_at: string | null
           receipt_path: string | null
+          reference_id: string | null
           status: string
           type: string
           updated_at: string
@@ -244,7 +246,9 @@ export type Database = {
           id?: string
           method?: string | null
           origin?: string | null
+          paid_at?: string | null
           receipt_path?: string | null
+          reference_id?: string | null
           status: string
           type: string
           updated_at?: string
@@ -259,7 +263,9 @@ export type Database = {
           id?: string
           method?: string | null
           origin?: string | null
+          paid_at?: string | null
           receipt_path?: string | null
+          reference_id?: string | null
           status?: string
           type?: string
           updated_at?: string
@@ -278,6 +284,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_reference_id_fkey"
+            columns: ["reference_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
         ]
