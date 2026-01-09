@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,30 +19,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Reseller, useResellers } from "@/hooks/useResellers";
-import { ResellerSidePanel } from "./ResellerSidePanel";
-import {
-  Search,
-  Plus,
-  MoreHorizontal,
-  Pencil,
-  ToggleLeft,
-  ToggleRight,
-  Loader2,
-  Users2,
-} from "lucide-react";
+import { ResellerEditForm } from "./ResellerEditForm";
+import { Search, Plus, Loader2, Users2 } from "lucide-react";
 
 export function ResellersList() {
-  const { resellers, isLoading, toggleStatus } = useResellers();
+  const navigate = useNavigate();
+  const { resellers, isLoading } = useResellers();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [selectedReseller, setSelectedReseller] = useState<Reseller | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const filteredResellers = resellers.filter((r) => {
     const matchesSearch =
@@ -53,22 +45,8 @@ export function ResellersList() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleEdit = (reseller: Reseller) => {
-    setSelectedReseller(reseller);
-    setPanelOpen(true);
-  };
-
-  const handleCreate = () => {
-    setSelectedReseller(null);
-    setPanelOpen(true);
-  };
-
-  const handleToggleStatus = async (reseller: Reseller) => {
-    await toggleStatus.mutateAsync({
-      id: reseller.id,
-      name: reseller.name,
-      currentStatus: reseller.status,
-    });
+  const handleRowClick = (reseller: Reseller) => {
+    navigate(`/revendedores/${reseller.id}`);
   };
 
   const formatCommission = (type: string, value: number) => {
@@ -104,7 +82,7 @@ export function ResellersList() {
           </Select>
         </div>
         <Button
-          onClick={handleCreate}
+          onClick={() => setCreateOpen(true)}
           className="bg-primary hover:bg-primary/90"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -137,7 +115,6 @@ export function ResellersList() {
                 <TableHead>Contato</TableHead>
                 <TableHead>Comissão</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-[60px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -145,7 +122,7 @@ export function ResellersList() {
                 <TableRow
                   key={reseller.id}
                   className="border-border hover:bg-muted/30 cursor-pointer"
-                  onClick={() => handleEdit(reseller)}
+                  onClick={() => handleRowClick(reseller)}
                 >
                   <TableCell className="font-medium">{reseller.name}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -188,47 +165,6 @@ export function ResellersList() {
                       {reseller.status === "active" ? "Ativo" : "Inativo"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        asChild
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(reseller);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleStatus(reseller);
-                          }}
-                        >
-                          {reseller.status === "active" ? (
-                            <>
-                              <ToggleLeft className="h-4 w-4 mr-2" />
-                              Inativar
-                            </>
-                          ) : (
-                            <>
-                              <ToggleRight className="h-4 w-4 mr-2" />
-                              Ativar
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -236,12 +172,15 @@ export function ResellersList() {
         )}
       </div>
 
-      {/* Side Panel */}
-      <ResellerSidePanel
-        open={panelOpen}
-        onOpenChange={setPanelOpen}
-        reseller={selectedReseller}
-      />
+      {/* Create Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Novo Revendedor</DialogTitle>
+          </DialogHeader>
+          <ResellerEditForm onSuccess={() => setCreateOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
