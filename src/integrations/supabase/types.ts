@@ -120,6 +120,70 @@ export type Database = {
           },
         ]
       }
+      consignment_items: {
+        Row: {
+          company_id: string
+          consignment_value: number
+          created_at: string
+          id: string
+          observation: string | null
+          product_id: string
+          reseller_id: string
+          sent_at: string
+          sold_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          consignment_value: number
+          created_at?: string
+          id?: string
+          observation?: string | null
+          product_id: string
+          reseller_id: string
+          sent_at?: string
+          sold_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          consignment_value?: number
+          created_at?: string
+          id?: string
+          observation?: string | null
+          product_id?: string
+          reseller_id?: string
+          sent_at?: string
+          sold_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consignment_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignment_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignment_items_reseller_id_fkey"
+            columns: ["reseller_id"]
+            isOneToOne: false
+            referencedRelation: "resellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_history: {
         Row: {
           created_at: string
