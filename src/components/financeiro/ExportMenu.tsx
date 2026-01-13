@@ -1,4 +1,4 @@
-import { Download, FileSpreadsheet, FileText, File } from "lucide-react";
+import { Download, FileText, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -7,7 +7,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
@@ -75,35 +74,6 @@ export function ExportMenu({ transactions, companyName = "Empresa" }: ExportMenu
       Status: getStatusLabel(t.status),
       Método: getMethodLabel(t.method),
     }));
-  };
-
-  const exportToExcel = () => {
-    try {
-      const data = prepareData();
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      const workbook = XLSX.utils.book_new();
-      
-      // Set column widths
-      worksheet["!cols"] = [
-        { wch: 12 }, // Data
-        { wch: 35 }, // Descrição
-        { wch: 20 }, // Categoria
-        { wch: 10 }, // Tipo
-        { wch: 15 }, // Valor
-        { wch: 12 }, // Status
-        { wch: 18 }, // Método
-      ];
-
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Financeiro");
-      
-      const fileName = `financeiro_${companyName.replace(/\s+/g, "_")}_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
-      
-      toast.success("Exportado para Excel com sucesso!");
-    } catch (error) {
-      console.error("Erro ao exportar Excel:", error);
-      toast.error("Erro ao exportar para Excel");
-    }
   };
 
   const exportToCSV = () => {
@@ -217,13 +187,6 @@ export function ExportMenu({ transactions, companyName = "Empresa" }: ExportMenu
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-popover border-border" align="end">
-        <DropdownMenuItem
-          onClick={exportToExcel}
-          className="cursor-pointer focus:bg-secondary"
-        >
-          <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-500" />
-          Excel (.xlsx)
-        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={exportToCSV}
           className="cursor-pointer focus:bg-secondary"
