@@ -10,9 +10,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Package, Boxes, ShoppingCart, TrendingUp, Plus, Loader2 } from "lucide-react";
+import { Package, Boxes, ShoppingCart, TrendingUp, Plus, Undo2, FileCheck, Loader2 } from "lucide-react";
 import { useConsignment } from "@/hooks/useConsignment";
+import { useConsignmentActions } from "@/hooks/useConsignmentActions";
+import { useResellers, Reseller } from "@/hooks/useResellers";
 import { AddBatchModal } from "@/components/revendedores/AddBatchModal";
+import { ReturnModal } from "@/components/revendedores/ReturnModal";
+import { SellModal } from "@/components/revendedores/SellModal";
+import { ClosingModal } from "@/components/revendedores/ClosingModal";
 
 interface ResellerConsignedTabProps {
   resellerId: string;
@@ -28,8 +33,16 @@ interface GroupedProduct {
 }
 
 export function ResellerConsignedTab({ resellerId }: ResellerConsignedTabProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+  const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
+  
   const { items, isLoading, metrics } = useConsignment(resellerId);
+  const { returnItems, sellItems, createClosing } = useConsignmentActions(resellerId);
+  const { resellers } = useResellers();
+
+  const reseller = resellers.find((r) => r.id === resellerId);
 
   // Group items by product_id (only items with_reseller status)
   const groupedProducts = useMemo(() => {
@@ -86,18 +99,77 @@ export function ResellerConsignedTab({ resellerId }: ResellerConsignedTabProps) 
     },
   ];
 
+  const handleReturn = async (data: { items: Array<{ product_id: string; quantity: number; item_ids: string[] }>; observation: string }) => {
+    await returnItems.mutateAsync({
+      reseller_id: resellerId,
+      items: data.items,
+      observation: data.observation,
+    });
+  };
+
+  const handleSell = async (data: { items: Array<{ product_id: string; quantity: number; sale_value: number; item_ids: string[] }>; observation: string }) => {
+    if (!reseller) return;
+    await sellItems.mutateAsync({
+      reseller_id: resellerId,
+      items: data.items,
+      observation: data.observation,
+      commission_type: reseller.commission_type,
+      commission_value: reseller.commission_value,
+    });
+  };
+
+  const handleClosing = async () => {
+    if (!reseller) return;
+    await createClosing.mutateAsync({
+      reseller_id: resellerId,
+      reseller_name: reseller.name,
+      commission_type: reseller.commission_type,
+      commission_value: reseller.commission_value,
+    });
+  };
+
+  const hasItemsWithReseller = metrics.withReseller > 0;
+
   return (
     <div className="space-y-6">
-      {/* Header with Action */}
-      <div className="flex items-center justify-between">
+      {/* Header with Actions */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h3 className="text-lg font-medium text-foreground">Inventário Consignado</h3>
-        <Button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-primary hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Adicionar Lote
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setIsReturnModalOpen(true)}
+            disabled={!hasItemsWithReseller}
+            className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+          >
+            <Undo2 className="h-4 w-4 mr-2" />
+            Devolver
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsSellModalOpen(true)}
+            disabled={!hasItemsWithReseller}
+            className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+          >
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Registrar Vendas
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsClosingModalOpen(true)}
+            className="border-primary/50 text-primary hover:bg-primary/10"
+          >
+            <FileCheck className="h-4 w-4 mr-2" />
+            Fechamento
+          </Button>
+          <Button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-primary hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Lote
+          </Button>
+        </div>
       </div>
 
       {/* Metrics Cards */}
@@ -136,7 +208,7 @@ export function ResellerConsignedTab({ resellerId }: ResellerConsignedTabProps) 
             </p>
             <Button
               variant="outline"
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setIsAddModalOpen(true)}
               className="border-primary/50 text-primary hover:bg-primary/10"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -177,12 +249,45 @@ export function ResellerConsignedTab({ resellerId }: ResellerConsignedTabProps) 
         )}
       </div>
 
-      {/* Add Batch Modal */}
+      {/* Modals */}
       <AddBatchModal
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
+        open={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
         resellerId={resellerId}
       />
+
+      <ReturnModal
+        open={isReturnModalOpen}
+        onOpenChange={setIsReturnModalOpen}
+        items={items}
+        onConfirm={handleReturn}
+        isLoading={returnItems.isPending}
+      />
+
+      {reseller && (
+        <>
+          <SellModal
+            open={isSellModalOpen}
+            onOpenChange={setIsSellModalOpen}
+            items={items}
+            commissionType={reseller.commission_type}
+            commissionValue={reseller.commission_value}
+            onConfirm={handleSell}
+            isLoading={sellItems.isPending}
+          />
+
+          <ClosingModal
+            open={isClosingModalOpen}
+            onOpenChange={setIsClosingModalOpen}
+            items={items}
+            commissionType={reseller.commission_type}
+            commissionValue={reseller.commission_value}
+            resellerName={reseller.name}
+            onConfirm={handleClosing}
+            isLoading={createClosing.isPending}
+          />
+        </>
+      )}
     </div>
   );
 }
