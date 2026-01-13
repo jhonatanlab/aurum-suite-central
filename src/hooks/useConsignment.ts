@@ -13,6 +13,11 @@ export interface ConsignmentItem {
   status: string;
   sold_at: string | null;
   created_at: string;
+  sale_value?: number | null;
+  commission_amount?: number | null;
+  closing_id?: string | null;
+  returned_at?: string | null;
+  returned_by?: string | null;
   product?: {
     id: string;
     name: string;
@@ -61,7 +66,7 @@ export function useConsignment(resellerId: string) {
 
       if (error) throw error;
 
-      return data.map((item) => ({
+      return data.map((item: any) => ({
         ...item,
         product: item.products as { id: string; name: string } | undefined,
       })) as ConsignmentItem[];
