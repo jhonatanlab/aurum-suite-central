@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,9 +18,45 @@ interface ResellerConsignedTabProps {
   resellerId: string;
 }
 
+interface GroupedProduct {
+  product_id: string;
+  product_name: string;
+  consignment_value: number;
+  quantity: number;
+  sent_at: string;
+  observation: string | null;
+}
+
 export function ResellerConsignedTab({ resellerId }: ResellerConsignedTabProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { items, isLoading, metrics } = useConsignment(resellerId);
+
+  // Group items by product_id (only items with_reseller status)
+  const groupedProducts = useMemo(() => {
+    const grouped = new Map<string, GroupedProduct>();
+
+    items
+      .filter((item) => item.status === "with_reseller")
+      .forEach((item) => {
+        const key = item.product_id;
+        const existing = grouped.get(key);
+
+        if (existing) {
+          existing.quantity += 1;
+        } else {
+          grouped.set(key, {
+            product_id: item.product_id,
+            product_name: item.product?.name || "Produto não encontrado",
+            consignment_value: Number(item.consignment_value),
+            quantity: 1,
+            sent_at: item.sent_at,
+            observation: item.observation,
+          });
+        }
+      });
+
+    return Array.from(grouped.values());
+  }, [items]);
 
   const metricsData = [
     {
@@ -49,14 +85,6 @@ export function ResellerConsignedTab({ resellerId }: ResellerConsignedTabProps) 
       isMonetary: true,
     },
   ];
-
-  const formatStatus = (status: string) => {
-    const statusMap: Record<string, { label: string; class: string }> = {
-      with_reseller: { label: "Com revendedor", class: "bg-blue-500/20 text-blue-400" },
-      sold: { label: "Vendido", class: "bg-green-500/20 text-green-400" },
-    };
-    return statusMap[status] || { label: status, class: "bg-muted text-muted-foreground" };
-  };
 
   return (
     <div className="space-y-6">
@@ -93,13 +121,13 @@ export function ResellerConsignedTab({ resellerId }: ResellerConsignedTabProps) 
         ))}
       </div>
 
-      {/* Inventory Table */}
+      {/* Inventory Table - Grouped by Product */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : items.length === 0 ? (
+        ) : groupedProducts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <Package className="h-12 w-12 mb-4 opacity-50" />
             <p className="text-lg font-medium">Nenhuma peça consignada</p>
@@ -120,35 +148,30 @@ export function ResellerConsignedTab({ resellerId }: ResellerConsignedTabProps) 
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead>Produto</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Data de Envio</TableHead>
-                <TableHead>Observação</TableHead>
+                <TableHead className="text-center">Quantidade</TableHead>
+                <TableHead className="text-right">Valor Unit.</TableHead>
+                <TableHead className="text-right">Valor Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item) => {
-                const statusInfo = formatStatus(item.status);
-                return (
-                  <TableRow key={item.id} className="border-border">
-                    <TableCell className="font-medium">
-                      {item.product?.name || "Produto não encontrado"}
-                    </TableCell>
-                    <TableCell className="text-primary font-medium">
-                      R$ {Number(item.consignment_value).toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={statusInfo.class}>{statusInfo.label}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(item.sent_at).toLocaleDateString("pt-BR")}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                      {item.observation || "—"}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {groupedProducts.map((product) => (
+                <TableRow key={product.product_id} className="border-border">
+                  <TableCell className="font-medium">
+                    {product.product_name}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
+                      {product.quantity} un.
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    R$ {product.consignment_value.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right text-primary font-medium">
+                    R$ {(product.consignment_value * product.quantity).toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}

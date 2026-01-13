@@ -8,7 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useProducts } from "@/hooks/useProducts";
 import { useConsignment, AddBatchItem } from "@/hooks/useConsignment";
@@ -240,16 +239,16 @@ export function AddBatchModal({ open, onOpenChange, resellerId }: AddBatchModalP
             </ScrollArea>
           </div>
 
-          {/* Section 2: Added Products */}
+          {/* Section 2: Added Products - Fixed height with scroll */}
           {selectedProducts.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
+            <div className="space-y-2 flex flex-col">
+              <Label className="text-sm font-medium shrink-0">
                 Produtos no Lote ({selectedProducts.length})
               </Label>
               
-              <div className="rounded-lg border border-border bg-background overflow-hidden">
-                {/* Table Header */}
-                <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground">
+              <div className="rounded-lg border border-border bg-background overflow-hidden flex flex-col">
+                {/* Table Header - Fixed */}
+                <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground shrink-0">
                   <div className="col-span-4">Produto</div>
                   <div className="col-span-2 text-right">Preço Unit.</div>
                   <div className="col-span-3 text-center">Quantidade</div>
@@ -257,8 +256,8 @@ export function AddBatchModal({ open, onOpenChange, resellerId }: AddBatchModalP
                   <div className="col-span-1"></div>
                 </div>
                 
-                {/* Table Body */}
-                <ScrollArea className="max-h-36">
+                {/* Table Body - Scrollable */}
+                <div className="max-h-[180px] overflow-y-auto">
                   <div className="divide-y divide-border">
                     {selectedProducts.map((product) => (
                       <div
@@ -320,11 +319,11 @@ export function AddBatchModal({ open, onOpenChange, resellerId }: AddBatchModalP
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
               </div>
 
-              {/* Total */}
-              <div className="flex justify-between items-center px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
+              {/* Total - Fixed at bottom of section */}
+              <div className="flex justify-between items-center px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 shrink-0">
                 <span className="text-sm font-medium">Total do Lote:</span>
                 <span className="text-lg font-bold text-primary">
                   R$ {totalLote.toFixed(2)}
