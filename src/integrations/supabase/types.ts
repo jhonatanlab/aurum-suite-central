@@ -120,8 +120,88 @@ export type Database = {
           },
         ]
       }
+      consignment_closings: {
+        Row: {
+          closed_at: string
+          closed_by: string | null
+          commission_type: string
+          commission_value: number
+          company_id: string
+          created_at: string
+          id: string
+          net_profit: number
+          observation: string | null
+          period_end: string
+          period_start: string
+          reseller_id: string
+          total_commission: number
+          total_items: number
+          total_pending: number
+          total_returned: number
+          total_sold: number
+          total_sold_value: number
+        }
+        Insert: {
+          closed_at?: string
+          closed_by?: string | null
+          commission_type?: string
+          commission_value?: number
+          company_id: string
+          created_at?: string
+          id?: string
+          net_profit?: number
+          observation?: string | null
+          period_end: string
+          period_start: string
+          reseller_id: string
+          total_commission?: number
+          total_items?: number
+          total_pending?: number
+          total_returned?: number
+          total_sold?: number
+          total_sold_value?: number
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string | null
+          commission_type?: string
+          commission_value?: number
+          company_id?: string
+          created_at?: string
+          id?: string
+          net_profit?: number
+          observation?: string | null
+          period_end?: string
+          period_start?: string
+          reseller_id?: string
+          total_commission?: number
+          total_items?: number
+          total_pending?: number
+          total_returned?: number
+          total_sold?: number
+          total_sold_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consignment_closings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignment_closings_reseller_id_fkey"
+            columns: ["reseller_id"]
+            isOneToOne: false
+            referencedRelation: "resellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consignment_items: {
         Row: {
+          closing_id: string | null
+          commission_amount: number | null
           company_id: string
           consignment_value: number
           created_at: string
@@ -129,12 +209,17 @@ export type Database = {
           observation: string | null
           product_id: string
           reseller_id: string
+          returned_at: string | null
+          returned_by: string | null
+          sale_value: number | null
           sent_at: string
           sold_at: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          closing_id?: string | null
+          commission_amount?: number | null
           company_id: string
           consignment_value: number
           created_at?: string
@@ -142,12 +227,17 @@ export type Database = {
           observation?: string | null
           product_id: string
           reseller_id: string
+          returned_at?: string | null
+          returned_by?: string | null
+          sale_value?: number | null
           sent_at?: string
           sold_at?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          closing_id?: string | null
+          commission_amount?: number | null
           company_id?: string
           consignment_value?: number
           created_at?: string
@@ -155,12 +245,22 @@ export type Database = {
           observation?: string | null
           product_id?: string
           reseller_id?: string
+          returned_at?: string | null
+          returned_by?: string | null
+          sale_value?: number | null
           sent_at?: string
           sold_at?: string | null
           status?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "consignment_items_closing_id_fkey"
+            columns: ["closing_id"]
+            isOneToOne: false
+            referencedRelation: "consignment_closings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "consignment_items_company_id_fkey"
             columns: ["company_id"]
