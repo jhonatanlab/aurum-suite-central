@@ -142,12 +142,12 @@ export function ResellerClosingsTab({ resellerId }: ResellerClosingsTabProps) {
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge variant="secondary" className="bg-green-500/20 text-green-400">
-                      {closing.total_sold_items}
+                      {closing.total_sold}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge variant="secondary" className="bg-orange-500/20 text-orange-400">
-                      {closing.total_returned_items}
+                      {closing.total_returned}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right text-foreground">
