@@ -23,8 +23,8 @@ export function ResellerClosingsTab({ resellerId }: ResellerClosingsTabProps) {
   // Calculate totals
   const totals = closings.reduce(
     (acc, closing) => ({
-      soldItems: acc.soldItems + closing.total_sold_items,
-      returnedItems: acc.returnedItems + closing.total_returned_items,
+      soldItems: acc.soldItems + Number(closing.total_sold),
+      returnedItems: acc.returnedItems + Number(closing.total_returned),
       soldValue: acc.soldValue + Number(closing.total_sold_value),
       commission: acc.commission + Number(closing.total_commission),
       netProfit: acc.netProfit + Number(closing.net_profit),

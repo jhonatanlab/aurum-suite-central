@@ -40,13 +40,26 @@ export function ClosingModal({
     const returnedItems = items.filter((i) => i.status === "returned");
     const pendingItems = items.filter((i) => i.status === "with_reseller");
 
+    const getUnitBaseValue = (item: ConsignmentItem) =>
+      Number(item.sale_value ?? item.consignment_value);
+
+    const getUnitCommission = (item: ConsignmentItem) => {
+      const stored = Number(item.commission_amount ?? 0);
+      if (stored > 0) return stored;
+
+      const base = getUnitBaseValue(item);
+      if (commissionType === "percent") return base * (commissionValue / 100);
+
+      return Number(commissionValue ?? 0);
+    };
+
     const totalSoldValue = soldItems.reduce(
-      (acc, item) => acc + Number(item.sale_value || item.consignment_value),
+      (acc, item) => acc + getUnitBaseValue(item),
       0
     );
 
     const totalCommission = soldItems.reduce(
-      (acc, item) => acc + Number(item.commission_amount || 0),
+      (acc, item) => acc + getUnitCommission(item),
       0
     );
 
@@ -58,7 +71,7 @@ export function ClosingModal({
       totalCommission,
       netProfit: totalSoldValue - totalCommission,
     };
-  }, [items]);
+  }, [items, commissionType, commissionValue]);
 
   const handleConfirm = async () => {
     await onConfirm();

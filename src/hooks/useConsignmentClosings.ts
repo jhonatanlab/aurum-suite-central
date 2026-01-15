@@ -7,9 +7,12 @@ export interface ConsignmentClosing {
   reseller_id: string;
   closed_at: string;
   closed_by: string | null;
-  total_sold_items: number;
-  total_returned_items: number;
-  total_pending_items: number;
+  period_start: string;
+  period_end: string;
+  total_items: number;
+  total_sold: number;
+  total_returned: number;
+  total_pending: number;
   total_sold_value: number;
   total_commission: number;
   net_profit: number;

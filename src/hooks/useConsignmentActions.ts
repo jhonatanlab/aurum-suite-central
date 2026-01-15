@@ -200,13 +200,42 @@ export function useConsignmentActions(resellerId: string) {
         throw new Error("Nenhuma atividade para fechar");
       }
 
+      const formatDate = (d: Date) => d.toISOString().split("T")[0];
+
+      const getUnitBaseValue = (item: ConsignmentItemRow) =>
+        Number((item as any).sale_value ?? item.consignment_value);
+
+      const getUnitCommission = (item: ConsignmentItemRow) => {
+        const stored = Number((item as any).commission_amount ?? 0);
+        if (stored > 0) return stored;
+
+        const base = getUnitBaseValue(item);
+        if (payload.commission_type === "percent") {
+          return base * (payload.commission_value / 100);
+        }
+
+        return Number(payload.commission_value ?? 0);
+      };
+
+      const closableItems = [...soldItems, ...returnedItems];
+      const periodStart = closableItems.length
+        ? formatDate(
+            new Date(
+              Math.min(
+                ...closableItems.map((i) => new Date((i as any).sent_at).getTime())
+              )
+            )
+          )
+        : formatDate(new Date());
+      const periodEnd = formatDate(new Date());
+
       const totalSoldValue = soldItems.reduce(
-        (acc, item) => acc + Number((item as any).sale_value || item.consignment_value),
+        (acc, item) => acc + getUnitBaseValue(item),
         0
       );
 
       const totalCommission = soldItems.reduce(
-        (acc, item) => acc + Number((item as any).commission_amount || 0),
+        (acc, item) => acc + getUnitCommission(item),
         0
       );
 
@@ -217,9 +246,12 @@ export function useConsignmentActions(resellerId: string) {
           company_id: company.id,
           reseller_id: payload.reseller_id,
           closed_by: "Sistema",
-          total_sold_items: soldItems.length,
-          total_returned_items: returnedItems.length,
-          total_pending_items: pendingItems.length,
+          period_start: periodStart,
+          period_end: periodEnd,
+          total_items: soldItems.length + returnedItems.length + pendingItems.length,
+          total_sold: soldItems.length,
+          total_returned: returnedItems.length,
+          total_pending: pendingItems.length,
           total_sold_value: totalSoldValue,
           total_commission: totalCommission,
           net_profit: totalSoldValue - totalCommission,

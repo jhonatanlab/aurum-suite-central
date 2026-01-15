@@ -58,6 +58,11 @@ export function useConsignment(resellerId: string) {
           status,
           sold_at,
           created_at,
+          sale_value,
+          commission_amount,
+          closing_id,
+          returned_at,
+          returned_by,
           products:product_id (id, name)
         `)
         .eq("company_id", company.id)
