@@ -166,12 +166,14 @@ export function useConsignment(resellerId: string) {
     },
   });
 
-  // Calculate metrics
+  // Calculate metrics - only for current inventory (items without closing_id)
+  const currentInventoryItems = items.filter((i) => !i.closing_id);
+  
   const metrics = {
-    totalPieces: items.length,
-    withReseller: items.filter((i) => i.status === "with_reseller").length,
-    totalSold: items.filter((i) => i.status === "sold").length,
-    profitGenerated: items
+    totalPieces: currentInventoryItems.length,
+    withReseller: currentInventoryItems.filter((i) => i.status === "with_reseller").length,
+    totalSold: currentInventoryItems.filter((i) => i.status === "sold").length,
+    profitGenerated: currentInventoryItems
       .filter((i) => i.status === "sold")
       .reduce((acc, i) => acc + Number(i.consignment_value), 0),
   };
