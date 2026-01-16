@@ -1,7 +1,7 @@
 import { useResellerHistory, ResellerHistory } from "@/hooks/useResellers";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { History, UserPlus, Pencil, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
+import { History, UserPlus, Pencil, ToggleLeft, ToggleRight, Loader2, Wallet, Package, RotateCcw, ShoppingCart, FileText } from "lucide-react";
 
 interface ResellerHistoryTabProps {
   resellerId: string;
@@ -12,6 +12,11 @@ const actionIcons: Record<string, typeof History> = {
   updated: Pencil,
   activated: ToggleRight,
   deactivated: ToggleLeft,
+  payment: Wallet,
+  consignment_sent: Package,
+  return: RotateCcw,
+  sale: ShoppingCart,
+  closing: FileText,
 };
 
 const actionColors: Record<string, string> = {
@@ -19,6 +24,11 @@ const actionColors: Record<string, string> = {
   updated: "text-blue-400 bg-blue-500/20",
   activated: "text-green-400 bg-green-500/20",
   deactivated: "text-orange-400 bg-orange-500/20",
+  payment: "text-primary bg-primary/20",
+  consignment_sent: "text-blue-400 bg-blue-500/20",
+  return: "text-orange-400 bg-orange-500/20",
+  sale: "text-green-400 bg-green-500/20",
+  closing: "text-purple-400 bg-purple-500/20",
 };
 
 export function ResellerHistoryTab({ resellerId }: ResellerHistoryTabProps) {

@@ -3,7 +3,8 @@ import { ResellerConsignedTab } from "./tabs/ResellerConsignedTab";
 import { ResellerClosingsTab } from "./tabs/ResellerClosingsTab";
 import { ResellerHistoryTab } from "./tabs/ResellerHistoryTab";
 import { ResellerDocumentsTab } from "./tabs/ResellerDocumentsTab";
-import { Package, FileText, History, Files } from "lucide-react";
+import { ResellerPaymentsTab } from "./tabs/ResellerPaymentsTab";
+import { Package, FileText, History, Files, Wallet } from "lucide-react";
 
 interface ResellerDetailTabsProps {
   resellerId: string;
@@ -35,6 +36,13 @@ export function ResellerDetailTabs({ resellerId }: ResellerDetailTabsProps) {
           Histórico
         </TabsTrigger>
         <TabsTrigger
+          value="payments"
+          className="gap-2 data-[state=active]:bg-background"
+        >
+          <Wallet className="h-4 w-4" />
+          Pagamentos
+        </TabsTrigger>
+        <TabsTrigger
           value="documents"
           className="gap-2 data-[state=active]:bg-background"
         >
@@ -53,6 +61,10 @@ export function ResellerDetailTabs({ resellerId }: ResellerDetailTabsProps) {
 
       <TabsContent value="history">
         <ResellerHistoryTab resellerId={resellerId} />
+      </TabsContent>
+
+      <TabsContent value="payments">
+        <ResellerPaymentsTab resellerId={resellerId} />
       </TabsContent>
 
       <TabsContent value="documents">
