@@ -723,6 +723,45 @@ export type Database = {
           },
         ]
       }
+      reseller_payments: {
+        Row: {
+          amount: number
+          closing_id: string
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          observation: string | null
+          paid_at: string | null
+          payment_method: string | null
+          reseller_id: string
+        }
+        Insert: {
+          amount: number
+          closing_id: string
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          observation?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          reseller_id: string
+        }
+        Update: {
+          amount?: number
+          closing_id?: string
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          observation?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          reseller_id?: string
+        }
+        Relationships: []
+      }
       resellers: {
         Row: {
           commission_type: string
