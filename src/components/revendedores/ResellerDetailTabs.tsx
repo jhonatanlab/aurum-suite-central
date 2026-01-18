@@ -4,16 +4,18 @@ import { ResellerClosingsTab } from "./tabs/ResellerClosingsTab";
 import { ResellerHistoryTab } from "./tabs/ResellerHistoryTab";
 import { ResellerDocumentsTab } from "./tabs/ResellerDocumentsTab";
 import { ResellerPaymentsTab } from "./tabs/ResellerPaymentsTab";
-import { Package, FileText, History, Files, Wallet } from "lucide-react";
+import { ResellerStatementTab } from "./tabs/ResellerStatementTab";
+import { Package, FileText, History, Files, Wallet, Receipt } from "lucide-react";
 
 interface ResellerDetailTabsProps {
   resellerId: string;
+  resellerName: string;
 }
 
-export function ResellerDetailTabs({ resellerId }: ResellerDetailTabsProps) {
+export function ResellerDetailTabs({ resellerId, resellerName }: ResellerDetailTabsProps) {
   return (
     <Tabs defaultValue="consigned" className="space-y-6">
-      <TabsList className="bg-muted/50 p-1 h-auto">
+      <TabsList className="bg-muted/50 p-1 h-auto flex-wrap">
         <TabsTrigger
           value="consigned"
           className="gap-2 data-[state=active]:bg-background"
@@ -29,18 +31,25 @@ export function ResellerDetailTabs({ resellerId }: ResellerDetailTabsProps) {
           Fechamentos
         </TabsTrigger>
         <TabsTrigger
-          value="history"
-          className="gap-2 data-[state=active]:bg-background"
-        >
-          <History className="h-4 w-4" />
-          Histórico
-        </TabsTrigger>
-        <TabsTrigger
           value="payments"
           className="gap-2 data-[state=active]:bg-background"
         >
           <Wallet className="h-4 w-4" />
           Pagamentos
+        </TabsTrigger>
+        <TabsTrigger
+          value="statement"
+          className="gap-2 data-[state=active]:bg-background"
+        >
+          <Receipt className="h-4 w-4" />
+          Extrato
+        </TabsTrigger>
+        <TabsTrigger
+          value="history"
+          className="gap-2 data-[state=active]:bg-background"
+        >
+          <History className="h-4 w-4" />
+          Histórico
         </TabsTrigger>
         <TabsTrigger
           value="documents"
@@ -59,12 +68,16 @@ export function ResellerDetailTabs({ resellerId }: ResellerDetailTabsProps) {
         <ResellerClosingsTab resellerId={resellerId} />
       </TabsContent>
 
-      <TabsContent value="history">
-        <ResellerHistoryTab resellerId={resellerId} />
-      </TabsContent>
-
       <TabsContent value="payments">
         <ResellerPaymentsTab resellerId={resellerId} />
+      </TabsContent>
+
+      <TabsContent value="statement">
+        <ResellerStatementTab resellerId={resellerId} resellerName={resellerName} />
+      </TabsContent>
+
+      <TabsContent value="history">
+        <ResellerHistoryTab resellerId={resellerId} />
       </TabsContent>
 
       <TabsContent value="documents">

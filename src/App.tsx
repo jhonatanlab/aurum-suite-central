@@ -19,6 +19,7 @@ import Campanhas from "./pages/Campanhas";
 import Automacoes from "./pages/Automacoes";
 import Revendedores from "./pages/Revendedores";
 import RevendedorDetalhe from "./pages/RevendedorDetalhe";
+import RelatoriosRevendedores from "./pages/RelatoriosRevendedores";
 import Financeiro from "./pages/Financeiro";
 import Recorrencias from "./pages/Recorrencias";
 import Garantias from "./pages/Garantias";
@@ -105,6 +106,11 @@ function App() {
                   <Route path="/revendedores/:id" element={
                     <ProtectedRoute>
                       <RevendedorDetalhe />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/revendedores/relatorios" element={
+                    <ProtectedRoute>
+                      <RelatoriosRevendedores />
                     </ProtectedRoute>
                   } />
                   <Route path="/financeiro" element={

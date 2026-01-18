@@ -42,7 +42,7 @@ export default function RevendedorDetalhe() {
     <AppLayout title="Revendedor">
       <div className="space-y-6">
         <ResellerDetailHeader reseller={reseller} />
-        <ResellerDetailTabs resellerId={reseller.id} />
+        <ResellerDetailTabs resellerId={reseller.id} resellerName={reseller.name} />
       </div>
     </AppLayout>
   );
