@@ -18,6 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -26,6 +27,7 @@ import {
   useResellers,
   useResellerHistory,
 } from "@/hooks/useResellers";
+import { DocumentUpload } from "./DocumentUpload";
 import { Loader2, History, User } from "lucide-react";
 
 interface ResellerSidePanelProps {
@@ -102,6 +104,8 @@ export function ResellerSidePanel({
       updated: { text: "Editado", variant: "secondary" },
       activated: { text: "Ativado", variant: "default" },
       deactivated: { text: "Inativado", variant: "outline" },
+      document_uploaded: { text: "Documento", variant: "secondary" },
+      document_deleted: { text: "Documento", variant: "outline" },
     };
     return labels[action] || { text: action, variant: "secondary" as const };
   };
@@ -240,6 +244,10 @@ export function ResellerSidePanel({
                   </SelectContent>
                 </Select>
               </div>
+
+              <Separator className="my-4" />
+
+              <DocumentUpload resellerId={reseller?.id || null} />
 
               <div className="flex gap-3 pt-4">
                 <Button

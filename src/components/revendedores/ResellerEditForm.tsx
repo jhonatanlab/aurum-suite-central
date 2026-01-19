@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -10,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Reseller, useResellers } from "@/hooks/useResellers";
+import { DocumentUpload } from "./DocumentUpload";
 import { Loader2 } from "lucide-react";
 
 interface ResellerEditFormProps {
@@ -155,6 +157,10 @@ export function ResellerEditForm({ reseller, onSuccess }: ResellerEditFormProps)
           </SelectContent>
         </Select>
       </div>
+
+      <Separator className="my-4" />
+
+      <DocumentUpload resellerId={reseller?.id || null} />
 
       <div className="flex justify-end gap-2 pt-4">
         <Button type="submit" disabled={isPending} className="gap-2">
