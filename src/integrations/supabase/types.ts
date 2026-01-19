@@ -1076,6 +1076,85 @@ export type Database = {
         }
         Relationships: []
       }
+      warranty_requests: {
+        Row: {
+          batch_code: string | null
+          batch_date: string | null
+          company_id: string
+          created_at: string
+          customer_name: string | null
+          id: string
+          observation: string | null
+          product_id: string
+          reason: string | null
+          request_type: string
+          reseller_id: string | null
+          resolution: string | null
+          resolution_date: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          batch_code?: string | null
+          batch_date?: string | null
+          company_id: string
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          observation?: string | null
+          product_id: string
+          reason?: string | null
+          request_type?: string
+          reseller_id?: string | null
+          resolution?: string | null
+          resolution_date?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          batch_code?: string | null
+          batch_date?: string | null
+          company_id?: string
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          observation?: string | null
+          product_id?: string
+          reason?: string | null
+          request_type?: string
+          reseller_id?: string | null
+          resolution?: string | null
+          resolution_date?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warranty_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warranty_requests_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warranty_requests_reseller_id_fkey"
+            columns: ["reseller_id"]
+            isOneToOne: false
+            referencedRelation: "resellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
