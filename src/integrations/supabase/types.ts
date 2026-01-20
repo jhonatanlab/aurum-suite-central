@@ -569,6 +569,57 @@ export type Database = {
           },
         ]
       }
+      product_batches: {
+        Row: {
+          batch_code: string
+          company_id: string
+          created_at: string
+          created_by: string
+          id: string
+          observation: string | null
+          product_id: string
+          quantity: number
+          status: string
+        }
+        Insert: {
+          batch_code: string
+          company_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          observation?: string | null
+          product_id: string
+          quantity?: number
+          status?: string
+        }
+        Update: {
+          batch_code?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          observation?: string | null
+          product_id?: string
+          quantity?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_batches_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string | null
@@ -576,6 +627,7 @@ export type Database = {
           consignment_available: boolean | null
           created_at: string | null
           id: string
+          minimum_stock: number | null
           name: string
           price: number
           status: string | null
@@ -587,6 +639,7 @@ export type Database = {
           consignment_available?: boolean | null
           created_at?: string | null
           id?: string
+          minimum_stock?: number | null
           name: string
           price: number
           status?: string | null
@@ -598,6 +651,7 @@ export type Database = {
           consignment_available?: boolean | null
           created_at?: string | null
           id?: string
+          minimum_stock?: number | null
           name?: string
           price?: number
           status?: string | null

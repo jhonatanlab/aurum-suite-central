@@ -6,6 +6,7 @@ import { Plus, Trash2, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import {
   Table,
@@ -42,6 +43,13 @@ interface Product {
   stock: number | null;
   status: string | null;
   company_id: string;
+  minimum_stock?: number | null;
+  consignment_available?: boolean | null;
+}
+
+interface BatchData {
+  batch_code: string;
+  quantity: string;
 }
 
 interface ProductFormData {
@@ -50,10 +58,14 @@ interface ProductFormData {
   price: string;
   stock: string;
   status: string;
+  minimum_stock: string;
+  consignment_available: boolean;
+  batch: BatchData;
 }
 
 export default function Produtos() {
   const { company } = useCompany();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -65,19 +77,41 @@ export default function Produtos() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  // Fetch products
+  // Fetch products with batch stock calculation
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products", company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
-      const { data, error } = await supabase
+      
+      // Fetch products
+      const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select("id, name, category, price, stock, status, company_id")
+        .select("id, name, category, price, stock, status, company_id, minimum_stock, consignment_available")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return data as Product[];
+      if (productsError) throw productsError;
+      
+      // Fetch active batches to calculate real stock
+      const { data: batchesData, error: batchesError } = await supabase
+        .from("product_batches")
+        .select("product_id, quantity")
+        .eq("company_id", company.id)
+        .eq("status", "active");
+
+      if (batchesError) throw batchesError;
+
+      // Calculate stock from batches
+      const stockByProduct = batchesData?.reduce((acc, batch) => {
+        acc[batch.product_id] = (acc[batch.product_id] || 0) + batch.quantity;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      // Merge stock data
+      return productsData.map(product => ({
+        ...product,
+        stock: stockByProduct[product.id] || 0
+      })) as Product[];
     },
     enabled: !!company?.id,
   });
@@ -93,16 +127,11 @@ export default function Produtos() {
   // Filtered products
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      // Search filter
       const matchesSearch = product.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
-
-      // Status filter
       const matchesStatus =
         statusFilter === "all" || product.status === statusFilter;
-
-      // Category filter
       const matchesCategory =
         categoryFilter === "all" || product.category === categoryFilter;
 
@@ -114,18 +143,42 @@ export default function Produtos() {
   const createMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
       if (!company?.id) throw new Error("Empresa não encontrada");
-      const { error } = await supabase.from("products").insert({
-        name: data.name,
-        category: data.category || null,
-        price: parseFloat(data.price) || 0,
-        stock: parseInt(data.stock) || 0,
-        status: data.status,
-        company_id: company.id,
-      });
-      if (error) throw error;
+      
+      // Create product first
+      const { data: newProduct, error: productError } = await supabase
+        .from("products")
+        .insert({
+          name: data.name,
+          category: data.category || null,
+          price: parseFloat(data.price) || 0,
+          stock: 0, // Stock will be managed by batches
+          status: data.status,
+          company_id: company.id,
+          minimum_stock: parseInt(data.minimum_stock) || 0,
+          consignment_available: data.consignment_available,
+        })
+        .select()
+        .single();
+      
+      if (productError) throw productError;
+
+      // Create batch entry
+      const { error: batchError } = await supabase
+        .from("product_batches")
+        .insert({
+          company_id: company.id,
+          product_id: newProduct.id,
+          batch_code: data.batch.batch_code,
+          quantity: parseInt(data.batch.quantity) || 0,
+          created_by: user?.email || "Sistema",
+          status: "active",
+        });
+
+      if (batchError) throw batchError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product_batches"] });
       toast.success("Produto criado com sucesso!");
       handleClosePanel();
     },
@@ -137,20 +190,42 @@ export default function Produtos() {
   // Update product mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ProductFormData }) => {
-      const { error } = await supabase
+      if (!company?.id) throw new Error("Empresa não encontrada");
+      
+      // Update product
+      const { error: productError } = await supabase
         .from("products")
         .update({
           name: data.name,
           category: data.category || null,
           price: parseFloat(data.price) || 0,
-          stock: parseInt(data.stock) || 0,
           status: data.status,
+          minimum_stock: parseInt(data.minimum_stock) || 0,
+          consignment_available: data.consignment_available,
         })
         .eq("id", id);
-      if (error) throw error;
+      
+      if (productError) throw productError;
+
+      // If batch data provided, create new batch entry (stock replenishment)
+      if (data.batch.batch_code && data.batch.quantity) {
+        const { error: batchError } = await supabase
+          .from("product_batches")
+          .insert({
+            company_id: company.id,
+            product_id: id,
+            batch_code: data.batch.batch_code,
+            quantity: parseInt(data.batch.quantity) || 0,
+            created_by: user?.email || "Sistema",
+            status: "active",
+          });
+
+        if (batchError) throw batchError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product_batches"] });
       toast.success("Produto atualizado com sucesso!");
       handleClosePanel();
     },
@@ -197,6 +272,12 @@ export default function Produtos() {
       return;
     }
 
+    // Validate batch for new products
+    if (!productId && (!data.batch.batch_code.trim() || !data.batch.quantity)) {
+      toast.error("Código do lote e quantidade são obrigatórios para novo produto");
+      return;
+    }
+
     if (productId) {
       updateMutation.mutate({ id: productId, data });
     } else {
@@ -236,6 +317,19 @@ export default function Produtos() {
         {isActive ? "Ativo" : "Inativo"}
       </span>
     );
+  };
+
+  const getStockStatus = (product: Product) => {
+    const stock = product.stock ?? 0;
+    const minStock = product.minimum_stock ?? 0;
+    
+    if (stock === 0) {
+      return <span className="text-red-400 font-medium">{stock}</span>;
+    }
+    if (minStock > 0 && stock <= minStock) {
+      return <span className="text-yellow-400 font-medium">{stock}</span>;
+    }
+    return <span className="text-muted-foreground">{stock}</span>;
   };
 
   return (
@@ -363,8 +457,8 @@ export default function Produtos() {
                     <TableCell className="text-primary font-semibold">
                       {formatCurrency(product.price)}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {product.stock ?? 0}
+                    <TableCell>
+                      {getStockStatus(product)}
                     </TableCell>
                     <TableCell>{getStatusBadge(product.status)}</TableCell>
                     <TableCell>
@@ -391,6 +485,7 @@ export default function Produtos() {
           product={editingProduct}
           onSave={handleSave}
           isSaving={createMutation.isPending || updateMutation.isPending}
+          userEmail={user?.email}
         />
 
         {/* Delete Confirmation Dialog */}
