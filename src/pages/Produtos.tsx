@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ProductSidePanel } from "@/components/products/ProductSidePanel";
+import { ProductModal } from "@/components/products/ProductModal";
 import { BatchHistoryTab } from "@/components/products/BatchHistoryTab";
 
 interface Product {
@@ -508,8 +508,8 @@ export default function Produtos() {
           </TabsContent>
         </Tabs>
 
-        {/* Side Panel */}
-        <ProductSidePanel
+        {/* Product Modal */}
+        <ProductModal
           open={isPanelOpen}
           onClose={handleClosePanel}
           product={editingProduct}
