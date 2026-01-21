@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +55,12 @@ interface CustomerWithSales {
 interface ProductPurchased {
   product_id: string;
   product_name: string;
+  sale_id: string;
+}
+
+interface ProductBatchInfo {
+  batch_code: string | null;
+  batch_date: string | null;
 }
 
 export function NewWarrantyModal({
@@ -141,25 +147,27 @@ export function NewWarrantyModal({
 
       const saleIds = sales.map(s => s.id);
 
-      // Get all products from those sales
+      // Get all products from those sales with sale_id
       const { data: items, error: itemsError } = await supabase
         .from("sale_items")
         .select(`
           product_id,
+          sale_id,
           products:product_id (id, name)
         `)
         .in("sale_id", saleIds);
 
       if (itemsError) throw itemsError;
 
-      // Create unique product list
+      // Create unique product list (keeping the first sale_id for each product)
       const productMap = new Map<string, ProductPurchased>();
       
       items?.forEach((item: any) => {
-        if (item.product_id && item.products) {
+        if (item.product_id && item.products && !productMap.has(item.product_id)) {
           productMap.set(item.product_id, {
             product_id: item.product_id,
             product_name: item.products.name,
+            sale_id: item.sale_id,
           });
         }
       });
@@ -170,6 +178,43 @@ export function NewWarrantyModal({
     },
     enabled: !!company?.id && !!selectedCustomerId && clientType === "customer",
   });
+
+  // Fetch batch info when product is selected (for customer type)
+  const { data: batchInfo } = useQuery<ProductBatchInfo>({
+    queryKey: ["product-batch-info", productId, selectedCustomerId, company?.id],
+    queryFn: async () => {
+      if (!company?.id || !productId) return { batch_code: null, batch_date: null };
+
+      // Get the batch info for this product from product_batches
+      const { data: batches, error } = await supabase
+        .from("product_batches")
+        .select("batch_code, created_at")
+        .eq("company_id", company.id)
+        .eq("product_id", productId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (error || !batches || batches.length === 0) {
+        return { batch_code: null, batch_date: null };
+      }
+
+      const batch = batches[0];
+      return {
+        batch_code: batch.batch_code,
+        batch_date: batch.created_at ? batch.created_at.split("T")[0] : null,
+      };
+    },
+    enabled: !!company?.id && !!productId && clientType === "customer",
+  });
+
+  // Update batch fields when batch info is fetched
+  useEffect(() => {
+    if (batchInfo && clientType === "customer") {
+      setBatchCode(batchInfo.batch_code || "");
+      setBatchDate(batchInfo.batch_date || "");
+    }
+  }, [batchInfo, clientType]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,6 +248,8 @@ export function NewWarrantyModal({
   const handleCustomerChange = (customerId: string) => {
     setSelectedCustomerId(customerId);
     setProductId(""); // Reset product selection
+    setBatchCode("");
+    setBatchDate("");
   };
 
   // Reset selections when client type changes
@@ -211,6 +258,8 @@ export function NewWarrantyModal({
     setSelectedCustomerId("");
     setResellerId("");
     setProductId("");
+    setBatchCode("");
+    setBatchDate("");
   };
 
   return (
@@ -361,6 +410,7 @@ export function NewWarrantyModal({
                 onChange={(e) => setBatchCode(e.target.value)}
                 placeholder="Ex: LOT-2024-001"
                 className="bg-card"
+                readOnly={clientType === "customer" && !!batchInfo?.batch_code}
               />
             </div>
             <div className="space-y-2">
@@ -370,6 +420,7 @@ export function NewWarrantyModal({
                 value={batchDate}
                 onChange={(e) => setBatchDate(e.target.value)}
                 className="bg-card"
+                readOnly={clientType === "customer" && !!batchInfo?.batch_date}
               />
             </div>
           </div>
