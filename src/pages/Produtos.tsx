@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Trash2, Search, Package, History } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -34,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ProductSidePanel } from "@/components/products/ProductSidePanel";
+import { BatchHistoryTab } from "@/components/products/BatchHistoryTab";
 
 interface Product {
   id: string;
@@ -354,129 +356,157 @@ export default function Produtos() {
           </Button>
         </div>
 
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center sm:justify-end">
-          {/* Search Input */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar produto..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-[#121212] border-[#2A2A2A] text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
-            />
-          </div>
+        {/* Tabs */}
+        <Tabs defaultValue="catalog" className="w-full">
+          <TabsList className="bg-muted/50 border border-border">
+            <TabsTrigger 
+              value="catalog" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
+            >
+              <Package className="w-4 h-4" />
+              Catálogo
+            </TabsTrigger>
+            <TabsTrigger 
+              value="batch-history" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
+            >
+              <History className="w-4 h-4" />
+              Histórico de Lotes
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Status Filter */}
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-36 bg-[#121212] border-[#2A2A2A] text-foreground focus:border-primary focus:ring-primary/20">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
-              <SelectItem value="all" className="text-foreground focus:bg-[#2A2A2A] focus:text-foreground">
-                Todos
-              </SelectItem>
-              <SelectItem value="active" className="text-foreground focus:bg-[#2A2A2A] focus:text-foreground">
-                Ativo
-              </SelectItem>
-              <SelectItem value="inactive" className="text-foreground focus:bg-[#2A2A2A] focus:text-foreground">
-                Inativo
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Catalog Tab */}
+          <TabsContent value="catalog" className="mt-6 space-y-4">
+            {/* Search and Filters */}
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center sm:justify-end">
+              {/* Search Input */}
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar produto..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
+                />
+              </div>
 
-          {/* Category Filter */}
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-40 bg-[#121212] border-[#2A2A2A] text-foreground focus:border-primary focus:ring-primary/20">
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
-              <SelectItem value="all" className="text-foreground focus:bg-[#2A2A2A] focus:text-foreground">
-                Todas
-              </SelectItem>
-              {categories.map((cat) => (
-                <SelectItem
-                  key={cat}
-                  value={cat}
-                  className="text-foreground focus:bg-[#2A2A2A] focus:text-foreground"
-                >
-                  {cat}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-36 bg-background border-border text-foreground focus:border-primary focus:ring-primary/20">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="all" className="text-foreground focus:bg-muted focus:text-foreground">
+                    Todos
+                  </SelectItem>
+                  <SelectItem value="active" className="text-foreground focus:bg-muted focus:text-foreground">
+                    Ativo
+                  </SelectItem>
+                  <SelectItem value="inactive" className="text-foreground focus:bg-muted focus:text-foreground">
+                    Inativo
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-        {/* Table */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground">
-              Carregando produtos...
+              {/* Category Filter */}
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full sm:w-40 bg-background border-border text-foreground focus:border-primary focus:ring-primary/20">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="all" className="text-foreground focus:bg-muted focus:text-foreground">
+                    Todas
+                  </SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem
+                      key={cat}
+                      value={cat}
+                      className="text-foreground focus:bg-muted focus:text-foreground"
+                    >
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          ) : products.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              Nenhum produto cadastrado. Clique em "Novo Produto" para começar.
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              Nenhum produto encontrado com os filtros aplicados.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground">Nome</TableHead>
-                  <TableHead className="text-muted-foreground">
-                    Categoria
-                  </TableHead>
-                  <TableHead className="text-muted-foreground">Preço</TableHead>
-                  <TableHead className="text-muted-foreground">
-                    Estoque
-                  </TableHead>
-                  <TableHead className="text-muted-foreground">
-                    Status
-                  </TableHead>
-                  <TableHead className="text-muted-foreground w-16">
-                    Ações
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow
-                    key={product.id}
-                    className="border-border cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => handleOpenEdit(product)}
-                  >
-                    <TableCell className="font-medium text-foreground">
-                      {product.name}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {product.category || "-"}
-                    </TableCell>
-                    <TableCell className="text-primary font-semibold">
-                      {formatCurrency(product.price)}
-                    </TableCell>
-                    <TableCell>
-                      {getStockStatus(product)}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(product.status)}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => handleDelete(product, e)}
+
+            {/* Table */}
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              {isLoading ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Carregando produtos...
+                </div>
+              ) : products.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Nenhum produto cadastrado. Clique em "Novo Produto" para começar.
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Nenhum produto encontrado com os filtros aplicados.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="text-muted-foreground">Nome</TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Categoria
+                      </TableHead>
+                      <TableHead className="text-muted-foreground">Preço</TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Estoque
+                      </TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Status
+                      </TableHead>
+                      <TableHead className="text-muted-foreground w-16">
+                        Ações
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProducts.map((product) => (
+                      <TableRow
+                        key={product.id}
+                        className="border-border cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleOpenEdit(product)}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+                        <TableCell className="font-medium text-foreground">
+                          {product.name}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {product.category || "-"}
+                        </TableCell>
+                        <TableCell className="text-primary font-semibold">
+                          {formatCurrency(product.price)}
+                        </TableCell>
+                        <TableCell>
+                          {getStockStatus(product)}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(product.status)}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => handleDelete(product, e)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Batch History Tab */}
+          <TabsContent value="batch-history" className="mt-6">
+            <BatchHistoryTab />
+          </TabsContent>
+        </Tabs>
 
         {/* Side Panel */}
         <ProductSidePanel
