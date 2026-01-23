@@ -52,6 +52,7 @@ interface Product {
 interface BatchData {
   batch_code: string;
   quantity: string;
+  supplier_id: string;
 }
 
 interface ProductFormData {
@@ -174,6 +175,7 @@ export default function Produtos() {
           quantity: parseInt(data.batch.quantity) || 0,
           created_by: user?.email || "Sistema",
           status: "active",
+          supplier_id: data.batch.supplier_id || null,
         });
 
       if (batchError) throw batchError;
@@ -220,6 +222,7 @@ export default function Produtos() {
             quantity: parseInt(data.batch.quantity) || 0,
             created_by: user?.email || "Sistema",
             status: "active",
+            supplier_id: data.batch.supplier_id || null,
           });
 
         if (batchError) throw batchError;
