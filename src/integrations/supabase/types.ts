@@ -580,6 +580,7 @@ export type Database = {
           product_id: string
           quantity: number
           status: string
+          supplier_id: string | null
         }
         Insert: {
           batch_code: string
@@ -591,6 +592,7 @@ export type Database = {
           product_id: string
           quantity?: number
           status?: string
+          supplier_id?: string | null
         }
         Update: {
           batch_code?: string
@@ -602,6 +604,7 @@ export type Database = {
           product_id?: string
           quantity?: number
           status?: string
+          supplier_id?: string | null
         }
         Relationships: [
           {
@@ -616,6 +619,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_batches_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -1099,6 +1109,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      suppliers: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          supplies: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          supplies?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          supplies?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       tags: {
         Row: {

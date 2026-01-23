@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useSuppliers } from "@/hooks/useSuppliers";
 
 interface Product {
   id: string;
@@ -35,6 +36,7 @@ interface Product {
 interface BatchData {
   batch_code: string;
   quantity: string;
+  supplier_id: string;
 }
 
 interface ProductFormData {
@@ -68,6 +70,7 @@ const initialFormData: ProductFormData = {
   batch: {
     batch_code: "",
     quantity: "",
+    supplier_id: "",
   },
 };
 
@@ -80,6 +83,7 @@ export function ProductModal({
   userEmail = "Sistema",
 }: ProductModalProps) {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
+  const { activeSuppliers, isLoading: loadingSuppliers } = useSuppliers();
   const currentDateTime = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
 
   const isEditing = !!product;
@@ -97,6 +101,7 @@ export function ProductModal({
         batch: {
           batch_code: "",
           quantity: "",
+          supplier_id: "",
         },
       });
     } else {
@@ -327,6 +332,42 @@ export function ProductModal({
                     required={!isEditing}
                   />
                 </div>
+              </div>
+
+              {/* Supplier */}
+              <div className="space-y-2">
+                <Label htmlFor="supplier" className="text-white font-medium">
+                  Fornecedor
+                </Label>
+                <Select
+                  value={formData.batch.supplier_id}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      batch: { ...formData.batch, supplier_id: value },
+                    })
+                  }
+                >
+                  <SelectTrigger className="bg-[#121212] border-[#2A2A2A] text-white focus:border-[#C7A052] focus:ring-[#C7A052]/20">
+                    <SelectValue placeholder="Selecione o fornecedor" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
+                    {activeSuppliers.map((supplier) => (
+                      <SelectItem
+                        key={supplier.id}
+                        value={supplier.id}
+                        className="text-white focus:bg-[#2A2A2A] focus:text-white"
+                      >
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {activeSuppliers.length === 0 && !loadingSuppliers && (
+                  <p className="text-xs text-[#A1A1AA]">
+                    Nenhum fornecedor cadastrado. Cadastre em Meu Negócio → Fornecedores.
+                  </p>
+                )}
               </div>
 
               {/* Auto-generated fields */}
