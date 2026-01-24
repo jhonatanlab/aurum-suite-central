@@ -61,6 +61,7 @@ export type Database = {
           plan: string | null
           status: string | null
           updated_at: string | null
+          whatsapp_settings: Json | null
         }
         Insert: {
           cnpj?: string | null
@@ -73,6 +74,7 @@ export type Database = {
           plan?: string | null
           status?: string | null
           updated_at?: string | null
+          whatsapp_settings?: Json | null
         }
         Update: {
           cnpj?: string | null
@@ -85,6 +87,7 @@ export type Database = {
           plan?: string | null
           status?: string | null
           updated_at?: string | null
+          whatsapp_settings?: Json | null
         }
         Relationships: []
       }
