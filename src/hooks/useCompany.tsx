@@ -7,6 +7,22 @@ export interface CrmSettings {
   auto_move_to_sales: boolean;
 }
 
+export interface WhatsAppCredentials {
+  // Uazapi
+  uazapi_session_id?: string;
+  uazapi_connected?: boolean;
+  uazapi_qr_code?: string;
+  // Z-Api
+  zapi_token?: string;
+  zapi_instance?: string;
+  zapi_connected?: boolean;
+  // Meta Oficial
+  meta_business_id?: string;
+  meta_phone_number_id?: string;
+  meta_token?: string;
+  meta_webhook_active?: boolean;
+}
+
 export interface WhatsAppSettings {
   api_provider: 'uazapi' | 'zapi' | 'meta_oficial';
   api_history: Array<{
@@ -14,6 +30,9 @@ export interface WhatsAppSettings {
     activated_at: string;
     deactivated_at?: string;
   }>;
+  credentials?: WhatsAppCredentials;
+  connected?: boolean;
+  last_connected_at?: string;
 }
 
 interface Company {
