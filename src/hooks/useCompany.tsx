@@ -7,6 +7,15 @@ export interface CrmSettings {
   auto_move_to_sales: boolean;
 }
 
+export interface WhatsAppSettings {
+  api_provider: 'uazapi' | 'zapi' | 'meta_oficial';
+  api_history: Array<{
+    provider: string;
+    activated_at: string;
+    deactivated_at?: string;
+  }>;
+}
+
 interface Company {
   id: string;
   name: string;
@@ -17,6 +26,7 @@ interface Company {
   created_at: string | null;
   updated_at: string | null;
   crm_settings: CrmSettings | null;
+  whatsapp_settings: WhatsAppSettings | null;
 }
 
 interface CompanyUser {
@@ -85,6 +95,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       setCompany({
         ...companyData,
         crm_settings: companyData.crm_settings as unknown as CrmSettings | null,
+        whatsapp_settings: companyData.whatsapp_settings as unknown as WhatsAppSettings | null,
       });
     } catch (error) {
       console.error('Erro ao buscar empresa:', error);
