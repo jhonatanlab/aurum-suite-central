@@ -1179,6 +1179,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       warranty_requests: {
         Row: {
           batch_code: string | null
@@ -1269,6 +1290,13 @@ export type Database = {
       }
       get_user_company_id: { Args: never; Returns: string }
       get_user_role: { Args: { _company_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       sale_belongs_to_user_company: {
         Args: { _sale_id: string }
         Returns: boolean
@@ -1279,7 +1307,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "superadmin" | "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1406,6 +1434,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["superadmin", "admin", "user"],
+    },
   },
 } as const

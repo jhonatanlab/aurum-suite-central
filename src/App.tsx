@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { CompanyProvider } from "@/hooks/useCompany";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import AdminProtectedRoute from "@/components/admin/AdminProtectedRoute";
 import Auth from "./pages/Auth";
 import CriarEmpresa from "./pages/CriarEmpresa";
 import Dashboard from "./pages/Dashboard";
@@ -26,6 +27,12 @@ import Garantias from "./pages/Garantias";
 import Configuracoes from "./pages/Configuracoes";
 import MeuNegocio from "./pages/MeuNegocio";
 import NotFound from "./pages/NotFound";
+
+// Admin pages
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminEmpresas from "./pages/admin/AdminEmpresas";
+import AdminWhatsApp from "./pages/admin/AdminWhatsApp";
+import AdminPlanos from "./pages/admin/AdminPlanos";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -138,6 +145,29 @@ function App() {
                       <MeuNegocio />
                     </ProtectedRoute>
                   } />
+                  
+                  {/* Admin routes (superadmin only) */}
+                  <Route path="/admin" element={
+                    <AdminProtectedRoute>
+                      <AdminDashboard />
+                    </AdminProtectedRoute>
+                  } />
+                  <Route path="/admin/empresas" element={
+                    <AdminProtectedRoute>
+                      <AdminEmpresas />
+                    </AdminProtectedRoute>
+                  } />
+                  <Route path="/admin/whatsapp" element={
+                    <AdminProtectedRoute>
+                      <AdminWhatsApp />
+                    </AdminProtectedRoute>
+                  } />
+                  <Route path="/admin/planos" element={
+                    <AdminProtectedRoute>
+                      <AdminPlanos />
+                    </AdminProtectedRoute>
+                  } />
+                  
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
