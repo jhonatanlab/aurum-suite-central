@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_settings: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           company_id: string
@@ -55,6 +79,7 @@ export type Database = {
           created_at: string | null
           crm_settings: Json | null
           id: string
+          last_access_at: string | null
           name: string
           owner_uid: string | null
           payment_settings: Json | null
@@ -68,6 +93,7 @@ export type Database = {
           created_at?: string | null
           crm_settings?: Json | null
           id?: string
+          last_access_at?: string | null
           name: string
           owner_uid?: string | null
           payment_settings?: Json | null
@@ -81,6 +107,7 @@ export type Database = {
           created_at?: string | null
           crm_settings?: Json | null
           id?: string
+          last_access_at?: string | null
           name?: string
           owner_uid?: string | null
           payment_settings?: Json | null
@@ -1275,6 +1302,53 @@ export type Database = {
             columns: ["reseller_id"]
             isOneToOne: false
             referencedRelation: "resellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_instances: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          instance_id: string | null
+          instance_token: string | null
+          last_connected_at: string | null
+          phone_number: string | null
+          qr_code: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          instance_id?: string | null
+          instance_token?: string | null
+          last_connected_at?: string | null
+          phone_number?: string | null
+          qr_code?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          instance_id?: string | null
+          instance_token?: string | null
+          last_connected_at?: string | null
+          phone_number?: string | null
+          qr_code?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
