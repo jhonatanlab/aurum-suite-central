@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CampaignsList } from "@/components/campanhas/CampaignsList";
 import { NewCampaignModal } from "@/components/campanhas/NewCampaignModal";
+import { CampaignDetailPanel } from "@/components/campanhas/CampaignDetailPanel";
 import { useCampaigns, Campaign, CampaignFormData } from "@/hooks/useCampaigns";
 import {
   AlertDialog,
@@ -18,10 +19,11 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function Campanhas() {
-  const { campaigns, isLoading, createCampaign, updateCampaign, cancelCampaign, deleteCampaign } = useCampaigns();
+  const { campaigns, isLoading, refetch, createCampaign, updateCampaign, cancelCampaign, deleteCampaign } = useCampaigns();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [campaignToDelete, setCampaignToDelete] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -39,6 +41,10 @@ export default function Campanhas() {
   const handleEdit = (campaign: Campaign) => {
     setSelectedCampaign(campaign);
     setModalOpen(true);
+  };
+
+  const handleViewDetails = (campaign: Campaign) => {
+    setDetailCampaign(campaign);
   };
 
   const handleSave = (data: CampaignFormData) => {
@@ -117,8 +123,23 @@ export default function Campanhas() {
           onEdit={handleEdit}
           onCancel={handleCancelClick}
           onDelete={handleDeleteClick}
+          onViewDetails={handleViewDetails}
         />
       </div>
+
+      {/* Painel de detalhes da campanha */}
+      {detailCampaign && (
+        <CampaignDetailPanel
+          campaign={detailCampaign}
+          onClose={() => setDetailCampaign(null)}
+          onUpdate={() => {
+            refetch();
+            // Refresh detail campaign data
+            const updated = campaigns.find(c => c.id === detailCampaign.id);
+            if (updated) setDetailCampaign(updated);
+          }}
+        />
+      )}
 
       {/* Modal de criação/edição */}
       <NewCampaignModal

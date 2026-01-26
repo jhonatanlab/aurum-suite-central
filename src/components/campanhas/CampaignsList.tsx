@@ -36,6 +36,7 @@ interface CampaignsListProps {
   onEdit: (campaign: Campaign) => void;
   onCancel: (campaignId: string) => void;
   onDelete: (campaignId: string) => void;
+  onViewDetails: (campaign: Campaign) => void;
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode }> = {
@@ -61,7 +62,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   },
 };
 
-export function CampaignsList({ campaigns, isLoading, onEdit, onCancel, onDelete }: CampaignsListProps) {
+export function CampaignsList({ campaigns, isLoading, onEdit, onCancel, onDelete, onViewDetails }: CampaignsListProps) {
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -108,7 +109,7 @@ export function CampaignsList({ campaigns, isLoading, onEdit, onCancel, onDelete
               <TableRow 
                 key={campaign.id} 
                 className="border-border hover:bg-muted/50 cursor-pointer"
-                onClick={() => onEdit(campaign)}
+                onClick={() => onViewDetails(campaign)}
               >
                 <TableCell className="font-medium text-foreground">
                   {campaign.title || "Sem título"}

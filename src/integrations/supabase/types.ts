@@ -38,6 +38,63 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_recipients: {
+        Row: {
+          campaign_id: string
+          company_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          recipient_id: string
+          recipient_name: string | null
+          recipient_phone: string
+          recipient_type: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          campaign_id: string
+          company_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipient_id: string
+          recipient_name?: string | null
+          recipient_phone: string
+          recipient_type?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          campaign_id?: string
+          company_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipient_id?: string
+          recipient_name?: string | null
+          recipient_phone?: string
+          recipient_type?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           cancelled_at: string | null
