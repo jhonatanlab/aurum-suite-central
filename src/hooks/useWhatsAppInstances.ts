@@ -28,7 +28,6 @@ export function useWhatsAppInstances() {
 
   async function fetchInstances() {
     try {
-      // Fetch instances
       const { data: instancesData, error: instancesError } = await supabase
         .from('whatsapp_instances')
         .select('*')
@@ -36,14 +35,12 @@ export function useWhatsAppInstances() {
 
       if (instancesError) throw instancesError;
 
-      // Fetch companies to join
       const { data: companiesData, error: companiesError } = await supabase
         .from('companies')
         .select('id, name');
 
       if (companiesError) throw companiesError;
 
-      // Join instances with company names
       const instancesWithCompanies = (instancesData || []).map(instance => {
         const company = companiesData?.find(c => c.id === instance.company_id);
         return {
@@ -62,24 +59,25 @@ export function useWhatsAppInstances() {
 
   async function createInstance(companyId: string) {
     try {
-      const { data, error } = await supabase
-        .from('whatsapp_instances')
-        .insert({
-          company_id: companyId,
-          status: 'disconnected'
-        })
-        .select()
-        .single();
+      toast({
+        title: "Criando instância...",
+        description: "Aguarde enquanto a instância é criada na Uazapi."
+      });
+
+      const { data, error } = await supabase.functions.invoke('uazapi-create-instance', {
+        body: { companyId }
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao criar instância');
 
       toast({
         title: "Instância criada",
-        description: "A instância WhatsApp foi criada com sucesso."
+        description: "A instância WhatsApp foi criada com sucesso. Escaneie o QR Code para conectar."
       });
 
-      fetchInstances();
-      return data;
+      await fetchInstances();
+      return data.instance;
     } catch (err: any) {
       console.error('Error creating instance:', err);
       toast({
@@ -87,6 +85,58 @@ export function useWhatsAppInstances() {
         description: err.message || "Não foi possível criar a instância.",
         variant: "destructive"
       });
+      return null;
+    }
+  }
+
+  async function getQRCode(instanceId: string) {
+    try {
+      const { data, error } = await supabase.functions.invoke('uazapi-get-qrcode', {
+        body: { instanceId }
+      });
+
+      if (error) throw error;
+
+      if (data?.qrcode) {
+        setInstances(prev => prev.map(i => 
+          i.id === instanceId ? { ...i, qr_code: data.qrcode, status: 'qr_ready' } : i
+        ));
+      }
+
+      return data;
+    } catch (err: any) {
+      console.error('Error getting QR code:', err);
+      toast({
+        title: "Erro ao obter QR Code",
+        description: err.message || "Não foi possível obter o QR Code.",
+        variant: "destructive"
+      });
+      return null;
+    }
+  }
+
+  async function checkStatus(instanceId: string) {
+    try {
+      const { data, error } = await supabase.functions.invoke('uazapi-check-status', {
+        body: { instanceId }
+      });
+
+      if (error) throw error;
+
+      if (data?.status) {
+        setInstances(prev => prev.map(i => 
+          i.id === instanceId ? { 
+            ...i, 
+            status: data.status,
+            phone_number: data.phoneNumber || i.phone_number,
+            qr_code: data.status === 'connected' ? null : i.qr_code
+          } : i
+        ));
+      }
+
+      return data;
+    } catch (err: any) {
+      console.error('Error checking status:', err);
       return null;
     }
   }
@@ -120,14 +170,9 @@ export function useWhatsAppInstances() {
 
   async function disconnectInstance(instanceId: string) {
     try {
-      const { error } = await supabase
-        .from('whatsapp_instances')
-        .update({ 
-          status: 'disconnected',
-          qr_code: null,
-          phone_number: null
-        })
-        .eq('id', instanceId);
+      const { data, error } = await supabase.functions.invoke('uazapi-disconnect', {
+        body: { instanceId }
+      });
 
       if (error) throw error;
 
@@ -151,6 +196,11 @@ export function useWhatsAppInstances() {
 
   async function deleteInstance(instanceId: string) {
     try {
+      // First disconnect
+      await supabase.functions.invoke('uazapi-disconnect', {
+        body: { instanceId }
+      });
+
       const { error } = await supabase
         .from('whatsapp_instances')
         .delete()
@@ -174,13 +224,35 @@ export function useWhatsAppInstances() {
     }
   }
 
+  async function restartInstance(instanceId: string) {
+    try {
+      toast({
+        title: "Reiniciando...",
+        description: "Aguarde enquanto a instância é reiniciada."
+      });
+
+      // Get fresh QR code
+      await getQRCode(instanceId);
+
+      toast({
+        title: "Reiniciado",
+        description: "QR Code atualizado. Escaneie para reconectar."
+      });
+    } catch (err) {
+      console.error('Error restarting instance:', err);
+    }
+  }
+
   return {
     instances,
     loading,
     createInstance,
+    getQRCode,
+    checkStatus,
     updateInstanceStatus,
     disconnectInstance,
     deleteInstance,
+    restartInstance,
     refetch: fetchInstances
   };
 }

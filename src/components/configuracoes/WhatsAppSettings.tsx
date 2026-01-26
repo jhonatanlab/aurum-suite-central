@@ -160,12 +160,7 @@ export function WhatsAppSettings() {
 
       {/* API-Specific Configuration */}
       {settings.api_provider === 'uazapi' && (
-        <UazapiConfig
-          credentials={settings.credentials}
-          onConnect={connectUazapi}
-          onDisconnect={disconnectUazapi}
-          loading={saving}
-        />
+        <UazapiConfig />
       )}
 
       {settings.api_provider === 'zapi' && (
