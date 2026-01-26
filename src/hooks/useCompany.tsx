@@ -138,6 +138,19 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
+      // Auto-create WhatsApp instance for the new company
+      if (data) {
+        try {
+          await supabase.functions.invoke('auto-create-whatsapp-instance', {
+            body: { companyId: data, companyName: name }
+          });
+          console.log('[Company] WhatsApp instance auto-created for company:', data);
+        } catch (whatsappError) {
+          // Don't fail company creation if WhatsApp instance creation fails
+          console.error('[Company] Failed to auto-create WhatsApp instance:', whatsappError);
+        }
+      }
+
       await fetchCompany();
       return { error: null };
     } catch (error) {
