@@ -65,7 +65,7 @@ serve(async (req) => {
           "admintoken": masterToken,
         },
         body: JSON.stringify({
-          instanceName: instanceName,
+          Name: instanceName,
           qrcode: true,
         }),
       });
