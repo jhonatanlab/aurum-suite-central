@@ -31,6 +31,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminSettings } from "@/hooks/useAdminSettings";
 import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
@@ -60,13 +67,18 @@ interface Company {
 
 export default function AdminWhatsApp() {
   const { settings, setSettings, loading: loadingSettings, saving, saveSettings } = useAdminSettings();
-  const { instances, loading: loadingInstances, disconnectInstance, createInstance, restartInstance, checkStatus, refetch } = useWhatsAppInstances();
+  const { instances, loading: loadingInstances, disconnectInstance, createInstance, getQRCode, checkStatus, refetch } = useWhatsAppInstances();
   const [showToken, setShowToken] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [creatingInstance, setCreatingInstance] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [generatingQR, setGeneratingQR] = useState<string | null>(null);
+  const [qrCodeModal, setQrCodeModal] = useState<{ open: boolean; qrCode: string | null; companyName: string }>({
+    open: false,
+    qrCode: null,
+    companyName: ''
+  });
 
   useEffect(() => {
     fetchCompanies();
@@ -100,7 +112,15 @@ export default function AdminWhatsApp() {
 
   const handleGenerateQR = async (instanceId: string) => {
     setGeneratingQR(instanceId);
-    await restartInstance(instanceId);
+    const result = await getQRCode(instanceId);
+    if (result?.qrcode) {
+      const instance = instances.find(i => i.id === instanceId);
+      setQrCodeModal({
+        open: true,
+        qrCode: result.qrcode,
+        companyName: instance?.company?.name || 'Empresa'
+      });
+    }
     setGeneratingQR(null);
   };
 
@@ -437,6 +457,42 @@ export default function AdminWhatsApp() {
             )}
           </CardContent>
         </Card>
+
+        {/* QR Code Modal */}
+        <Dialog open={qrCodeModal.open} onOpenChange={(open) => setQrCodeModal(prev => ({ ...prev, open }))}>
+          <DialogContent className="bg-card border-border max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-foreground">
+                <QrCode className="h-5 w-5 text-primary" />
+                QR Code - {qrCodeModal.companyName}
+              </DialogTitle>
+              <DialogDescription>
+                Escaneie o QR Code abaixo com o WhatsApp da empresa para conectar.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center justify-center p-4">
+              {qrCodeModal.qrCode ? (
+                <div className="bg-white p-4 rounded-lg">
+                  <img 
+                    src={qrCodeModal.qrCode.startsWith('data:') 
+                      ? qrCodeModal.qrCode 
+                      : `data:image/png;base64,${qrCodeModal.qrCode}`
+                    } 
+                    alt="QR Code WhatsApp"
+                    className="w-64 h-64 object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center w-64 h-64 bg-muted rounded-lg">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground mt-4 text-center">
+                O QR Code expira em alguns minutos. Se expirar, clique novamente em "Gerar QR Code".
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
