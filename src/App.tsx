@@ -1,4 +1,4 @@
-import React from "react";
+import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -34,148 +34,149 @@ import AdminEmpresas from "./pages/admin/AdminEmpresas";
 import AdminWhatsApp from "./pages/admin/AdminWhatsApp";
 import AdminPlanos from "./pages/admin/AdminPlanos";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,
-      retry: 1,
-    },
-  },
-});
-
 function App() {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 1000 * 60 * 5,
+            retry: 1,
+          },
+        },
+      })
+  );
+
   return (
-    <React.Fragment>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <AuthProvider>
-            <CompanyProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <Routes>
-                  {/* Public routes */}
-                  <Route path="/auth" element={<Auth />} />
-                  
-                  {/* Create company route (requires auth but not company) */}
-                  <Route path="/criar-empresa" element={
-                    <ProtectedRoute requireCompany={false}>
-                      <CriarEmpresa />
-                    </ProtectedRoute>
-                  } />
-                  
-                  {/* Protected routes (require auth and company) */}
-                  <Route path="/" element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/crm" element={
-                    <ProtectedRoute>
-                      <CRM />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/vendas" element={
-                    <ProtectedRoute>
-                      <Vendas />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/equipe" element={
-                    <ProtectedRoute>
-                      <Equipe />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/produtos" element={
-                    <ProtectedRoute>
-                      <Produtos />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/whatsapp" element={
-                    <ProtectedRoute>
-                      <Whatsapp />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/campanhas" element={
-                    <ProtectedRoute>
-                      <Campanhas />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/automacoes" element={
-                    <ProtectedRoute>
-                      <Automacoes />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/revendedores" element={
-                    <ProtectedRoute>
-                      <Revendedores />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/revendedores/:id" element={
-                    <ProtectedRoute>
-                      <RevendedorDetalhe />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/revendedores/relatorios" element={
-                    <ProtectedRoute>
-                      <RelatoriosRevendedores />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/financeiro" element={
-                    <ProtectedRoute>
-                      <Financeiro />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/financeiro/recorrencias" element={
-                    <ProtectedRoute>
-                      <Recorrencias />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/garantias" element={
-                    <ProtectedRoute>
-                      <Garantias />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/configuracoes" element={
-                    <ProtectedRoute>
-                      <Configuracoes />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/meu-negocio" element={
-                    <ProtectedRoute>
-                      <MeuNegocio />
-                    </ProtectedRoute>
-                  } />
-                  
-                  {/* Admin routes (superadmin only) */}
-                  <Route path="/admin" element={
-                    <AdminProtectedRoute>
-                      <AdminDashboard />
-                    </AdminProtectedRoute>
-                  } />
-                  <Route path="/admin/empresas" element={
-                    <AdminProtectedRoute>
-                      <AdminEmpresas />
-                    </AdminProtectedRoute>
-                  } />
-                  <Route path="/admin/whatsapp" element={
-                    <AdminProtectedRoute>
-                      <AdminWhatsApp />
-                    </AdminProtectedRoute>
-                  } />
-                  <Route path="/admin/planos" element={
-                    <AdminProtectedRoute>
-                      <AdminPlanos />
-                    </AdminProtectedRoute>
-                  } />
-                  
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-            </CompanyProvider>
-          </AuthProvider>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </React.Fragment>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <CompanyProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/auth" element={<Auth />} />
+                
+                {/* Create company route (requires auth but not company) */}
+                <Route path="/criar-empresa" element={
+                  <ProtectedRoute requireCompany={false}>
+                    <CriarEmpresa />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Protected routes (require auth and company) */}
+                <Route path="/" element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/crm" element={
+                  <ProtectedRoute>
+                    <CRM />
+                  </ProtectedRoute>
+                } />
+                <Route path="/vendas" element={
+                  <ProtectedRoute>
+                    <Vendas />
+                  </ProtectedRoute>
+                } />
+                <Route path="/equipe" element={
+                  <ProtectedRoute>
+                    <Equipe />
+                  </ProtectedRoute>
+                } />
+                <Route path="/produtos" element={
+                  <ProtectedRoute>
+                    <Produtos />
+                  </ProtectedRoute>
+                } />
+                <Route path="/whatsapp" element={
+                  <ProtectedRoute>
+                    <Whatsapp />
+                  </ProtectedRoute>
+                } />
+                <Route path="/campanhas" element={
+                  <ProtectedRoute>
+                    <Campanhas />
+                  </ProtectedRoute>
+                } />
+                <Route path="/automacoes" element={
+                  <ProtectedRoute>
+                    <Automacoes />
+                  </ProtectedRoute>
+                } />
+                <Route path="/revendedores" element={
+                  <ProtectedRoute>
+                    <Revendedores />
+                  </ProtectedRoute>
+                } />
+                <Route path="/revendedores/:id" element={
+                  <ProtectedRoute>
+                    <RevendedorDetalhe />
+                  </ProtectedRoute>
+                } />
+                <Route path="/revendedores/relatorios" element={
+                  <ProtectedRoute>
+                    <RelatoriosRevendedores />
+                  </ProtectedRoute>
+                } />
+                <Route path="/financeiro" element={
+                  <ProtectedRoute>
+                    <Financeiro />
+                  </ProtectedRoute>
+                } />
+                <Route path="/financeiro/recorrencias" element={
+                  <ProtectedRoute>
+                    <Recorrencias />
+                  </ProtectedRoute>
+                } />
+                <Route path="/garantias" element={
+                  <ProtectedRoute>
+                    <Garantias />
+                  </ProtectedRoute>
+                } />
+                <Route path="/configuracoes" element={
+                  <ProtectedRoute>
+                    <Configuracoes />
+                  </ProtectedRoute>
+                } />
+                <Route path="/meu-negocio" element={
+                  <ProtectedRoute>
+                    <MeuNegocio />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Admin routes (superadmin only) */}
+                <Route path="/admin" element={
+                  <AdminProtectedRoute>
+                    <AdminDashboard />
+                  </AdminProtectedRoute>
+                } />
+                <Route path="/admin/empresas" element={
+                  <AdminProtectedRoute>
+                    <AdminEmpresas />
+                  </AdminProtectedRoute>
+                } />
+                <Route path="/admin/whatsapp" element={
+                  <AdminProtectedRoute>
+                    <AdminWhatsApp />
+                  </AdminProtectedRoute>
+                } />
+                <Route path="/admin/planos" element={
+                  <AdminProtectedRoute>
+                    <AdminPlanos />
+                  </AdminProtectedRoute>
+                } />
+                
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </CompanyProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 }
 
