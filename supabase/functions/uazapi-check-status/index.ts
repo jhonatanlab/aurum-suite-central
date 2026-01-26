@@ -44,8 +44,21 @@ serve(async (req) => {
     const baseEndpoint = adminSettings?.find((s) => s.key === "uazapi_endpoint")?.value;
     const masterToken = adminSettings?.find((s) => s.key === "uazapi_token")?.value;
 
-    if (!baseEndpoint || !masterToken || !instance.instance_id) {
-      throw new Error("Configurações incompletas");
+    if (!baseEndpoint || !masterToken) {
+      throw new Error("Configurações Uazapi não definidas no painel Admin. Configure endpoint e token primeiro.");
+    }
+
+    if (!instance.instance_id) {
+      // Instance not yet created on Uazapi - return current status
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: instance.status || "disconnected",
+          phoneNumber: instance.phone_number,
+          message: "Instância ainda não foi criada na Uazapi. Clique em 'Gerar QR Code' para iniciar."
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Check status in Uazapi
