@@ -2,3 +2,21 @@ project_id = "vxjhggnoifgfnhsmdgbp"
 
 [functions.execute-campaign]
 verify_jwt = false
+
+[functions.uazapi-create-instance]
+verify_jwt = false
+
+[functions.uazapi-get-qrcode]
+verify_jwt = false
+
+[functions.uazapi-check-status]
+verify_jwt = false
+
+[functions.uazapi-send-message]
+verify_jwt = false
+
+[functions.uazapi-disconnect]
+verify_jwt = false
+
+[functions.uazapi-webhook]
+verify_jwt = false

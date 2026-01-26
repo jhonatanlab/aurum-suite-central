@@ -213,45 +213,19 @@ export function useWhatsAppChat() {
     setSendingMessage(true);
 
     try {
-      // Get company WhatsApp settings
-      const whatsappSettings = company.whatsapp_settings as any;
-      const apiProvider = whatsappSettings?.api_provider || "uazapi";
-
       // Prepare phone number (remove non-digits)
       const phone = selectedConversation.contact_phone.replace(/\D/g, "");
 
-      // Send via WhatsApp API
-      let apiSuccess = false;
+      // Send via edge function
+      const { data, error: sendError } = await supabase.functions.invoke('uazapi-send-message', {
+        body: {
+          companyId: company.id,
+          phone,
+          message: content,
+        }
+      });
 
-      if (apiProvider === "uazapi" && instance.instance_id && instance.instance_token) {
-        const baseUrl = whatsappSettings?.uazapi_base_url || "https://api.uazapi.com";
-        const response = await fetch(`${baseUrl}/send-message`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${instance.instance_token}`,
-          },
-          body: JSON.stringify({
-            instanceId: instance.instance_id,
-            to: phone,
-            message: content,
-          }),
-        });
-        apiSuccess = response.ok;
-      } else if (apiProvider === "zapi" && whatsappSettings?.zapi_instance_id && whatsappSettings?.zapi_token) {
-        const response = await fetch(
-          `https://api.z-api.io/instances/${whatsappSettings.zapi_instance_id}/token/${whatsappSettings.zapi_token}/send-text`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              phone,
-              message: content,
-            }),
-          }
-        );
-        apiSuccess = response.ok;
-      }
+      const apiSuccess = !sendError && data?.success;
 
       // Save message to database
       const { error } = await supabase.from("whatsapp_messages").insert({
@@ -260,6 +234,7 @@ export function useWhatsAppChat() {
         direction: "outbound",
         content,
         status: apiSuccess ? "sent" : "failed",
+        sent_at: new Date().toISOString(),
       });
 
       if (error) throw error;
@@ -276,15 +251,16 @@ export function useWhatsAppChat() {
       if (!apiSuccess) {
         toast({
           title: "Aviso",
-          description: "Mensagem salva mas pode não ter sido enviada via WhatsApp.",
+          description: data?.error || "Mensagem salva mas pode não ter sido enviada via WhatsApp.",
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error sending message:", error);
+      const message = error instanceof Error ? error.message : "Não foi possível enviar a mensagem.";
       toast({
         title: "Erro ao enviar mensagem",
-        description: error.message || "Não foi possível enviar a mensagem.",
+        description: message,
         variant: "destructive",
       });
     } finally {

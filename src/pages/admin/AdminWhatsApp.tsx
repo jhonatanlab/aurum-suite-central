@@ -59,11 +59,12 @@ interface Company {
 
 export default function AdminWhatsApp() {
   const { settings, setSettings, loading: loadingSettings, saving, saveSettings } = useAdminSettings();
-  const { instances, loading: loadingInstances, disconnectInstance, createInstance, refetch } = useWhatsAppInstances();
+  const { instances, loading: loadingInstances, disconnectInstance, createInstance, restartInstance, checkStatus, refetch } = useWhatsAppInstances();
   const [showToken, setShowToken] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [creatingInstance, setCreatingInstance] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCompanies();
@@ -87,6 +88,12 @@ export default function AdminWhatsApp() {
     await createInstance(selectedCompanyId);
     setSelectedCompanyId('');
     setCreatingInstance(false);
+  };
+
+  const handleCheckStatus = async (instanceId: string) => {
+    setCheckingStatus(instanceId);
+    await checkStatus(instanceId);
+    setCheckingStatus(null);
   };
 
   const companiesWithoutInstance = companies.filter(
@@ -352,10 +359,11 @@ export default function AdminWhatsApp() {
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => refetch()}
-                            title="Reiniciar"
+                            onClick={() => handleCheckStatus(instance.id)}
+                            disabled={checkingStatus === instance.id}
+                            title="Verificar Status"
                           >
-                            <RefreshCw className="h-4 w-4" />
+                            <RefreshCw className={`h-4 w-4 ${checkingStatus === instance.id ? 'animate-spin' : ''}`} />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
