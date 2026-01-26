@@ -40,28 +40,70 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          cancelled_at: string | null
+          channel: string | null
           company_id: string
           created_at: string | null
+          failed_count: number | null
           id: string
+          media_type: string | null
+          media_url: string | null
           message: string | null
+          scheduled_at: string | null
+          send_speed_max: number | null
+          send_speed_min: number | null
+          sent_at: string | null
+          sent_count: number | null
           status: string | null
+          target_filters: Json | null
+          target_type: string | null
           title: string | null
+          total_recipients: number | null
+          updated_at: string | null
         }
         Insert: {
+          cancelled_at?: string | null
+          channel?: string | null
           company_id: string
           created_at?: string | null
+          failed_count?: number | null
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message?: string | null
+          scheduled_at?: string | null
+          send_speed_max?: number | null
+          send_speed_min?: number | null
+          sent_at?: string | null
+          sent_count?: number | null
           status?: string | null
+          target_filters?: Json | null
+          target_type?: string | null
           title?: string | null
+          total_recipients?: number | null
+          updated_at?: string | null
         }
         Update: {
+          cancelled_at?: string | null
+          channel?: string | null
           company_id?: string
           created_at?: string | null
+          failed_count?: number | null
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message?: string | null
+          scheduled_at?: string | null
+          send_speed_max?: number | null
+          send_speed_min?: number | null
+          sent_at?: string | null
+          sent_count?: number | null
           status?: string | null
+          target_filters?: Json | null
+          target_type?: string | null
           title?: string | null
+          total_recipients?: number | null
+          updated_at?: string | null
         }
         Relationships: [
           {
