@@ -49,11 +49,10 @@ serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${masterToken}`,
+        "admintoken": masterToken,
       },
       body: JSON.stringify({
         instanceName: instanceName,
-        token: masterToken,
         qrcode: true,
       }),
     });
