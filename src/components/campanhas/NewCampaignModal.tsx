@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
@@ -14,19 +14,22 @@ import {
   Send,
   AlertTriangle,
   CalendarIcon,
-  X
+  X,
+  Upload,
+  Loader2,
+  Trash2
 } from "lucide-react";
 import { Campaign, CampaignFormData } from "@/hooks/useCampaigns";
 import { useTags } from "@/hooks/useTags";
-import { useCrmFilters } from "@/hooks/useCrmFilters";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -88,6 +91,15 @@ export function NewCampaignModal({ open, onClose, onSave, campaign, isLoading }:
   const [scheduledTime, setScheduledTime] = useState("09:00");
   const [speedRange, setSpeedRange] = useState([10, 30]);
   const [mediaType, setMediaType] = useState<string | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaFileName, setMediaFileName] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // File input refs
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
   
   // Filtros CRM
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
@@ -100,7 +112,8 @@ export function NewCampaignModal({ open, onClose, onSave, campaign, isLoading }:
       setMessage(campaign.message || "");
       setTargetType((campaign.target_type as "clients" | "resellers") || "clients");
       setSpeedRange([campaign.send_speed_min || 10, campaign.send_speed_max || 30]);
-      setMediaType(campaign.media_type);
+      setMediaType(campaign.media_type || null);
+      setMediaUrl(campaign.media_url || null);
       
       if (campaign.scheduled_at) {
         setSendMode("scheduled");
@@ -127,9 +140,83 @@ export function NewCampaignModal({ open, onClose, onSave, campaign, isLoading }:
     setScheduledTime("09:00");
     setSpeedRange([10, 30]);
     setMediaType(null);
+    setMediaUrl(null);
+    setMediaFileName(null);
     setFilterStatus([]);
     setFilterSource([]);
     setFilterTags([]);
+  };
+
+  const handleFileUpload = async (file: File, type: string) => {
+    setIsUploading(true);
+    
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `campaigns/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('campaign-media')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('campaign-media')
+        .getPublicUrl(filePath);
+
+      setMediaType(type);
+      setMediaUrl(publicUrl);
+      setMediaFileName(file.name);
+      toast.success("Arquivo enviado com sucesso!");
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Erro ao enviar arquivo");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveMedia = async () => {
+    if (mediaUrl) {
+      try {
+        // Extract file path from URL
+        const url = new URL(mediaUrl);
+        const pathParts = url.pathname.split('/');
+        const filePath = pathParts.slice(pathParts.indexOf('campaign-media') + 1).join('/');
+        
+        if (filePath) {
+          await supabase.storage
+            .from('campaign-media')
+            .remove([filePath]);
+        }
+      } catch (error) {
+        console.error("Error removing file:", error);
+      }
+    }
+    
+    setMediaType(null);
+    setMediaUrl(null);
+    setMediaFileName(null);
+  };
+
+  const handleMediaButtonClick = (type: string, inputRef: React.RefObject<HTMLInputElement>) => {
+    if (mediaType === type) {
+      handleRemoveMedia();
+    } else {
+      inputRef.current?.click();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileUpload(file, type);
+    }
+    // Reset input
+    e.target.value = '';
   };
 
   const handleSubmit = (saveAsDraft: boolean) => {
@@ -153,6 +240,7 @@ export function NewCampaignModal({ open, onClose, onSave, campaign, isLoading }:
         tags: filterTags,
       },
       media_type: mediaType || undefined,
+      media_url: mediaUrl || undefined,
       send_speed_min: speedRange[0],
       send_speed_max: speedRange[1],
       scheduled_at: scheduledAt,
@@ -234,45 +322,150 @@ export function NewCampaignModal({ open, onClose, onSave, campaign, isLoading }:
               ))}
             </div>
 
-            {/* Mídia */}
+            {/* Mídia - Hidden file inputs */}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleFileChange(e, "image")}
+            />
+            <input
+              ref={audioInputRef}
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={(e) => handleFileChange(e, "audio")}
+            />
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => handleFileChange(e, "video")}
+            />
+            <input
+              ref={documentInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+              className="hidden"
+              onChange={(e) => handleFileChange(e, "document")}
+            />
+
+            {/* Mídia buttons */}
             <div className="flex gap-2 mt-2">
               <Button
                 type="button"
                 variant={mediaType === "image" ? "secondary" : "outline"}
                 size="sm"
-                onClick={() => setMediaType(mediaType === "image" ? null : "image")}
+                onClick={() => handleMediaButtonClick("image", imageInputRef)}
+                disabled={isUploading}
               >
-                <Image className="h-4 w-4 mr-1" />
+                {isUploading && mediaType === "image" ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Image className="h-4 w-4 mr-1" />
+                )}
                 Imagem
               </Button>
               <Button
                 type="button"
                 variant={mediaType === "audio" ? "secondary" : "outline"}
                 size="sm"
-                onClick={() => setMediaType(mediaType === "audio" ? null : "audio")}
+                onClick={() => handleMediaButtonClick("audio", audioInputRef)}
+                disabled={isUploading}
               >
-                <FileAudio className="h-4 w-4 mr-1" />
+                {isUploading && mediaType === "audio" ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <FileAudio className="h-4 w-4 mr-1" />
+                )}
                 Áudio
               </Button>
               <Button
                 type="button"
                 variant={mediaType === "video" ? "secondary" : "outline"}
                 size="sm"
-                onClick={() => setMediaType(mediaType === "video" ? null : "video")}
+                onClick={() => handleMediaButtonClick("video", videoInputRef)}
+                disabled={isUploading}
               >
-                <Video className="h-4 w-4 mr-1" />
+                {isUploading && mediaType === "video" ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Video className="h-4 w-4 mr-1" />
+                )}
                 Vídeo
               </Button>
               <Button
                 type="button"
                 variant={mediaType === "document" ? "secondary" : "outline"}
                 size="sm"
-                onClick={() => setMediaType(mediaType === "document" ? null : "document")}
+                onClick={() => handleMediaButtonClick("document", documentInputRef)}
+                disabled={isUploading}
               >
-                <Paperclip className="h-4 w-4 mr-1" />
+                {isUploading && mediaType === "document" ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4 mr-1" />
+                )}
                 Arquivo
               </Button>
             </div>
+
+            {/* Media Preview */}
+            {mediaUrl && (
+              <div className="mt-3 p-3 rounded-lg border border-border bg-muted/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {mediaType === "image" && (
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
+                        <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    {mediaType === "audio" && (
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <FileAudio className="h-6 w-6 text-primary" />
+                        </div>
+                        <audio controls className="h-8 max-w-[200px]">
+                          <source src={mediaUrl} />
+                        </audio>
+                      </div>
+                    )}
+                    {mediaType === "video" && (
+                      <div className="relative w-24 h-16 rounded-lg overflow-hidden border border-border bg-black">
+                        <video src={mediaUrl} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Video className="h-6 w-6 text-white/70" />
+                        </div>
+                      </div>
+                    )}
+                    {mediaType === "document" && (
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Paperclip className="h-6 w-6 text-primary" />
+                      </div>
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-foreground">
+                        {mediaFileName || "Arquivo anexado"}
+                      </span>
+                      <span className="text-xs text-muted-foreground capitalize">
+                        {mediaType === "document" ? "Documento" : mediaType}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleRemoveMedia}
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Seleção de público */}
