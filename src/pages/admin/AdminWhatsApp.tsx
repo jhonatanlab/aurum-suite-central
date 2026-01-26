@@ -47,7 +47,8 @@ import {
   Building2,
   Phone,
   Eye,
-  EyeOff
+  EyeOff,
+  QrCode
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -65,6 +66,7 @@ export default function AdminWhatsApp() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [creatingInstance, setCreatingInstance] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
+  const [generatingQR, setGeneratingQR] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCompanies();
@@ -94,6 +96,12 @@ export default function AdminWhatsApp() {
     setCheckingStatus(instanceId);
     await checkStatus(instanceId);
     setCheckingStatus(null);
+  };
+
+  const handleGenerateQR = async (instanceId: string) => {
+    setGeneratingQR(instanceId);
+    await restartInstance(instanceId);
+    setGeneratingQR(null);
   };
 
   const companiesWithoutInstance = companies.filter(
@@ -354,8 +362,26 @@ export default function AdminWhatsApp() {
                           ? format(new Date(instance.last_connected_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
                           : '-'}
                       </TableCell>
-                      <TableCell className="text-right">
+                        <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {/* Botão Gerar QR para instâncias desconectadas */}
+                          {instance.status !== 'connected' && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleGenerateQR(instance.id)}
+                              disabled={generatingQR === instance.id}
+                              className="text-blue-400 border-blue-400/30 hover:bg-blue-400/10"
+                              title="Gerar QR Code"
+                            >
+                              {generatingQR === instance.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <QrCode className="h-4 w-4" />
+                              )}
+                              <span className="ml-1 hidden sm:inline">QR Code</span>
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -365,41 +391,43 @@ export default function AdminWhatsApp() {
                           >
                             <RefreshCw className={`h-4 w-4 ${checkingStatus === instance.id ? 'animate-spin' : ''}`} />
                           </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                title="Desconectar"
-                              >
-                                <Unplug className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-card border-border">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle className="text-foreground">
-                                  Desconectar instância?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Isso irá desconectar a instância WhatsApp da empresa{' '}
-                                  <strong>{instance.company?.name}</strong>. A empresa precisará
-                                  escanear o QR Code novamente para reconectar.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel className="bg-background border-border">
-                                  Cancelar
-                                </AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-destructive hover:bg-destructive/90"
-                                  onClick={() => disconnectInstance(instance.id)}
+                          {instance.status === 'connected' && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  title="Desconectar"
                                 >
-                                  Desconectar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                                  <Unplug className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-card border-border">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="text-foreground">
+                                    Desconectar instância?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Isso irá desconectar a instância WhatsApp da empresa{' '}
+                                    <strong>{instance.company?.name}</strong>. A empresa precisará
+                                    escanear o QR Code novamente para reconectar.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="bg-background border-border">
+                                    Cancelar
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive hover:bg-destructive/90"
+                                    onClick={() => disconnectInstance(instance.id)}
+                                  >
+                                    Desconectar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

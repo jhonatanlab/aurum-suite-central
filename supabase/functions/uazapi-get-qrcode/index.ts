@@ -44,15 +44,72 @@ serve(async (req) => {
     const baseEndpoint = adminSettings?.find((s) => s.key === "uazapi_endpoint")?.value;
     const masterToken = adminSettings?.find((s) => s.key === "uazapi_token")?.value;
 
-    if (!baseEndpoint || !masterToken || !instance.instance_id) {
-      throw new Error("Configurações incompletas");
+    if (!baseEndpoint || !masterToken) {
+      throw new Error("Configurações Uazapi não definidas. Configure no Admin > WhatsApp.");
     }
 
-    // Get QR Code from Uazapi
-    const qrResponse = await fetch(`${baseEndpoint}/instance/qrcode/${instance.instance_id}`, {
+    let uazapiInstanceId = instance.instance_id;
+    let instanceToken = instance.instance_token || masterToken;
+    let qrCode = null;
+
+    // If no instance_id, create the instance on Uazapi first
+    if (!uazapiInstanceId) {
+      console.log(`[Uazapi] Instância não existe na Uazapi, criando...`);
+      
+      const instanceName = `inst_${instance.company_id.slice(0, 8)}_${Date.now()}`;
+      
+      const createResponse = await fetch(`${baseEndpoint}/instance/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${masterToken}`,
+        },
+        body: JSON.stringify({
+          instanceName: instanceName,
+          token: masterToken,
+          qrcode: true,
+        }),
+      });
+
+      const createResult = await createResponse.json();
+      console.log(`[Uazapi] Resposta criação:`, JSON.stringify(createResult).slice(0, 300));
+
+      if (!createResponse.ok) {
+        throw new Error(`Erro ao criar instância: ${JSON.stringify(createResult)}`);
+      }
+
+      uazapiInstanceId = instanceName;
+      instanceToken = createResult.token || masterToken;
+      qrCode = createResult.qrcode?.base64 || createResult.qrcode;
+
+      // Update instance in DB with the new instance_id
+      await supabase
+        .from("whatsapp_instances")
+        .update({
+          instance_id: uazapiInstanceId,
+          instance_token: instanceToken,
+          qr_code: qrCode,
+          status: "qr_ready",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", instanceId);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          qrcode: qrCode,
+          status: "qr_ready",
+          message: "Instância criada. Escaneie o QR Code.",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get QR Code from Uazapi (instance already exists)
+    const qrResponse = await fetch(`${baseEndpoint}/instance/qrcode/${uazapiInstanceId}`, {
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${instance.instance_token || masterToken}`,
+        "Authorization": `Bearer ${instanceToken}`,
       },
     });
 
