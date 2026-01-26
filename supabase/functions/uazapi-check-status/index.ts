@@ -65,7 +65,7 @@ serve(async (req) => {
     const statusResponse = await fetch(`${baseEndpoint}/instance/connectionState/${instance.instance_id}`, {
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${instance.instance_token || masterToken}`,
+        "token": instance.instance_token || masterToken,
       },
     });
 

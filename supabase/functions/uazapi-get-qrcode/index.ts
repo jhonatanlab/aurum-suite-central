@@ -62,11 +62,10 @@ serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${masterToken}`,
+          "admintoken": masterToken,
         },
         body: JSON.stringify({
           instanceName: instanceName,
-          token: masterToken,
           qrcode: true,
         }),
       });
@@ -109,7 +108,7 @@ serve(async (req) => {
     const qrResponse = await fetch(`${baseEndpoint}/instance/qrcode/${uazapiInstanceId}`, {
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${instanceToken}`,
+        "token": instanceToken,
       },
     });
 

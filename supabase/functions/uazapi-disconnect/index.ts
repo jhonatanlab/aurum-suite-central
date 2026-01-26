@@ -50,7 +50,7 @@ serve(async (req) => {
         const logoutResponse = await fetch(`${baseEndpoint}/instance/logout/${instance.instance_id}`, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${instance.instance_token || masterToken}`,
+            "token": instance.instance_token || masterToken,
           },
         });
 
