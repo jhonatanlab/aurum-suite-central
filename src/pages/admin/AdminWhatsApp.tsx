@@ -99,7 +99,18 @@ export default function AdminWhatsApp() {
   const handleCreateInstance = async () => {
     if (!selectedCompanyId) return;
     setCreatingInstance(true);
-    await createInstance(selectedCompanyId);
+    const result = await createInstance(selectedCompanyId);
+    
+    // If QR code was returned, show it immediately
+    if (result?.qrcode) {
+      const company = companies.find(c => c.id === selectedCompanyId);
+      setQrCodeModal({
+        open: true,
+        qrCode: result.qrcode,
+        companyName: company?.name || 'Empresa'
+      });
+    }
+    
     setSelectedCompanyId('');
     setCreatingInstance(false);
   };
@@ -124,8 +135,9 @@ export default function AdminWhatsApp() {
     setGeneratingQR(null);
   };
 
-  const companiesWithoutInstance = companies.filter(
-    c => !instances.some(i => i.company_id === c.id)
+  // Only show companies without an ACTIVE instance (status != 'expired')
+  const companiesWithoutActiveInstance = companies.filter(
+    c => !instances.some(i => i.company_id === c.id && i.status !== 'expired')
   );
 
   const getStatusBadge = (status: string) => {
@@ -280,12 +292,12 @@ export default function AdminWhatsApp() {
                       <SelectValue placeholder="Selecione uma empresa" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border z-50">
-                      {companiesWithoutInstance.length === 0 ? (
+                      {companiesWithoutActiveInstance.length === 0 ? (
                         <SelectItem value="none" disabled>
-                          Todas as empresas já têm instância
+                          Todas as empresas já têm instância ativa
                         </SelectItem>
                       ) : (
-                        companiesWithoutInstance.map((company) => (
+                        companiesWithoutActiveInstance.map((company) => (
                           <SelectItem key={company.id} value={company.id}>
                             {company.name}
                           </SelectItem>
