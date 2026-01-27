@@ -25,19 +25,20 @@ serve(async (req) => {
 
     console.log(`[Auto WhatsApp] Criando instância automática para empresa: ${companyId} (${companyName})`);
 
-    // Check if instance already exists
+    // Check if active instance already exists (status != 'expired')
     const { data: existingInstance } = await supabase
       .from("whatsapp_instances")
-      .select("id")
+      .select("id, status")
       .eq("company_id", companyId)
-      .single();
+      .neq("status", "expired")
+      .maybeSingle();
 
     if (existingInstance) {
-      console.log(`[Auto WhatsApp] Instância já existe para empresa ${companyId}`);
+      console.log(`[Auto WhatsApp] Instância ativa já existe para empresa ${companyId} (status: ${existingInstance.status})`);
       return new Response(
         JSON.stringify({
           success: true,
-          message: "Instância já existe",
+          message: "Instância ativa já existe",
           instanceId: existingInstance.id,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -48,10 +49,11 @@ serve(async (req) => {
     const { data: adminSettings } = await supabase
       .from("admin_settings")
       .select("key, value")
-      .in("key", ["uazapi_endpoint", "uazapi_token"]);
+      .in("key", ["uazapi_endpoint", "uazapi_token", "uazapi_webhook_url"]);
 
     const baseEndpoint = adminSettings?.find((s) => s.key === "uazapi_endpoint")?.value;
     const masterToken = adminSettings?.find((s) => s.key === "uazapi_token")?.value;
+    const webhookUrl = adminSettings?.find((s) => s.key === "uazapi_webhook_url")?.value;
 
     if (!baseEndpoint || !masterToken) {
       console.log(`[Auto WhatsApp] Uazapi não configurado, criando apenas registro no banco`);
@@ -78,51 +80,101 @@ serve(async (req) => {
       );
     }
 
-    // Generate instance name
-    const instanceName = `inst_${companyId.slice(0, 8)}_${Date.now()}`;
+    // Generate unique instance_id
+    const instanceId = `inst_${companyId.slice(0, 8)}_${Date.now()}`;
 
-    console.log(`[Auto WhatsApp] Criando instância na Uazapi: ${instanceName}`);
+    console.log(`[Auto WhatsApp] Inicializando instância na Uazapi: ${instanceId}`);
 
-    // Create instance in Uazapi
-    const createResponse = await fetch(`${baseEndpoint}/instance/create`, {
+    // Try /instance/init first, fallback to /instance/create
+    let initResult: Record<string, unknown> = {};
+    let initSuccess = false;
+
+    // Try /instance/init
+    const initResponse = await fetch(`${baseEndpoint}/instance/init`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "admintoken": masterToken,
       },
       body: JSON.stringify({
-        Name: instanceName,
+        Name: instanceId,
         qrcode: true,
       }),
     });
 
-    const createResult = await createResponse.json();
-    console.log(`[Auto WhatsApp] Resposta Uazapi:`, JSON.stringify(createResult).slice(0, 300));
+    if (initResponse.ok) {
+      initResult = await initResponse.json();
+      initSuccess = true;
+      console.log(`[Auto WhatsApp] Resposta init:`, JSON.stringify(initResult).slice(0, 300));
+    } else {
+      // Fallback to /instance/create
+      const createResponse = await fetch(`${baseEndpoint}/instance/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "admintoken": masterToken,
+        },
+        body: JSON.stringify({
+          Name: instanceId,
+          qrcode: true,
+        }),
+      });
+
+      initResult = await createResponse.json();
+      initSuccess = createResponse.ok;
+      console.log(`[Auto WhatsApp] Resposta create:`, JSON.stringify(initResult).slice(0, 300));
+    }
 
     // Extract QR code if available
     let qrCode = null;
-    if (createResult.qrcode) {
-      if (typeof createResult.qrcode === 'string') {
-        qrCode = createResult.qrcode;
-      } else if (createResult.qrcode.base64) {
-        qrCode = createResult.qrcode.base64;
+    if (initResult.qrcode) {
+      if (typeof initResult.qrcode === 'string') {
+        qrCode = initResult.qrcode;
+      } else if (typeof initResult.qrcode === 'object' && initResult.qrcode !== null && 'base64' in initResult.qrcode) {
+        qrCode = (initResult.qrcode as { base64: string }).base64;
       }
     }
+
+    const instanceToken = (initResult.token as string) || (initResult.instance as { token?: string })?.token || masterToken;
 
     // Create instance record in database
     const { data: newInstance, error: insertError } = await supabase
       .from("whatsapp_instances")
       .insert({
         company_id: companyId,
-        instance_id: instanceName,
-        instance_token: createResult.token || masterToken,
-        status: qrCode ? "qr_ready" : "disconnected",
+        instance_id: instanceId,
+        instance_token: instanceToken,
+        status: initSuccess ? (qrCode ? "qrcode" : "created") : "disconnected",
         qr_code: qrCode,
       })
       .select()
       .single();
 
     if (insertError) throw insertError;
+
+    // Configure webhook if URL is set
+    if (webhookUrl && initSuccess) {
+      console.log(`[Auto WhatsApp] Configurando webhook: ${webhookUrl}`);
+      
+      try {
+        await fetch(`${baseEndpoint}/webhook/set`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instanceToken,
+            "admintoken": masterToken,
+          },
+          body: JSON.stringify({
+            Name: instanceId,
+            url: webhookUrl,
+            enabled: true,
+            events: ["messages.upsert", "connection.update"],
+          }),
+        });
+      } catch (webhookError) {
+        console.log(`[Auto WhatsApp] Erro ao configurar webhook:`, webhookError);
+      }
+    }
 
     console.log(`[Auto WhatsApp] Instância criada com sucesso: ${newInstance.id}`);
 
@@ -131,7 +183,7 @@ serve(async (req) => {
         success: true,
         message: "Instância WhatsApp criada automaticamente",
         instanceId: newInstance.id,
-        status: qrCode ? "qr_ready" : "disconnected",
+        status: newInstance.status,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

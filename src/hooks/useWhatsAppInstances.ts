@@ -59,6 +59,20 @@ export function useWhatsAppInstances() {
 
   async function createInstance(companyId: string) {
     try {
+      // First check if company already has an active instance (status != 'expired')
+      const existingActive = instances.find(
+        i => i.company_id === companyId && i.status !== 'expired'
+      );
+
+      if (existingActive) {
+        toast({
+          title: "Instância já existe",
+          description: `Esta empresa já possui uma instância ativa (status: ${existingActive.status}). Exclua a existente antes de criar uma nova.`,
+          variant: "destructive"
+        });
+        return null;
+      }
+
       toast({
         title: "Criando instância...",
         description: "Aguarde enquanto a instância é criada na Uazapi."
@@ -71,13 +85,17 @@ export function useWhatsAppInstances() {
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Erro ao criar instância');
 
+      const statusMsg = data.instance?.status === 'qrcode' 
+        ? 'Escaneie o QR Code para conectar.' 
+        : 'Gere o QR Code para conectar.';
+
       toast({
         title: "Instância criada",
-        description: "A instância WhatsApp foi criada com sucesso. Escaneie o QR Code para conectar."
+        description: `Instância criada com sucesso. ${statusMsg}`
       });
 
       await fetchInstances();
-      return data.instance;
+      return data;
     } catch (err: any) {
       console.error('Error creating instance:', err);
       toast({
