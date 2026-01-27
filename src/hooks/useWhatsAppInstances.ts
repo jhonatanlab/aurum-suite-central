@@ -59,7 +59,7 @@ export function useWhatsAppInstances() {
 
   async function createInstance(companyId: string) {
     try {
-      // First check if company already has an active instance (status != 'expired')
+      // Check if company has an active instance (status != 'expired')
       const existingActive = instances.find(
         i => i.company_id === companyId && i.status !== 'expired'
       );
@@ -67,15 +67,20 @@ export function useWhatsAppInstances() {
       if (existingActive) {
         toast({
           title: "Instância já existe",
-          description: `Esta empresa já possui uma instância ativa (status: ${existingActive.status}). Exclua a existente antes de criar uma nova.`,
+          description: `Esta empresa já possui uma instância ativa (status: ${existingActive.status}). Resete a instância antes de criar uma nova.`,
           variant: "destructive"
         });
         return null;
       }
 
+      // Check if there's an expired record that can be reused
+      const expiredRecord = instances.find(
+        i => i.company_id === companyId && i.status === 'expired'
+      );
+
       toast({
-        title: "Criando instância...",
-        description: "Aguarde enquanto a instância é criada na Uazapi."
+        title: expiredRecord ? "Recriando instância..." : "Criando instância...",
+        description: "Aguarde enquanto a instância é configurada na Uazapi."
       });
 
       const { data, error } = await supabase.functions.invoke('uazapi-create-instance', {
@@ -90,8 +95,8 @@ export function useWhatsAppInstances() {
         : 'Gere o QR Code para conectar.';
 
       toast({
-        title: "Instância criada",
-        description: `Instância criada com sucesso. ${statusMsg}`
+        title: data.wasRecreated ? "Instância recriada" : "Instância criada",
+        description: `${data.wasRecreated ? 'Instância recriada' : 'Instância criada'} com sucesso. ${statusMsg}`
       });
 
       await fetchInstances();
@@ -247,7 +252,7 @@ export function useWhatsAppInstances() {
       // Update local state - mark as expired
       setInstances(prev => prev.map(i => 
         i.id === instanceId 
-          ? { ...i, status: 'expired', qr_code: null, phone_number: null } 
+          ? { ...i, status: 'expired', qr_code: null, phone_number: null, instance_id: null, instance_token: null } 
           : i
       ));
 
@@ -260,6 +265,42 @@ export function useWhatsAppInstances() {
       toast({
         title: "Erro ao excluir",
         description: err.message || "Não foi possível excluir a instância.",
+        variant: "destructive"
+      });
+    }
+  }
+
+  async function resetInstance(instanceId: string) {
+    try {
+      toast({
+        title: "Resetando instância...",
+        description: "Aguarde enquanto a instância é resetada."
+      });
+
+      // Call reset edge function
+      const { data, error } = await supabase.functions.invoke('uazapi-reset-instance', {
+        body: { instanceId }
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao resetar instância');
+
+      // Update local state - clear fields and mark as expired
+      setInstances(prev => prev.map(i => 
+        i.id === instanceId 
+          ? { ...i, status: 'expired', qr_code: null, phone_number: null, instance_id: null, instance_token: null } 
+          : i
+      ));
+
+      toast({
+        title: "Instância resetada",
+        description: "A instância foi resetada. Você pode criar uma nova instância para esta empresa."
+      });
+    } catch (err: any) {
+      console.error('Error resetting instance:', err);
+      toast({
+        title: "Erro ao resetar",
+        description: err.message || "Não foi possível resetar a instância.",
         variant: "destructive"
       });
     }
@@ -293,6 +334,7 @@ export function useWhatsAppInstances() {
     updateInstanceStatus,
     disconnectInstance,
     deleteInstance,
+    resetInstance,
     restartInstance,
     refetch: fetchInstances
   };

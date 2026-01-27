@@ -22,21 +22,21 @@ serve(async (req) => {
       throw new Error("companyId é obrigatório");
     }
 
-    console.log(`[Uazapi] Criando instância para empresa: ${companyId}`);
+    console.log(`[Uazapi] Criando/Recriando instância para empresa: ${companyId}`);
 
-    // Check if company already has an ACTIVE instance (status != 'expired')
-    const { data: existingInstance, error: existingError } = await supabase
+    // Check if company has any existing record (regardless of status)
+    const { data: existingRecord, error: existingError } = await supabase
       .from("whatsapp_instances")
       .select("id, status, instance_id")
       .eq("company_id", companyId)
-      .neq("status", "expired")
       .maybeSingle();
 
     if (existingError) throw existingError;
 
-    if (existingInstance) {
-      console.log(`[Uazapi] Empresa ${companyId} já possui instância ativa: ${existingInstance.id} (status: ${existingInstance.status})`);
-      throw new Error(`Esta empresa já possui uma instância ativa (status: ${existingInstance.status}). Exclua a instância existente antes de criar uma nova.`);
+    // If exists and NOT expired, block creation
+    if (existingRecord && existingRecord.status !== 'expired') {
+      console.log(`[Uazapi] Empresa ${companyId} já possui instância ativa: ${existingRecord.id} (status: ${existingRecord.status})`);
+      throw new Error(`Esta empresa já possui uma instância ativa (status: ${existingRecord.status}). Resete a instância existente antes de criar uma nova.`);
     }
 
     // Get admin settings for Uazapi
@@ -74,7 +74,7 @@ serve(async (req) => {
       }),
     });
 
-    const initResult = await initResponse.json();
+    let initResult = await initResponse.json();
     console.log(`[Uazapi] Resposta init:`, JSON.stringify(initResult).slice(0, 500));
 
     // Handle case where /instance/init doesn't exist, fallback to /instance/create
@@ -92,15 +92,12 @@ serve(async (req) => {
         }),
       });
 
-      const createResult = await createResponse.json();
-      console.log(`[Uazapi] Resposta create:`, JSON.stringify(createResult).slice(0, 500));
+      initResult = await createResponse.json();
+      console.log(`[Uazapi] Resposta create:`, JSON.stringify(initResult).slice(0, 500));
 
       if (!createResponse.ok) {
-        throw new Error(`Erro ao criar instância: ${JSON.stringify(createResult)}`);
+        throw new Error(`Erro ao criar instância: ${JSON.stringify(initResult)}`);
       }
-
-      // Use create result
-      Object.assign(initResult, createResult);
     } else if (!initResponse.ok) {
       throw new Error(`Erro ao inicializar instância: ${JSON.stringify(initResult)}`);
     }
@@ -108,21 +105,49 @@ serve(async (req) => {
     // Extract instance token from response
     const instanceToken = initResult.token || initResult.instance?.token || masterToken;
 
-    // Step 2: Save initial record with status 'created'
-    console.log(`[Uazapi] Step 2: Salvando instância no banco com status 'created'`);
-    const { data: instanceRecord, error: insertError } = await supabase
-      .from("whatsapp_instances")
-      .insert({
-        company_id: companyId,
-        instance_id: instanceId,
-        instance_token: instanceToken,
-        status: "created",
-        qr_code: null,
-      })
-      .select()
-      .single();
-      
-    if (insertError) throw insertError;
+    // Step 2: UPSERT - Update existing record OR insert new one
+    console.log(`[Uazapi] Step 2: Salvando instância no banco (upsert)`);
+    
+    let instanceRecord;
+    
+    if (existingRecord) {
+      // UPDATE existing record with new instance data
+      console.log(`[Uazapi] Atualizando registro existente: ${existingRecord.id}`);
+      const { data: updatedRecord, error: updateError } = await supabase
+        .from("whatsapp_instances")
+        .update({
+          instance_id: instanceId,
+          instance_token: instanceToken,
+          status: "created",
+          qr_code: null,
+          phone_number: null,
+          last_connected_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingRecord.id)
+        .select()
+        .single();
+        
+      if (updateError) throw updateError;
+      instanceRecord = updatedRecord;
+    } else {
+      // INSERT new record
+      console.log(`[Uazapi] Criando novo registro para empresa: ${companyId}`);
+      const { data: newRecord, error: insertError } = await supabase
+        .from("whatsapp_instances")
+        .insert({
+          company_id: companyId,
+          instance_id: instanceId,
+          instance_token: instanceToken,
+          status: "created",
+          qr_code: null,
+        })
+        .select()
+        .single();
+        
+      if (insertError) throw insertError;
+      instanceRecord = newRecord;
+    }
 
     console.log(`[Uazapi] Instância salva no banco: ${instanceRecord.id}`);
 
@@ -241,7 +266,7 @@ serve(async (req) => {
       console.error(`[Uazapi] Erro ao atualizar status:`, updateError);
     }
 
-    console.log(`[Uazapi] Instância criada com sucesso. Status: ${qrCode ? 'qrcode' : 'created'}, Webhook: ${webhookConfigured}`);
+    console.log(`[Uazapi] Instância ${existingRecord ? 'recriada' : 'criada'} com sucesso. Status: ${qrCode ? 'qrcode' : 'created'}, Webhook: ${webhookConfigured}`);
 
     return new Response(
       JSON.stringify({
@@ -253,6 +278,7 @@ serve(async (req) => {
         },
         qrcode: qrCode,
         webhookConfigured,
+        wasRecreated: !!existingRecord,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
