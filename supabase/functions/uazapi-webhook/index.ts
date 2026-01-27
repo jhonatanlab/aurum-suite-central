@@ -19,11 +19,11 @@ serve(async (req) => {
     const body = await req.json();
     console.log(`[Uazapi Webhook] Received:`, JSON.stringify(body).slice(0, 500));
 
-    // Extract instance name from the webhook
-    const instanceName = body.instance || body.instanceName;
+    // Extract instance_id from various possible fields
+    const instanceId = body.instance || body.instanceName || body.instance_id || body.instanceId;
     
-    if (!instanceName) {
-      console.log("[Uazapi Webhook] No instance name in payload");
+    if (!instanceId) {
+      console.log("[Uazapi Webhook] No instance_id in payload");
       return new Response(JSON.stringify({ received: true }), { 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
@@ -33,47 +33,76 @@ serve(async (req) => {
     const { data: instance, error: instanceError } = await supabase
       .from("whatsapp_instances")
       .select("*")
-      .eq("instance_id", instanceName)
-      .single();
+      .eq("instance_id", instanceId)
+      .maybeSingle();
 
-    if (instanceError || !instance) {
-      console.log(`[Uazapi Webhook] Instance not found: ${instanceName}`);
+    if (instanceError) {
+      console.error(`[Uazapi Webhook] Error finding instance:`, instanceError);
+      return new Response(JSON.stringify({ received: true }), { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+
+    if (!instance) {
+      console.log(`[Uazapi Webhook] Instance not found: ${instanceId}`);
       return new Response(JSON.stringify({ received: true }), { 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
     }
 
     const companyId = instance.company_id;
-    const event = body.event || body.type;
+    const event = body.event || body.type || body.action;
+
+    console.log(`[Uazapi Webhook] Event: ${event} for instance: ${instanceId}`);
 
     // Handle connection status updates
-    if (event === "connection.update" || event === "status" || event === "connection") {
-      const state = body.state || body.status || body.data?.state;
-      let newStatus = instance.status;
+    if (event === "connection.update" || event === "status" || event === "connection" || event === "state.change") {
+      const state = body.state || body.status || body.data?.state || body.data?.status;
+      const phoneNumber = body.phone || body.phoneNumber || body.data?.phone || body.data?.phoneNumber || body.me?.id?.replace("@c.us", "").replace("@s.whatsapp.net", "");
+      
+      console.log(`[Uazapi Webhook] Connection state: ${state}, phone: ${phoneNumber}`);
 
-      if (state === "open" || state === "CONNECTED" || state === "connected") {
+      // Determine new status
+      let newStatus = instance.status;
+      const updateData: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+
+      if (state === "open" || state === "CONNECTED" || state === "connected" || state === "authenticated") {
         newStatus = "connected";
-        await supabase
-          .from("whatsapp_instances")
-          .update({ 
-            status: "connected", 
-            last_connected_at: new Date().toISOString(),
-            qr_code: null,
-          })
-          .eq("id", instance.id);
-      } else if (state === "close" || state === "DISCONNECTED" || state === "disconnected") {
-        await supabase
-          .from("whatsapp_instances")
-          .update({ status: "disconnected" })
-          .eq("id", instance.id);
+        updateData.status = "connected";
+        updateData.last_connected_at = new Date().toISOString();
+        updateData.qr_code = null; // Clear QR code on successful connection
+        
+        if (phoneNumber) {
+          updateData.phone_number = phoneNumber;
+        }
+        
+        console.log(`[Uazapi Webhook] Instance ${instanceId} connected!`);
+      } else if (state === "close" || state === "DISCONNECTED" || state === "disconnected" || state === "loggedOut") {
+        updateData.status = "disconnected";
+        console.log(`[Uazapi Webhook] Instance ${instanceId} disconnected`);
+      } else if (state === "qr" || state === "QR" || state === "qrcode") {
+        updateData.status = "qr_ready";
+        console.log(`[Uazapi Webhook] Instance ${instanceId} waiting for QR scan`);
       }
 
-      console.log(`[Uazapi Webhook] Connection update for ${instanceName}: ${state}`);
+      // Update instance in DB
+      if (Object.keys(updateData).length > 1) {
+        const { error: updateError } = await supabase
+          .from("whatsapp_instances")
+          .update(updateData)
+          .eq("id", instance.id);
+
+        if (updateError) {
+          console.error(`[Uazapi Webhook] Error updating instance:`, updateError);
+        }
+      }
     }
 
     // Handle incoming messages
-    if (event === "messages.upsert" || event === "message" || event === "messages") {
-      const messageData = body.data?.message || body.message || body;
+    if (event === "messages.upsert" || event === "message" || event === "messages" || event === "message.received") {
+      const messageData = body.data?.message || body.message || body.data || body;
       
       // Skip if it's our own message
       if (messageData.fromMe) {
@@ -84,9 +113,9 @@ serve(async (req) => {
       }
 
       // Extract message info
-      const remoteJid = messageData.remoteJid || messageData.from || messageData.key?.remoteJid;
-      const phone = remoteJid?.replace("@s.whatsapp.net", "").replace("@c.us", "");
-      const pushName = messageData.pushName || messageData.senderName || null;
+      const remoteJid = messageData.remoteJid || messageData.from || messageData.key?.remoteJid || messageData.chatId;
+      const phone = remoteJid?.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@g.us", "");
+      const pushName = messageData.pushName || messageData.senderName || messageData.notifyName || null;
       
       // Get message content
       let content = "";
@@ -97,8 +126,8 @@ serve(async (req) => {
         content = messageData.message.conversation;
       } else if (messageData.message?.extendedTextMessage?.text) {
         content = messageData.message.extendedTextMessage.text;
-      } else if (messageData.body || messageData.text) {
-        content = messageData.body || messageData.text;
+      } else if (messageData.body || messageData.text || messageData.content) {
+        content = messageData.body || messageData.text || messageData.content;
       } else if (messageData.message?.imageMessage) {
         content = messageData.message.imageMessage.caption || "[Imagem]";
         mediaType = "image";
@@ -129,7 +158,7 @@ serve(async (req) => {
         .select("*")
         .eq("company_id", companyId)
         .eq("contact_phone", phone)
-        .single();
+        .maybeSingle();
 
       if (!conversation) {
         const { data: newConv, error: convError } = await supabase

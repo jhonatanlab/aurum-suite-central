@@ -22,7 +22,7 @@ serve(async (req) => {
       throw new Error("instanceId é obrigatório");
     }
 
-    console.log(`[Uazapi] Buscando QR Code para instância: ${instanceId}`);
+    console.log(`[Uazapi QR] Buscando QR Code para instância: ${instanceId}`);
 
     // Get instance from DB
     const { data: instance, error: instanceError } = await supabase
@@ -33,6 +33,11 @@ serve(async (req) => {
 
     if (instanceError || !instance) {
       throw new Error("Instância não encontrada");
+    }
+
+    // BLOCK if no instance_id exists
+    if (!instance.instance_id) {
+      throw new Error("Instância não possui instance_id. Crie a instância primeiro na Uazapi.");
     }
 
     // Get admin settings
@@ -48,88 +53,26 @@ serve(async (req) => {
       throw new Error("Configurações Uazapi não definidas. Configure no Admin > WhatsApp.");
     }
 
-    let uazapiInstanceId = instance.instance_id;
-    let instanceToken = instance.instance_token || masterToken;
-    let qrCode = null;
+    const uazapiInstanceId = instance.instance_id;
+    const instanceToken = instance.instance_token || masterToken;
 
-    // If no instance_id, create the instance on Uazapi first
-    if (!uazapiInstanceId) {
-      console.log(`[Uazapi] Instância não existe na Uazapi, criando...`);
-      
-      const instanceName = `inst_${instance.company_id.slice(0, 8)}_${Date.now()}`;
-      
-      const createResponse = await fetch(`${baseEndpoint}/instance/create`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "admintoken": masterToken,
-        },
-        body: JSON.stringify({
-          Name: instanceName,
-          qrcode: true,
-        }),
-      });
-
-      const createResult = await createResponse.json();
-      console.log(`[Uazapi] Resposta criação:`, JSON.stringify(createResult).slice(0, 500));
-
-      if (!createResponse.ok) {
-        throw new Error(`Erro ao criar instância: ${JSON.stringify(createResult)}`);
-      }
-
-      uazapiInstanceId = instanceName;
-      instanceToken = createResult.token || masterToken;
-      
-      // Extract QR code from response - Uazapi returns it in different formats
-      if (createResult.qrcode) {
-        if (typeof createResult.qrcode === 'string') {
-          qrCode = createResult.qrcode;
-        } else if (createResult.qrcode.base64) {
-          qrCode = createResult.qrcode.base64;
-        }
-      }
-
-      // Update instance in DB with the new instance_id
-      await supabase
-        .from("whatsapp_instances")
-        .update({
-          instance_id: uazapiInstanceId,
-          instance_token: instanceToken,
-          qr_code: qrCode,
-          status: qrCode ? "qr_ready" : "disconnected",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", instanceId);
-
-      // If we got QR code from creation, return it
-      if (qrCode) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            qrcode: qrCode,
-            status: "qr_ready",
-            message: "Instância criada. Escaneie o QR Code.",
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
-    // Get QR Code from Uazapi using the qrcode endpoint
-    console.log(`[Uazapi] Buscando QR Code do endpoint para: ${uazapiInstanceId}`);
+    // Call GET /instance/{instance_id}/qrcode
+    console.log(`[Uazapi QR] Chamando GET /instance/${uazapiInstanceId}/qrcode`);
     
-    const qrResponse = await fetch(`${baseEndpoint}/instance/qrcode/${uazapiInstanceId}`, {
+    const qrResponse = await fetch(`${baseEndpoint}/instance/${uazapiInstanceId}/qrcode`, {
       method: "GET",
       headers: {
         "token": instanceToken,
+        "admintoken": masterToken,
       },
     });
 
     const qrResult = await qrResponse.json();
-    console.log(`[Uazapi] Resposta QR:`, JSON.stringify(qrResult).slice(0, 300));
+    console.log(`[Uazapi QR] Resposta:`, JSON.stringify(qrResult).slice(0, 500));
 
     // Extract QR code from various possible response formats
     let extractedQR = null;
+    
     if (qrResult.qrcode) {
       if (typeof qrResult.qrcode === 'string') {
         extractedQR = qrResult.qrcode;
@@ -140,10 +83,14 @@ serve(async (req) => {
       extractedQR = qrResult.base64;
     } else if (qrResult.image) {
       extractedQR = qrResult.image;
+    } else if (qrResult.data?.qrcode) {
+      extractedQR = typeof qrResult.data.qrcode === 'string' 
+        ? qrResult.data.qrcode 
+        : qrResult.data.qrcode.base64;
     }
 
     if (extractedQR) {
-      // Update instance with new QR code
+      // Save QR code to DB
       await supabase
         .from("whatsapp_instances")
         .update({
@@ -163,36 +110,36 @@ serve(async (req) => {
       );
     }
 
-    // If no QR code found, try to connect the instance to generate one
-    console.log(`[Uazapi] QR não encontrado, tentando conectar instância...`);
+    // If no QR found, try /instance/qrcode/{id} endpoint (alternative format)
+    console.log(`[Uazapi QR] Tentando endpoint alternativo /instance/qrcode/${uazapiInstanceId}`);
     
-    const connectResponse = await fetch(`${baseEndpoint}/instance/connect/${uazapiInstanceId}`, {
+    const altQrResponse = await fetch(`${baseEndpoint}/instance/qrcode/${uazapiInstanceId}`, {
       method: "GET",
       headers: {
         "token": instanceToken,
+        "admintoken": masterToken,
       },
     });
 
-    const connectResult = await connectResponse.json();
-    console.log(`[Uazapi] Resposta connect:`, JSON.stringify(connectResult).slice(0, 300));
+    const altQrResult = await altQrResponse.json();
+    console.log(`[Uazapi QR] Resposta alternativa:`, JSON.stringify(altQrResult).slice(0, 300));
 
-    // Try to get QR from connect response
-    let connectQR = null;
-    if (connectResult.qrcode) {
-      if (typeof connectResult.qrcode === 'string') {
-        connectQR = connectResult.qrcode;
-      } else if (connectResult.qrcode.base64) {
-        connectQR = connectResult.qrcode.base64;
-      }
-    } else if (connectResult.base64) {
-      connectQR = connectResult.base64;
+    // Extract from alternative response
+    if (altQrResult.qrcode) {
+      extractedQR = typeof altQrResult.qrcode === 'string' 
+        ? altQrResult.qrcode 
+        : altQrResult.qrcode.base64;
+    } else if (altQrResult.base64) {
+      extractedQR = altQrResult.base64;
+    } else if (altQrResult.image) {
+      extractedQR = altQrResult.image;
     }
 
-    if (connectQR) {
+    if (extractedQR) {
       await supabase
         .from("whatsapp_instances")
         .update({
-          qr_code: connectQR,
+          qr_code: extractedQR,
           status: "qr_ready",
           updated_at: new Date().toISOString(),
         })
@@ -201,7 +148,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          qrcode: connectQR,
+          qrcode: extractedQR,
           status: "qr_ready",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -212,14 +159,14 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: "QR Code não disponível. Tente novamente em alguns segundos.",
-        status: connectResult.status || qrResult.status || "unknown",
+        error: "QR Code não disponível. Verifique se a instância está configurada corretamente na Uazapi.",
+        status: qrResult.status || altQrResult.status || "unknown",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error: unknown) {
-    console.error("[Uazapi] Erro:", error);
+    console.error("[Uazapi QR] Erro:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ success: false, error: message }),

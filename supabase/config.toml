@@ -21,5 +21,8 @@ verify_jwt = false
 [functions.uazapi-webhook]
 verify_jwt = false
 
+[functions.uazapi-delete-instance]
+verify_jwt = false
+
 [functions.auto-create-whatsapp-instance]
 verify_jwt = false

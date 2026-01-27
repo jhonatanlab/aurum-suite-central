@@ -55,7 +55,8 @@ import {
   Phone,
   Eye,
   EyeOff,
-  QrCode
+  QrCode,
+  Trash2
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -67,13 +68,14 @@ interface Company {
 
 export default function AdminWhatsApp() {
   const { settings, setSettings, loading: loadingSettings, saving, saveSettings } = useAdminSettings();
-  const { instances, loading: loadingInstances, disconnectInstance, createInstance, getQRCode, checkStatus, refetch } = useWhatsAppInstances();
+  const { instances, loading: loadingInstances, disconnectInstance, createInstance, getQRCode, checkStatus, deleteInstance, refetch } = useWhatsAppInstances();
   const [showToken, setShowToken] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [creatingInstance, setCreatingInstance] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [generatingQR, setGeneratingQR] = useState<string | null>(null);
+  const [deletingInstance, setDeletingInstance] = useState<string | null>(null);
   const [qrCodeModal, setQrCodeModal] = useState<{ open: boolean; qrCode: string | null; companyName: string }>({
     open: false,
     qrCode: null,
@@ -133,6 +135,12 @@ export default function AdminWhatsApp() {
       });
     }
     setGeneratingQR(null);
+  };
+
+  const handleDeleteInstance = async (instanceId: string) => {
+    setDeletingInstance(instanceId);
+    await deleteInstance(instanceId);
+    setDeletingInstance(null);
   };
 
   // Only show companies without an ACTIVE instance (status != 'expired')
@@ -455,6 +463,51 @@ export default function AdminWhatsApp() {
                                     onClick={() => disconnectInstance(instance.id)}
                                   >
                                     Desconectar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                          
+                          {/* Botão Excluir Instância - para instâncias não expiradas */}
+                          {instance.status !== 'expired' && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  title="Excluir Instância"
+                                  disabled={deletingInstance === instance.id}
+                                >
+                                  {deletingInstance === instance.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-card border-border">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="text-foreground">
+                                    Excluir instância?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Isso irá excluir permanentemente a instância WhatsApp da empresa{' '}
+                                    <strong>{instance.company?.name}</strong>. A instância será 
+                                    removida da Uazapi e marcada como expirada. A empresa poderá 
+                                    criar uma nova instância depois.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="bg-background border-border">
+                                    Cancelar
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive hover:bg-destructive/90"
+                                    onClick={() => handleDeleteInstance(instance.id)}
+                                  >
+                                    Excluir
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>

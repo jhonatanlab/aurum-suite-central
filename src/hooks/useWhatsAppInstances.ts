@@ -109,16 +109,33 @@ export function useWhatsAppInstances() {
 
   async function getQRCode(instanceId: string) {
     try {
+      // Check if instance has instance_id before calling
+      const instance = instances.find(i => i.id === instanceId);
+      if (!instance?.instance_id) {
+        toast({
+          title: "Instância não configurada",
+          description: "Esta instância não possui um ID na Uazapi. Crie a instância primeiro.",
+          variant: "destructive"
+        });
+        return null;
+      }
+
       const { data, error } = await supabase.functions.invoke('uazapi-get-qrcode', {
         body: { instanceId }
       });
 
       if (error) throw error;
+      if (!data?.success && data?.error) throw new Error(data.error);
 
       if (data?.qrcode) {
         setInstances(prev => prev.map(i => 
           i.id === instanceId ? { ...i, qr_code: data.qrcode, status: 'qr_ready' } : i
         ));
+        
+        toast({
+          title: "QR Code gerado",
+          description: "Escaneie o QR Code para conectar."
+        });
       }
 
       return data;
@@ -214,29 +231,35 @@ export function useWhatsAppInstances() {
 
   async function deleteInstance(instanceId: string) {
     try {
-      // First disconnect
-      await supabase.functions.invoke('uazapi-disconnect', {
+      toast({
+        title: "Excluindo instância...",
+        description: "Aguarde enquanto a instância é removida."
+      });
+
+      // Call delete edge function that handles DELETE on Uazapi and marks as expired
+      const { data, error } = await supabase.functions.invoke('uazapi-delete-instance', {
         body: { instanceId }
       });
 
-      const { error } = await supabase
-        .from('whatsapp_instances')
-        .delete()
-        .eq('id', instanceId);
-
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao excluir instância');
 
-      setInstances(prev => prev.filter(i => i.id !== instanceId));
+      // Update local state - mark as expired
+      setInstances(prev => prev.map(i => 
+        i.id === instanceId 
+          ? { ...i, status: 'expired', qr_code: null, phone_number: null } 
+          : i
+      ));
 
       toast({
-        title: "Instância removida",
-        description: "A instância foi removida com sucesso."
+        title: "Instância excluída",
+        description: "A instância foi marcada como expirada. A empresa pode criar uma nova instância."
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting instance:', err);
       toast({
-        title: "Erro ao remover",
-        description: "Não foi possível remover a instância.",
+        title: "Erro ao excluir",
+        description: err.message || "Não foi possível excluir a instância.",
         variant: "destructive"
       });
     }
