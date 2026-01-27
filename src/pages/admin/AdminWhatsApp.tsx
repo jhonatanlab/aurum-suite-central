@@ -56,7 +56,8 @@ import {
   Eye,
   EyeOff,
   QrCode,
-  Trash2
+  Trash2,
+  RotateCcw
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -68,7 +69,7 @@ interface Company {
 
 export default function AdminWhatsApp() {
   const { settings, setSettings, loading: loadingSettings, saving, saveSettings } = useAdminSettings();
-  const { instances, loading: loadingInstances, disconnectInstance, createInstance, getQRCode, checkStatus, deleteInstance, refetch } = useWhatsAppInstances();
+  const { instances, loading: loadingInstances, disconnectInstance, createInstance, getQRCode, checkStatus, deleteInstance, resetInstance, refetch } = useWhatsAppInstances();
   const [showToken, setShowToken] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
@@ -76,6 +77,7 @@ export default function AdminWhatsApp() {
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [generatingQR, setGeneratingQR] = useState<string | null>(null);
   const [deletingInstance, setDeletingInstance] = useState<string | null>(null);
+  const [resettingInstance, setResettingInstance] = useState<string | null>(null);
   const [qrCodeModal, setQrCodeModal] = useState<{ open: boolean; qrCode: string | null; companyName: string }>({
     open: false,
     qrCode: null,
@@ -141,6 +143,12 @@ export default function AdminWhatsApp() {
     setDeletingInstance(instanceId);
     await deleteInstance(instanceId);
     setDeletingInstance(null);
+  };
+
+  const handleResetInstance = async (instanceId: string) => {
+    setResettingInstance(instanceId);
+    await resetInstance(instanceId);
+    setResettingInstance(null);
   };
 
   // Only show companies without an ACTIVE instance (status != 'expired')
@@ -469,34 +477,34 @@ export default function AdminWhatsApp() {
                             </AlertDialog>
                           )}
                           
-                          {/* Botão Excluir Instância - para instâncias não expiradas */}
+                          {/* Botão Resetar Instância - para instâncias não expiradas */}
                           {instance.status !== 'expired' && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  title="Excluir Instância"
-                                  disabled={deletingInstance === instance.id}
+                                  className="text-amber-500 hover:text-amber-400"
+                                  title="Resetar Instância"
+                                  disabled={resettingInstance === instance.id}
                                 >
-                                  {deletingInstance === instance.id ? (
+                                  {resettingInstance === instance.id ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                   ) : (
-                                    <Trash2 className="h-4 w-4" />
+                                    <RotateCcw className="h-4 w-4" />
                                   )}
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent className="bg-card border-border">
                                 <AlertDialogHeader>
                                   <AlertDialogTitle className="text-foreground">
-                                    Excluir instância?
+                                    Resetar instância?
                                   </AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Isso irá excluir permanentemente a instância WhatsApp da empresa{' '}
-                                    <strong>{instance.company?.name}</strong>. A instância será 
-                                    removida da Uazapi e marcada como expirada. A empresa poderá 
-                                    criar uma nova instância depois.
+                                    Isso irá resetar a instância WhatsApp da empresa{' '}
+                                    <strong>{instance.company?.name}</strong>. Os dados de conexão 
+                                    serão limpos e a instância será marcada como expirada. 
+                                    O registro será mantido e você poderá criar uma nova instância.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -504,10 +512,10 @@ export default function AdminWhatsApp() {
                                     Cancelar
                                   </AlertDialogCancel>
                                   <AlertDialogAction
-                                    className="bg-destructive hover:bg-destructive/90"
-                                    onClick={() => handleDeleteInstance(instance.id)}
+                                    className="bg-amber-600 hover:bg-amber-700"
+                                    onClick={() => handleResetInstance(instance.id)}
                                   >
-                                    Excluir
+                                    Resetar
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
