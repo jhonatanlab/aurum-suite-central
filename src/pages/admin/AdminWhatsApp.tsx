@@ -252,20 +252,30 @@ export default function AdminWhatsApp() {
     setCreatingInstance(true);
     
     try {
-      const response = await fetch(settings.create_url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company_id: selectedCompanyId })
+      // Use Edge Function to proxy request to n8n
+      const { data, error } = await supabase.functions.invoke("n8n-proxy", {
+        body: {
+          action: "create-instance",
+          endpoint_url: settings.create_url,
+          payload: { company_id: selectedCompanyId }
+        }
       });
 
-      if (!response.ok) {
-        throw new Error("Erro ao criar instância no n8n");
+      if (error) {
+        console.error("Edge function error:", error);
+        throw new Error(error.message || "Erro ao criar instância");
       }
 
-      const result = await response.json();
+      if (!data?.success) {
+        console.error("n8n error:", data);
+        throw new Error(data?.error || "Erro ao criar instância no n8n");
+      }
+
+      const result = data.data || {};
+      console.log("n8n response:", result);
 
       // Save to Supabase
-      const { error } = await supabase
+      const { error: dbError } = await supabase
         .from("whatsapp_instances")
         .insert({
           company_id: selectedCompanyId,
@@ -274,14 +284,14 @@ export default function AdminWhatsApp() {
           status: result.status || "disconnected"
         });
 
-      if (error) throw error;
+      if (dbError) throw dbError;
 
       toast.success("Instância criada com sucesso!");
       fetchInstances();
       setSelectedCompanyId("");
     } catch (error) {
       console.error("Erro ao criar instância:", error);
-      toast.error("Erro ao criar instância");
+      toast.error(error instanceof Error ? error.message : "Erro ao criar instância");
     } finally {
       setCreatingInstance(false);
     }
@@ -297,17 +307,19 @@ export default function AdminWhatsApp() {
     setGeneratingQR(instanceId);
     
     try {
-      const response = await fetch(settings.qr_url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instance_id: instance.instance_id })
+      // Use Edge Function to proxy request to n8n
+      const { data, error } = await supabase.functions.invoke("n8n-proxy", {
+        body: {
+          action: "generate-qr",
+          endpoint_url: settings.qr_url,
+          payload: { instance_id: instance.instance_id }
+        }
       });
 
-      if (!response.ok) {
-        throw new Error("Erro ao gerar QR Code");
-      }
+      if (error) throw new Error(error.message || "Erro ao gerar QR Code");
+      if (!data?.success) throw new Error(data?.error || "Erro ao gerar QR Code no n8n");
 
-      const result = await response.json();
+      const result = data.data || {};
 
       if (result.qr_code) {
         // Save QR code to Supabase
@@ -326,7 +338,7 @@ export default function AdminWhatsApp() {
       }
     } catch (error) {
       console.error("Erro ao gerar QR Code:", error);
-      toast.error("Erro ao gerar QR Code");
+      toast.error(error instanceof Error ? error.message : "Erro ao gerar QR Code");
     } finally {
       setGeneratingQR(null);
     }
@@ -345,15 +357,17 @@ export default function AdminWhatsApp() {
     setDeletingInstance(instanceId);
     
     try {
-      const response = await fetch(settings.delete_url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instance_id: instance.instance_id })
+      // Use Edge Function to proxy request to n8n
+      const { data, error } = await supabase.functions.invoke("n8n-proxy", {
+        body: {
+          action: "delete-instance",
+          endpoint_url: settings.delete_url,
+          payload: { instance_id: instance.instance_id }
+        }
       });
 
-      if (!response.ok) {
-        throw new Error("Erro ao deletar instância no n8n");
-      }
+      if (error) throw new Error(error.message || "Erro ao deletar instância");
+      if (!data?.success) throw new Error(data?.error || "Erro ao deletar instância no n8n");
 
       // Delete from Supabase
       await supabase.from("whatsapp_instances").delete().eq("id", instanceId);
@@ -362,7 +376,7 @@ export default function AdminWhatsApp() {
       fetchInstances();
     } catch (error) {
       console.error("Erro ao deletar instância:", error);
-      toast.error("Erro ao deletar instância");
+      toast.error(error instanceof Error ? error.message : "Erro ao deletar instância");
     } finally {
       setDeletingInstance(null);
     }
