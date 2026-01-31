@@ -1553,6 +1553,39 @@ export type Database = {
           },
         ]
       }
+      whatsapp_settings: {
+        Row: {
+          base_url: string
+          create_url: string
+          created_at: string
+          delete_url: string
+          id: string
+          qr_url: string
+          secret: string | null
+          updated_at: string
+        }
+        Insert: {
+          base_url?: string
+          create_url?: string
+          created_at?: string
+          delete_url?: string
+          id?: string
+          qr_url?: string
+          secret?: string | null
+          updated_at?: string
+        }
+        Update: {
+          base_url?: string
+          create_url?: string
+          created_at?: string
+          delete_url?: string
+          id?: string
+          qr_url?: string
+          secret?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
