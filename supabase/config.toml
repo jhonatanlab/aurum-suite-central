@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.auto-create-whatsapp-instance]
 verify_jwt = false
+
+[functions.n8n-proxy]
+verify_jwt = false
