@@ -1453,6 +1453,7 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          hash: string | null
           id: string
           instance_id: string | null
           instance_token: string | null
@@ -1465,6 +1466,7 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          hash?: string | null
           id?: string
           instance_id?: string | null
           instance_token?: string | null
@@ -1477,6 +1479,7 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          hash?: string | null
           id?: string
           instance_id?: string | null
           instance_token?: string | null
