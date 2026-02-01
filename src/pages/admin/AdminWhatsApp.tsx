@@ -312,7 +312,10 @@ export default function AdminWhatsApp() {
         body: {
           action: "generate-qr",
           endpoint_url: settings.qr_url,
-          payload: { instance_id: instance.instance_id }
+          payload: { 
+            instance_id: instance.instance_id,
+            company_id: instance.company_id
+          }
         }
       });
 
@@ -362,7 +365,10 @@ export default function AdminWhatsApp() {
         body: {
           action: "delete-instance",
           endpoint_url: settings.delete_url,
-          payload: { instance_id: instance.instance_id }
+          payload: { 
+            instance_id: instance.instance_id,
+            company_id: instance.company_id
+          }
         }
       });
 
