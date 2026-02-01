@@ -13,6 +13,7 @@ export function UazapiConfig() {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (company?.id) {
@@ -139,8 +140,31 @@ export function UazapiConfig() {
     }
   }
 
+  async function handleReset() {
+    if (!instance?.id) return;
+    
+    setResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('uazapi-reset-instance', {
+        body: { instanceId: instance.id }
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao resetar instância');
+      
+      toast.success('Instância resetada. Você pode conectar novamente.');
+      await fetchInstance();
+    } catch (err: any) {
+      console.error('Error resetting:', err);
+      toast.error(err.message || 'Erro ao resetar instância');
+    } finally {
+      setResetting(false);
+    }
+  }
+
   const isConnected = instance?.status === 'connected';
   const isQRReady = instance?.status === 'qr_ready' || instance?.status === 'connecting';
+  const hasStuckInstance = isQRReady && !instance?.qr_code;
 
   if (loading) {
     return (
@@ -225,6 +249,33 @@ export function UazapiConfig() {
                     Verificando conexão...
                   </p>
                 )}
+              </div>
+            ) : hasStuckInstance ? (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10">
+                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                    Existe uma instância com status "{instance.status}" mas sem QR Code válido. 
+                    Resete a instância para tentar novamente.
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleReset}
+                  disabled={resetting}
+                  variant="outline"
+                  className="w-full border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
+                >
+                  {resetting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Resetando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Resetar Instância
+                    </>
+                  )}
+                </Button>
               </div>
             ) : (
               <Button 
