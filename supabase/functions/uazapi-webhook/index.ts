@@ -53,14 +53,14 @@ serve(async (req) => {
     const companyId = instance.company_id;
     const event = body.event || body.type || body.action;
 
-    console.log(`[Uazapi Webhook] Event: ${event} for instance: ${instanceId}`);
+    console.log(`[Uazapi Webhook] Event: ${event} for instance: ${instanceId}, company_id: ${companyId}`);
 
     // Handle connection status updates
     if (event === "connection.update" || event === "status" || event === "connection" || event === "state.change") {
       const state = body.state || body.status || body.data?.state || body.data?.status;
       const phoneNumber = body.phone || body.phoneNumber || body.data?.phone || body.data?.phoneNumber || body.me?.id?.replace("@c.us", "").replace("@s.whatsapp.net", "");
       
-      console.log(`[Uazapi Webhook] Connection state: ${state}, phone: ${phoneNumber}`);
+      console.log(`[Uazapi Webhook] Connection state: ${state}, phone: ${phoneNumber}, company_id: ${companyId}`);
 
       // Determine new status
       let newStatus = instance.status;
@@ -78,13 +78,13 @@ serve(async (req) => {
           updateData.phone_number = phoneNumber;
         }
         
-        console.log(`[Uazapi Webhook] Instance ${instanceId} connected!`);
+        console.log(`[Uazapi Webhook] Instance ${instanceId} connected for company ${companyId}!`);
       } else if (state === "close" || state === "DISCONNECTED" || state === "disconnected" || state === "loggedOut") {
         updateData.status = "disconnected";
-        console.log(`[Uazapi Webhook] Instance ${instanceId} disconnected`);
+        console.log(`[Uazapi Webhook] Instance ${instanceId} disconnected for company ${companyId}`);
       } else if (state === "qr" || state === "QR" || state === "qrcode") {
         updateData.status = "qr_ready";
-        console.log(`[Uazapi Webhook] Instance ${instanceId} waiting for QR scan`);
+        console.log(`[Uazapi Webhook] Instance ${instanceId} waiting for QR scan for company ${companyId}`);
       }
 
       // Update instance in DB
@@ -98,6 +98,17 @@ serve(async (req) => {
           console.error(`[Uazapi Webhook] Error updating instance:`, updateError);
         }
       }
+
+      // Return company_id in response for n8n to use
+      return new Response(
+        JSON.stringify({ 
+          received: true, 
+          company_id: companyId,
+          instance_id: instanceId,
+          status: newStatus
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Handle incoming messages
@@ -107,7 +118,7 @@ serve(async (req) => {
       // Skip if it's our own message
       if (messageData.fromMe) {
         console.log("[Uazapi Webhook] Skipping own message");
-        return new Response(JSON.stringify({ received: true }), { 
+        return new Response(JSON.stringify({ received: true, company_id: companyId }), { 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         });
       }
@@ -145,12 +156,12 @@ serve(async (req) => {
 
       if (!phone || !content) {
         console.log("[Uazapi Webhook] Missing phone or content");
-        return new Response(JSON.stringify({ received: true }), { 
+        return new Response(JSON.stringify({ received: true, company_id: companyId }), { 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         });
       }
 
-      console.log(`[Uazapi Webhook] Message from ${phone}: ${content.slice(0, 50)}`);
+      console.log(`[Uazapi Webhook] Message from ${phone} for company ${companyId}: ${content.slice(0, 50)}`);
 
       // Find or create conversation
       let { data: conversation } = await supabase
@@ -209,10 +220,27 @@ serve(async (req) => {
       if (msgError) {
         console.error("[Uazapi Webhook] Error saving message:", msgError);
       }
+
+      // Return with company_id for n8n
+      return new Response(
+        JSON.stringify({ 
+          received: true, 
+          company_id: companyId,
+          instance_id: instanceId,
+          conversation_id: conversation.id,
+          message_saved: !msgError
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
+    // Default response - always include company_id
     return new Response(
-      JSON.stringify({ received: true }),
+      JSON.stringify({ 
+        received: true,
+        company_id: companyId,
+        instance_id: instanceId
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
