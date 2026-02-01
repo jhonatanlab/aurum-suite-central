@@ -41,8 +41,127 @@ Deno.serve(async (req) => {
     let result;
 
     switch (action) {
+      // ============ QUERY ACTIONS ============
+      
+      case "get_instance_by_company": {
+        const { company_id } = data;
+        
+        if (!company_id) {
+          return new Response(
+            JSON.stringify({ success: false, error: "company_id is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { data: instanceData, error: selectError } = await supabaseAdmin
+          .from("whatsapp_instances")
+          .select("id, instance_id, instance_token, hash, status, phone_number, company_id")
+          .eq("company_id", company_id)
+          .maybeSingle();
+
+        if (selectError) {
+          console.error("[n8n-whatsapp-sync] Select error:", selectError);
+          return new Response(
+            JSON.stringify({ success: false, error: selectError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!instanceData) {
+          return new Response(
+            JSON.stringify({ success: true, instance: null }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            instance: {
+              id: instanceData.id,
+              instance_id: instanceData.instance_id,
+              instance_token: instanceData.instance_token,
+              hash: instanceData.hash,
+              status: instanceData.status,
+              phone_number: instanceData.phone_number,
+              company_id: instanceData.company_id
+            }
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "get_instance_by_hash": {
+        const { hash } = data;
+        
+        if (!hash) {
+          return new Response(
+            JSON.stringify({ success: false, error: "hash is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { data: instanceData, error: selectError } = await supabaseAdmin
+          .from("whatsapp_instances")
+          .select("id, instance_id, instance_token, hash, status, phone_number, company_id")
+          .eq("hash", hash)
+          .maybeSingle();
+
+        if (selectError) {
+          console.error("[n8n-whatsapp-sync] Select error:", selectError);
+          return new Response(
+            JSON.stringify({ success: false, error: selectError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!instanceData) {
+          return new Response(
+            JSON.stringify({ success: true, instance: null }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            instance: {
+              id: instanceData.id,
+              instance_id: instanceData.instance_id,
+              instance_token: instanceData.instance_token,
+              hash: instanceData.hash,
+              status: instanceData.status,
+              phone_number: instanceData.phone_number,
+              company_id: instanceData.company_id
+            }
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "list_instances": {
+        const { data: instances, error: listError } = await supabaseAdmin
+          .from("whatsapp_instances")
+          .select("id, instance_id, instance_token, hash, status, phone_number, company_id, created_at, updated_at")
+          .order("created_at", { ascending: false });
+
+        if (listError) {
+          console.error("[n8n-whatsapp-sync] List error:", listError);
+          return new Response(
+            JSON.stringify({ success: false, error: listError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, instances: instances || [] }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // ============ MUTATION ACTIONS ============
+
       case "create_instance": {
-        // Insert new instance
         const { company_id, instance_id, instance_token, hash, status, phone_number } = data;
         
         if (!company_id) {
@@ -78,7 +197,6 @@ Deno.serve(async (req) => {
       }
 
       case "update_instance": {
-        // Update existing instance
         const { id, company_id, ...updateFields } = data;
         
         if (!id && !company_id) {
@@ -111,7 +229,6 @@ Deno.serve(async (req) => {
       }
 
       case "upsert_instance": {
-        // Upsert - create if not exists, update if exists
         const { company_id, instance_id, instance_token, hash, status, phone_number } = data;
         
         if (!company_id) {
