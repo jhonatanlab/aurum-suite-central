@@ -25,7 +25,28 @@ Deno.serve(async (req) => {
     // Create admin client that bypasses RLS
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    const body = await req.json();
+    // Handle empty body gracefully
+    const rawBody = await req.text();
+    
+    if (!rawBody || rawBody.trim() === "") {
+      console.log("[n8n-whatsapp-sync] Received empty body - returning healthcheck");
+      return new Response(
+        JSON.stringify({ success: true, message: "n8n-whatsapp-sync is healthy", timestamp: new Date().toISOString() }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error("[n8n-whatsapp-sync] JSON parse error:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON body", received: rawBody.slice(0, 100) }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { action, data } = body;
 
     console.log(`[n8n-whatsapp-sync] Action: ${action}`);
