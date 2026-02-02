@@ -286,15 +286,15 @@ export default function AdminWhatsApp() {
       const result = data.data || {};
       console.log("n8n response:", result);
 
-      // Save to Supabase
+      // Upsert to Supabase (n8n-whatsapp-sync may have already created the record)
       const { error: dbError } = await supabase
         .from("whatsapp_instances")
-        .insert({
+        .upsert({
           company_id: selectedCompanyId,
           instance_id: result.instance_id || null,
           instance_token: result.instance_token || null,
           status: result.status || "disconnected"
-        });
+        }, { onConflict: "company_id" });
 
       if (dbError) throw dbError;
 
