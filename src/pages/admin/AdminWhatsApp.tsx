@@ -283,22 +283,14 @@ export default function AdminWhatsApp() {
         );
       }
 
-      const result = data.data || {};
-      console.log("n8n response:", result);
+      console.log("n8n response:", data.data);
 
-      // Upsert to Supabase (n8n-whatsapp-sync may have already created the record)
-      const { error: dbError } = await supabase
-        .from("whatsapp_instances")
-        .upsert({
-          company_id: selectedCompanyId,
-          instance_id: result.instance_id || null,
-          instance_token: result.instance_token || null,
-          status: result.status || "disconnected"
-        }, { onConflict: "company_id" });
-
-      if (dbError) throw dbError;
-
+      // n8n-whatsapp-sync webhook already saved the instance to DB
+      // Just show success and refresh to get the latest data
       toast.success("Instância criada com sucesso!");
+      
+      // Small delay to ensure webhook has finished saving
+      await new Promise(resolve => setTimeout(resolve, 1000));
       fetchInstances();
       setSelectedCompanyId("");
     } catch (error) {
