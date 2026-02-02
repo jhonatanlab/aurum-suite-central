@@ -1,8 +1,6 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -12,19 +10,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-      return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     // Parse request body
     const { action, endpoint_url, payload } = await req.json();
 
@@ -63,14 +48,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // IMPORTANT: Always return 200 to the client so supabase.functions.invoke doesn't surface a hard
+    // "non-2xx" error that can lead to blank screens in the frontend.
+    // We preserve the upstream status inside the JSON payload.
     if (!n8nResponse.ok) {
       return new Response(
-        JSON.stringify({ 
-          error: "n8n request failed", 
+        JSON.stringify({
+          success: false,
+          error: "n8n request failed",
           status: n8nResponse.status,
-          details: responseData 
+          action,
+          endpoint_url,
+          details: responseData,
         }),
-        { status: n8nResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 

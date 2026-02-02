@@ -255,7 +255,12 @@ export function useWhatsAppChat() {
 
         apiSuccess = !sendError && data?.success;
         if (!apiSuccess) {
-          errorMessage = data?.error || sendError?.message || "Erro ao enviar mensagem";
+          const detailsMsg = (data as any)?.details?.message;
+          const upstreamStatus = (data as any)?.status;
+          errorMessage =
+            detailsMsg
+              ? `n8n (${upstreamStatus ?? "erro"}): ${detailsMsg}`
+              : (data?.error || sendError?.message || "Erro ao enviar mensagem");
         }
       } else {
         // Fallback to uazapi-send-message
