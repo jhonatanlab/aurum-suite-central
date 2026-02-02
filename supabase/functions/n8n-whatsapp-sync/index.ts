@@ -320,6 +320,119 @@ Deno.serve(async (req) => {
         break;
       }
 
+      // ============ MESSAGE ACTIONS ============
+
+      case "upsert_message": {
+        const { 
+          company_id, 
+          instance_id, 
+          phone_number, 
+          contact_name, 
+          content, 
+          direction, 
+          media_url, 
+          media_type, 
+          status, 
+          sent_at 
+        } = data;
+        
+        if (!company_id || !phone_number || !content) {
+          return new Response(
+            JSON.stringify({ error: "company_id, phone_number, and content are required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // First, find or create the conversation
+        let conversationId: string;
+        
+        const { data: existingConversation, error: findError } = await supabaseAdmin
+          .from("whatsapp_conversations")
+          .select("id")
+          .eq("company_id", company_id)
+          .eq("contact_phone", phone_number)
+          .maybeSingle();
+
+        if (findError) {
+          console.error("[n8n-whatsapp-sync] Find conversation error:", findError);
+          return new Response(
+            JSON.stringify({ error: findError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (existingConversation) {
+          conversationId = existingConversation.id;
+          
+          // Update conversation with last message
+          await supabaseAdmin
+            .from("whatsapp_conversations")
+            .update({
+              last_message: content,
+              last_message_at: sent_at || new Date().toISOString(),
+              contact_name: contact_name || undefined,
+              unread_count: direction === "inbound" ? 1 : 0,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", conversationId);
+        } else {
+          // Create new conversation
+          const { data: newConversation, error: createConvError } = await supabaseAdmin
+            .from("whatsapp_conversations")
+            .insert({
+              company_id,
+              contact_phone: phone_number,
+              contact_name: contact_name || null,
+              last_message: content,
+              last_message_at: sent_at || new Date().toISOString(),
+              unread_count: direction === "inbound" ? 1 : 0,
+            })
+            .select("id")
+            .single();
+
+          if (createConvError) {
+            console.error("[n8n-whatsapp-sync] Create conversation error:", createConvError);
+            return new Response(
+              JSON.stringify({ error: createConvError.message }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+
+          conversationId = newConversation.id;
+        }
+
+        // Now insert the message
+        const { data: messageData, error: messageError } = await supabaseAdmin
+          .from("whatsapp_messages")
+          .insert({
+            company_id,
+            conversation_id: conversationId,
+            phone_number: phone_number,
+            content,
+            direction: direction || "inbound",
+            media_url: media_url || null,
+            media_type: media_type || null,
+            status: status || "received",
+            sent_at: sent_at || new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (messageError) {
+          console.error("[n8n-whatsapp-sync] Insert message error:", messageError);
+          return new Response(
+            JSON.stringify({ error: messageError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        result = { 
+          message: messageData, 
+          conversation_id: conversationId 
+        };
+        break;
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
