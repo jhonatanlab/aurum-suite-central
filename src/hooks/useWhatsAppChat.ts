@@ -37,34 +37,52 @@ interface WhatsAppInstance {
   qr_code: string | null;
 }
 
+interface WhatsAppSettings {
+  send_message_url: string;
+}
+
 export function useWhatsAppChat() {
   const { company } = useCompany();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [instance, setInstance] = useState<WhatsAppInstance | null>(null);
+  const [whatsappSettings, setWhatsappSettings] = useState<WhatsAppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
 
-  // Fetch WhatsApp instance
+  // Fetch WhatsApp instance and settings
   useEffect(() => {
     if (!company?.id) return;
 
-    async function fetchInstance() {
-      const { data, error } = await supabase
+    async function fetchInstanceAndSettings() {
+      // Fetch instance
+      const { data: instanceData, error: instanceError } = await supabase
         .from("whatsapp_instances")
         .select("*")
         .eq("company_id", company!.id)
         .maybeSingle();
 
-      if (error) {
-        console.error("Error fetching instance:", error);
+      if (instanceError) {
+        console.error("Error fetching instance:", instanceError);
       }
-      setInstance(data);
+      setInstance(instanceData);
+
+      // Fetch WhatsApp settings (global n8n config)
+      const { data: settingsData } = await supabase
+        .from("whatsapp_settings")
+        .select("send_message_url")
+        .limit(1)
+        .maybeSingle();
+
+      if (settingsData) {
+        setWhatsappSettings(settingsData);
+      }
+
       setLoading(false);
     }
 
-    fetchInstance();
+    fetchInstanceAndSettings();
 
     // Subscribe to instance changes
     const channel = supabase
@@ -216,16 +234,44 @@ export function useWhatsAppChat() {
       // Prepare phone number (remove non-digits)
       const phone = selectedConversation.contact_phone.replace(/\D/g, "");
 
-      // Send via edge function
-      const { data, error: sendError } = await supabase.functions.invoke('uazapi-send-message', {
-        body: {
-          companyId: company.id,
-          phone,
-          message: content,
-        }
-      });
+      let apiSuccess = false;
+      let errorMessage = "";
 
-      const apiSuccess = !sendError && data?.success;
+      // Try n8n-proxy if settings available, fallback to uazapi-send-message
+      if (whatsappSettings?.send_message_url) {
+        // Send via n8n-proxy with number and text params
+        const { data, error: sendError } = await supabase.functions.invoke('n8n-proxy', {
+          body: {
+            action: "send-message",
+            endpoint_url: whatsappSettings.send_message_url,
+            payload: {
+              company_id: company.id,
+              instance_id: instance.instance_id,
+              number: phone,
+              text: content
+            }
+          }
+        });
+
+        apiSuccess = !sendError && data?.success;
+        if (!apiSuccess) {
+          errorMessage = data?.error || sendError?.message || "Erro ao enviar mensagem";
+        }
+      } else {
+        // Fallback to uazapi-send-message
+        const { data, error: sendError } = await supabase.functions.invoke('uazapi-send-message', {
+          body: {
+            companyId: company.id,
+            phone,
+            message: content,
+          }
+        });
+
+        apiSuccess = !sendError && data?.success;
+        if (!apiSuccess) {
+          errorMessage = data?.error || sendError?.message || "Erro ao enviar mensagem";
+        }
+      }
 
       // Save message to database
       const { error } = await supabase.from("whatsapp_messages").insert({
@@ -251,7 +297,7 @@ export function useWhatsAppChat() {
       if (!apiSuccess) {
         toast({
           title: "Aviso",
-          description: data?.error || "Mensagem salva mas pode não ter sido enviada via WhatsApp.",
+          description: errorMessage || "Mensagem salva mas pode não ter sido enviada via WhatsApp.",
           variant: "destructive",
         });
       }

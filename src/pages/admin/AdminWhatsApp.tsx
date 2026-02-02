@@ -80,6 +80,7 @@ interface N8NSettings {
   create_url: string;
   qr_url: string;
   delete_url: string;
+  send_message_url: string;
   secret: string;
 }
 
@@ -92,6 +93,7 @@ export default function AdminWhatsApp() {
     create_url: `${DEFAULT_BASE_URL}/webhook/create-instance`,
     qr_url: `${DEFAULT_BASE_URL}/webhook/generate-qr`,
     delete_url: `${DEFAULT_BASE_URL}/webhook/delete-instance`,
+    send_message_url: `${DEFAULT_BASE_URL}/webhook/send-message`,
     secret: ""
   });
   const [loadingSettings, setLoadingSettings] = useState(true);
@@ -129,7 +131,8 @@ export default function AdminWhatsApp() {
       base_url: newBaseUrl,
       create_url: `${newBaseUrl}/webhook/create-instance`,
       qr_url: `${newBaseUrl}/webhook/generate-qr`,
-      delete_url: `${newBaseUrl}/webhook/delete-instance`
+      delete_url: `${newBaseUrl}/webhook/delete-instance`,
+      send_message_url: `${newBaseUrl}/webhook/send-message`
     }));
   };
 
@@ -151,6 +154,7 @@ export default function AdminWhatsApp() {
           create_url: data.create_url,
           qr_url: data.qr_url,
           delete_url: data.delete_url,
+          send_message_url: data.send_message_url || `${data.base_url}/webhook/send-message`,
           secret: data.secret || ""
         });
       }
@@ -211,6 +215,7 @@ export default function AdminWhatsApp() {
             create_url: settings.create_url,
             qr_url: settings.qr_url,
             delete_url: settings.delete_url,
+            send_message_url: settings.send_message_url,
             secret: settings.secret || null
           })
           .eq("id", settings.id);
@@ -224,6 +229,7 @@ export default function AdminWhatsApp() {
             create_url: settings.create_url,
             qr_url: settings.qr_url,
             delete_url: settings.delete_url,
+            send_message_url: settings.send_message_url,
             secret: settings.secret || null
           })
           .select()
@@ -493,6 +499,19 @@ export default function AdminWhatsApp() {
                       id="delete-url"
                       value={settings.delete_url}
                       onChange={(e) => setSettings(prev => ({ ...prev, delete_url: e.target.value }))}
+                      className="bg-background border-border text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="send-message-url" className="flex items-center gap-2">
+                      <MessageCircle className="h-3 w-3" />
+                      Send Message Endpoint
+                    </Label>
+                    <Input
+                      id="send-message-url"
+                      value={settings.send_message_url}
+                      onChange={(e) => setSettings(prev => ({ ...prev, send_message_url: e.target.value }))}
                       className="bg-background border-border text-sm"
                     />
                   </div>

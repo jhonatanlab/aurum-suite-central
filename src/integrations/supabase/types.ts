@@ -1565,6 +1565,7 @@ export type Database = {
           id: string
           qr_url: string
           secret: string | null
+          send_message_url: string
           updated_at: string
         }
         Insert: {
@@ -1575,6 +1576,7 @@ export type Database = {
           id?: string
           qr_url?: string
           secret?: string | null
+          send_message_url?: string
           updated_at?: string
         }
         Update: {
@@ -1585,6 +1587,7 @@ export type Database = {
           id?: string
           qr_url?: string
           secret?: string | null
+          send_message_url?: string
           updated_at?: string
         }
         Relationships: []
