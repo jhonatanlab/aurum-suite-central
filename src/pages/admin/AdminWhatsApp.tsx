@@ -274,7 +274,13 @@ export default function AdminWhatsApp() {
 
       if (!data?.success) {
         console.error("n8n error:", data);
-        throw new Error(data?.error || "Erro ao criar instância no n8n");
+        const detailsMsg = data?.details?.message;
+        const upstreamStatus = data?.status;
+        throw new Error(
+          detailsMsg
+            ? `n8n (${upstreamStatus ?? "erro"}): ${detailsMsg}`
+            : (data?.error || "Erro ao criar instância no n8n")
+        );
       }
 
       const result = data.data || {};
@@ -326,7 +332,15 @@ export default function AdminWhatsApp() {
       });
 
       if (error) throw new Error(error.message || "Erro ao gerar QR Code");
-      if (!data?.success) throw new Error(data?.error || "Erro ao gerar QR Code no n8n");
+      if (!data?.success) {
+        const detailsMsg = data?.details?.message;
+        const upstreamStatus = data?.status;
+        throw new Error(
+          detailsMsg
+            ? `n8n (${upstreamStatus ?? "erro"}): ${detailsMsg}`
+            : (data?.error || "Erro ao gerar QR Code no n8n")
+        );
+      }
 
       const result = data.data || {};
 
@@ -379,7 +393,15 @@ export default function AdminWhatsApp() {
       });
 
       if (error) throw new Error(error.message || "Erro ao deletar instância");
-      if (!data?.success) throw new Error(data?.error || "Erro ao deletar instância no n8n");
+      if (!data?.success) {
+        const detailsMsg = data?.details?.message;
+        const upstreamStatus = data?.status;
+        throw new Error(
+          detailsMsg
+            ? `n8n (${upstreamStatus ?? "erro"}): ${detailsMsg}`
+            : (data?.error || "Erro ao deletar instância no n8n")
+        );
+      }
 
       // Delete from Supabase
       await supabase.from("whatsapp_instances").delete().eq("id", instanceId);
