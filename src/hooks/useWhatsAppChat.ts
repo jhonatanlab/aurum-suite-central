@@ -110,7 +110,7 @@ export function useWhatsAppChat() {
     };
   }, [company?.id]);
 
-  // Fetch conversations
+  // Fetch conversations (grouped by phone_number, prioritizing records with contact_name)
   useEffect(() => {
     if (!company?.id) return;
 
@@ -125,7 +125,64 @@ export function useWhatsAppChat() {
         console.error("Error fetching conversations:", error);
         return;
       }
-      setConversations(data || []);
+
+      // Group by phone_number, prioritizing records with contact_name
+      const groupedByPhone = new Map<string, Conversation>();
+      
+      for (const conv of (data || []) as Conversation[]) {
+        const existing = groupedByPhone.get(conv.contact_phone);
+        
+        if (!existing) {
+          groupedByPhone.set(conv.contact_phone, conv);
+        } else {
+          // Prioritize the one with contact_name
+          const existingHasName = existing.contact_name && existing.contact_name.trim() !== "";
+          const newHasName = conv.contact_name && conv.contact_name.trim() !== "";
+          
+          if (newHasName && !existingHasName) {
+            // New has name, existing doesn't - use new but keep most recent message
+            const merged = {
+              ...conv,
+              last_message: new Date(conv.last_message_at || 0) > new Date(existing.last_message_at || 0) 
+                ? conv.last_message 
+                : existing.last_message,
+              last_message_at: new Date(conv.last_message_at || 0) > new Date(existing.last_message_at || 0)
+                ? conv.last_message_at
+                : existing.last_message_at,
+              unread_count: conv.unread_count + existing.unread_count,
+            };
+            groupedByPhone.set(conv.contact_phone, merged);
+          } else if (!newHasName && existingHasName) {
+            // Existing has name, keep it but update message if newer
+            if (new Date(conv.last_message_at || 0) > new Date(existing.last_message_at || 0)) {
+              const merged = {
+                ...existing,
+                last_message: conv.last_message,
+                last_message_at: conv.last_message_at,
+                unread_count: conv.unread_count + existing.unread_count,
+              };
+              groupedByPhone.set(conv.contact_phone, merged);
+            } else {
+              existing.unread_count += conv.unread_count;
+            }
+          } else {
+            // Both have name or both don't - keep most recent
+            if (new Date(conv.last_message_at || 0) > new Date(existing.last_message_at || 0)) {
+              conv.unread_count += existing.unread_count;
+              groupedByPhone.set(conv.contact_phone, conv);
+            } else {
+              existing.unread_count += conv.unread_count;
+            }
+          }
+        }
+      }
+
+      // Convert to array and sort by last_message_at
+      const grouped = Array.from(groupedByPhone.values()).sort(
+        (a, b) => new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()
+      );
+
+      setConversations(grouped);
     }
 
     fetchConversations();
