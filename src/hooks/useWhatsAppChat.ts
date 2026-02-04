@@ -51,6 +51,30 @@ export function useWhatsAppChat() {
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
 
+  // Mark conversation as read when selected
+  const handleSelectConversation = async (conversation: Conversation | null) => {
+    setSelectedConversation(conversation);
+    
+    if (conversation && conversation.unread_count > 0) {
+      // Update local state immediately for better UX
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversation.id ? { ...c, unread_count: 0 } : c
+        )
+      );
+
+      // Update in database
+      try {
+        await supabase
+          .from("whatsapp_conversations")
+          .update({ unread_count: 0 })
+          .eq("id", conversation.id);
+      } catch (error) {
+        console.error("Error marking conversation as read:", error);
+      }
+    }
+  };
+
   // Fetch WhatsApp instance and settings
   useEffect(() => {
     if (!company?.id) return;
@@ -401,7 +425,7 @@ export function useWhatsAppChat() {
     conversations,
     messages,
     selectedConversation,
-    setSelectedConversation,
+    setSelectedConversation: handleSelectConversation,
     instance,
     loading,
     sendingMessage,
