@@ -180,6 +180,71 @@ Deno.serve(async (req) => {
         );
       }
 
+      // ============ REPORTING ACTIONS ============
+
+      case "get_message_stats": {
+        const { company_id, start_date, end_date } = data;
+        
+        if (!company_id) {
+          return new Response(
+            JSON.stringify({ success: false, error: "company_id is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        let query = supabaseAdmin
+          .from("whatsapp_messages")
+          .select("status, direction", { count: "exact" })
+          .eq("company_id", company_id);
+
+        if (start_date) {
+          query = query.gte("sent_at", start_date);
+        }
+        if (end_date) {
+          query = query.lte("sent_at", end_date);
+        }
+
+        const { data: messages, error: statsError } = await query;
+
+        if (statsError) {
+          console.error("[n8n-whatsapp-sync] Stats error:", statsError);
+          return new Response(
+            JSON.stringify({ success: false, error: statsError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Aggregate stats
+        const stats = {
+          total: messages?.length || 0,
+          sent: 0,
+          delivered: 0,
+          read: 0,
+          failed: 0,
+          received: 0,
+          inbound: 0,
+          outbound: 0,
+        };
+
+        for (const msg of messages || []) {
+          // Direction counts
+          if (msg.direction === "inbound") stats.inbound++;
+          if (msg.direction === "outbound") stats.outbound++;
+          
+          // Status counts
+          if (msg.status === "sent") stats.sent++;
+          if (msg.status === "delivered") stats.delivered++;
+          if (msg.status === "read") stats.read++;
+          if (msg.status === "failed") stats.failed++;
+          if (msg.status === "received") stats.received++;
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, stats }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // ============ MUTATION ACTIONS ============
 
       case "create_instance": {
@@ -333,7 +398,8 @@ Deno.serve(async (req) => {
           media_url, 
           media_type, 
           status, 
-          sent_at 
+          sent_at,
+          message_id  // NEW: WhatsApp message ID for deduplication
         } = data;
         
         if (!company_id || !phone_number || !content) {
@@ -341,6 +407,34 @@ Deno.serve(async (req) => {
             JSON.stringify({ error: "company_id, phone_number, and content are required" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
+        }
+
+        // Check if message already exists by message_id (deduplication)
+        if (message_id) {
+          const { data: existingMessage, error: findMsgError } = await supabaseAdmin
+            .from("whatsapp_messages")
+            .select("id")
+            .eq("message_id", message_id)
+            .maybeSingle();
+
+          if (findMsgError) {
+            console.error("[n8n-whatsapp-sync] Find message error:", findMsgError);
+          }
+
+          if (existingMessage) {
+            console.log(`[n8n-whatsapp-sync] Message ${message_id} already exists, skipping insert`);
+            return new Response(
+              JSON.stringify({ 
+                success: true, 
+                data: { 
+                  message: existingMessage, 
+                  skipped: true, 
+                  reason: "duplicate_message_id" 
+                } 
+              }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
         }
 
         // First, find or create the conversation
@@ -401,13 +495,14 @@ Deno.serve(async (req) => {
           conversationId = newConversation.id;
         }
 
-        // Now insert the message
+        // Now insert the message with message_id
         const { data: messageData, error: messageError } = await supabaseAdmin
           .from("whatsapp_messages")
           .insert({
             company_id,
             conversation_id: conversationId,
             phone_number: phone_number,
+            message_id: message_id || null,  // Store the WhatsApp message ID
             content,
             direction: direction || "inbound",
             media_url: media_url || null,
@@ -429,6 +524,78 @@ Deno.serve(async (req) => {
         result = { 
           message: messageData, 
           conversation_id: conversationId 
+        };
+        break;
+      }
+
+      // NEW: Update message status by message_id
+      case "update_message_status": {
+        const { message_id, company_id, status: newStatus } = data;
+        
+        if (!message_id) {
+          return new Response(
+            JSON.stringify({ error: "message_id is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!newStatus) {
+          return new Response(
+            JSON.stringify({ error: "status is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Valid statuses for tracking
+        const validStatuses = ["sent", "delivered", "read", "failed", "received", "pending"];
+        if (!validStatuses.includes(newStatus)) {
+          return new Response(
+            JSON.stringify({ 
+              error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` 
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Build query - optionally filter by company_id for multi-tenant security
+        let query = supabaseAdmin
+          .from("whatsapp_messages")
+          .update({ status: newStatus })
+          .eq("message_id", message_id);
+
+        // If company_id is provided, ensure we only update messages from that company
+        if (company_id) {
+          query = query.eq("company_id", company_id);
+        }
+
+        const { data: updatedMessage, error: updateError } = await query.select().maybeSingle();
+
+        if (updateError) {
+          console.error("[n8n-whatsapp-sync] Update message status error:", updateError);
+          return new Response(
+            JSON.stringify({ error: updateError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!updatedMessage) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "Message not found with the given message_id",
+              message_id 
+            }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        console.log(`[n8n-whatsapp-sync] Updated message ${message_id} status to ${newStatus}`);
+        
+        result = { 
+          updated: true, 
+          message: updatedMessage,
+          old_status: null, // We don't track old status in this simple update
+          new_status: newStatus 
         };
         break;
       }
