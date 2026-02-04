@@ -1509,6 +1509,7 @@ export type Database = {
           id: string
           media_type: string | null
           media_url: string | null
+          message_id: string | null
           phone_number: string | null
           sent_at: string | null
           status: string | null
@@ -1522,6 +1523,7 @@ export type Database = {
           id?: string
           media_type?: string | null
           media_url?: string | null
+          message_id?: string | null
           phone_number?: string | null
           sent_at?: string | null
           status?: string | null
@@ -1535,6 +1537,7 @@ export type Database = {
           id?: string
           media_type?: string | null
           media_url?: string | null
+          message_id?: string | null
           phone_number?: string | null
           sent_at?: string | null
           status?: string | null
