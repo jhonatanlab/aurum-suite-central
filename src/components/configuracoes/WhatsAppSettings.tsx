@@ -7,15 +7,15 @@ import { MessageCircle, History, CheckCircle2, Wifi, WifiOff } from "lucide-reac
 import { useWhatsAppSettings, WhatsAppApiProvider } from "@/hooks/useWhatsAppSettings";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { UazapiConfig } from "./UazapiConfig";
+import { NativoConfig } from "./NativoConfig";
 import { ZapiConfig } from "./ZapiConfig";
 import { MetaOfficialConfig } from "./MetaOfficialConfig";
 
 const API_OPTIONS = [
   {
     value: 'uazapi' as WhatsAppApiProvider,
-    label: 'Uazapi',
-    description: 'API brasileira com suporte completo a recursos avançados',
+    label: 'Nativo',
+    description: 'Integração nativa via webhooks n8n',
   },
   {
     value: 'zapi' as WhatsAppApiProvider,
@@ -160,7 +160,7 @@ export function WhatsAppSettings() {
 
       {/* API-Specific Configuration */}
       {settings.api_provider === 'uazapi' && (
-        <UazapiConfig />
+        <NativoConfig />
       )}
 
       {settings.api_provider === 'zapi' && (

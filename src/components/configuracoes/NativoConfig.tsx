@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 
-export function UazapiConfig() {
+export function NativoConfig() {
   const { company } = useCompany();
   const [instance, setInstance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -23,7 +23,7 @@ export function UazapiConfig() {
 
   // Poll for status when QR is ready
   useEffect(() => {
-    if (instance?.status === 'qr_ready' || instance?.status === 'connecting') {
+    if (instance?.status === 'qrcode' || instance?.status === 'qr_ready' || instance?.status === 'connecting') {
       const interval = setInterval(() => {
         checkStatus();
       }, 5000);
@@ -50,20 +50,48 @@ export function UazapiConfig() {
     }
   }
 
+  async function getN8nSettings() {
+    const { data } = await supabase
+      .from("whatsapp_settings")
+      .select("*")
+      .limit(1)
+      .maybeSingle();
+    return data;
+  }
+
   async function handleConnect() {
     if (!company?.id) return;
     
     setConnecting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('uazapi-create-instance', {
-        body: { companyId: company.id }
+      const settings = await getN8nSettings();
+      if (!settings?.create_url) {
+        throw new Error("Configurações do n8n não encontradas. Contate o administrador.");
+      }
+
+      // Use n8n-proxy to create instance (same as admin)
+      const { data, error } = await supabase.functions.invoke('n8n-proxy', {
+        body: {
+          action: "create-instance",
+          endpoint_url: settings.create_url,
+          payload: { company_id: company.id }
+        }
       });
 
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Erro ao criar instância');
+      if (error) throw new Error(error.message || 'Erro ao criar instância');
+      if (!data?.success) {
+        const detailsMsg = data?.details?.message;
+        throw new Error(detailsMsg || data?.error || 'Erro ao criar instância no servidor');
+      }
 
-      toast.success('Instância criada! Escaneie o QR Code.');
+      toast.success('Instância criada! Gerando QR Code...');
+      
+      // Wait a bit for webhook to save the instance
+      await new Promise(resolve => setTimeout(resolve, 1500));
       await fetchInstance();
+      
+      // Now generate QR code
+      await handleRefreshQR();
     } catch (err: any) {
       console.error('Error connecting:', err);
       toast.error(err.message || 'Erro ao conectar');
@@ -73,23 +101,60 @@ export function UazapiConfig() {
   }
 
   async function handleRefreshQR() {
-    if (!instance?.id) return;
-    
+    // Fetch latest instance to get instance_id
+    const { data: latestInstance } = await supabase
+      .from('whatsapp_instances')
+      .select('*')
+      .eq('company_id', company?.id)
+      .maybeSingle();
+
+    if (!latestInstance?.instance_id) {
+      toast.error("ID da instância não encontrado. Tente reconectar.");
+      return;
+    }
+
     setConnecting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('uazapi-get-qrcode', {
-        body: { instanceId: instance.id }
+      const settings = await getN8nSettings();
+      if (!settings?.qr_url) {
+        throw new Error("Configurações do n8n não encontradas. Contate o administrador.");
+      }
+
+      // Use n8n-proxy to generate QR (same as admin)
+      const { data, error } = await supabase.functions.invoke('n8n-proxy', {
+        body: {
+          action: "generate-qr",
+          endpoint_url: settings.qr_url,
+          payload: { 
+            instance_id: latestInstance.instance_id,
+            company_id: company?.id
+          }
+        }
       });
 
-      if (error) throw error;
-      
-      if (data?.qrcode) {
-        setInstance((prev: any) => ({ ...prev, qr_code: data.qrcode, status: 'qr_ready' }));
-        toast.success('QR Code atualizado!');
+      if (error) throw new Error(error.message || 'Erro ao gerar QR Code');
+      if (!data?.success) {
+        const detailsMsg = data?.details?.message;
+        throw new Error(detailsMsg || data?.error || 'Erro ao gerar QR Code no servidor');
+      }
+
+      const result = data.data || {};
+
+      if (result.qr_code) {
+        // Save QR code to Supabase
+        await supabase
+          .from("whatsapp_instances")
+          .update({ qr_code: result.qr_code, status: "qrcode" })
+          .eq("id", latestInstance.id);
+
+        setInstance((prev: any) => ({ ...prev, qr_code: result.qr_code, status: 'qrcode' }));
+        toast.success('QR Code gerado! Escaneie com seu WhatsApp.');
+      } else {
+        throw new Error("QR Code não retornado pelo servidor");
       }
     } catch (err: any) {
       console.error('Error refreshing QR:', err);
-      toast.error('Erro ao atualizar QR Code');
+      toast.error(err.message || 'Erro ao atualizar QR Code');
     } finally {
       setConnecting(false);
     }
@@ -100,17 +165,18 @@ export function UazapiConfig() {
     
     setCheckingStatus(true);
     try {
-      const { data, error } = await supabase.functions.invoke('uazapi-check-status', {
-        body: { instanceId: instance.id }
-      });
+      // Just re-fetch from database to check if status changed
+      const { data } = await supabase
+        .from('whatsapp_instances')
+        .select('*')
+        .eq('id', instance.id)
+        .single();
 
-      if (error) throw error;
-      
-      if (data?.status === 'connected') {
+      if (data?.status === 'connected' && instance.status !== 'connected') {
         toast.success('WhatsApp conectado com sucesso!');
-        await fetchInstance();
+        setInstance(data);
       } else if (data?.status !== instance.status) {
-        setInstance((prev: any) => ({ ...prev, status: data.status }));
+        setInstance(data);
       }
     } catch (err) {
       console.error('Error checking status:', err);
@@ -124,14 +190,27 @@ export function UazapiConfig() {
     
     setConnecting(true);
     try {
-      const { error } = await supabase.functions.invoke('uazapi-disconnect', {
-        body: { instanceId: instance.id }
-      });
+      const settings = await getN8nSettings();
+      
+      if (instance.instance_id && settings?.delete_url) {
+        // Use n8n-proxy to delete instance
+        await supabase.functions.invoke('n8n-proxy', {
+          body: {
+            action: "delete-instance",
+            endpoint_url: settings.delete_url,
+            payload: { 
+              instance_id: instance.instance_id,
+              company_id: company?.id
+            }
+          }
+        });
+      }
 
-      if (error) throw error;
+      // Delete from Supabase
+      await supabase.from('whatsapp_instances').delete().eq('id', instance.id);
       
       toast.success('WhatsApp desconectado');
-      await fetchInstance();
+      setInstance(null);
     } catch (err: any) {
       console.error('Error disconnecting:', err);
       toast.error('Erro ao desconectar');
@@ -145,12 +224,17 @@ export function UazapiConfig() {
     
     setResetting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('uazapi-reset-instance', {
-        body: { instanceId: instance.id }
-      });
-
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Erro ao resetar instância');
+      // Reset instance data but keep record
+      await supabase
+        .from('whatsapp_instances')
+        .update({
+          instance_id: null,
+          instance_token: null,
+          qr_code: null,
+          status: 'expired',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', instance.id);
       
       toast.success('Instância resetada. Você pode conectar novamente.');
       await fetchInstance();
@@ -163,7 +247,7 @@ export function UazapiConfig() {
   }
 
   const isConnected = instance?.status === 'connected';
-  const isQRReady = instance?.status === 'qr_ready' || instance?.status === 'connecting';
+  const isQRReady = instance?.status === 'qrcode' || instance?.status === 'qr_ready' || instance?.status === 'connecting';
   const hasStuckInstance = isQRReady && !instance?.qr_code;
 
   if (loading) {
@@ -181,7 +265,7 @@ export function UazapiConfig() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <Smartphone className="h-5 w-5 text-[hsl(var(--gold))]" />
-          Configuração Uazapi
+          Configuração Nativo
         </CardTitle>
         <CardDescription>
           Conecte seu WhatsApp escaneando o QR Code
@@ -192,8 +276,8 @@ export function UazapiConfig() {
         <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-secondary/30">
           <div className="flex items-center gap-3">
             {isConnected ? (
-              <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                <Wifi className="h-5 w-5 text-green-500" />
+              <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <Wifi className="h-5 w-5 text-emerald-500" />
               </div>
             ) : (
               <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
@@ -252,8 +336,8 @@ export function UazapiConfig() {
               </div>
             ) : hasStuckInstance ? (
               <div className="space-y-4">
-                <div className="p-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10">
-                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10">
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
                     Existe uma instância com status "{instance.status}" mas sem QR Code válido. 
                     Resete a instância para tentar novamente.
                   </p>
@@ -262,7 +346,7 @@ export function UazapiConfig() {
                   onClick={handleReset}
                   disabled={resetting}
                   variant="outline"
-                  className="w-full border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
+                  className="w-full border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
                 >
                   {resetting ? (
                     <>
