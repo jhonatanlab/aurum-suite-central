@@ -1405,6 +1405,42 @@ export type Database = {
           },
         ]
       }
+      whatsapp_conversation_tags: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversation_tags_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversation_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_conversations: {
         Row: {
           company_id: string
@@ -1594,6 +1630,38 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      whatsapp_tags: {
+        Row: {
+          color: string
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_tags_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
