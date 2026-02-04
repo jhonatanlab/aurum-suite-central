@@ -126,13 +126,29 @@ export function useWhatsAppChat() {
         return;
       }
 
-      // Group by phone_number, prioritizing records with contact_name
+      // Normalize phone number for grouping (handles variations like 558388907220 vs 5583988907220)
+      const normalizePhone = (phone: string): string => {
+        const digits = phone.replace(/\D/g, "");
+        // Brazilian numbers: extract last 8-9 digits (local number without country/area code variations)
+        // This handles cases where the 9th digit is missing or present
+        if (digits.length >= 10) {
+          // Get the last 8 digits as the core identifier
+          return digits.slice(-8);
+        }
+        return digits;
+      };
+
+      // Group by normalized phone_number, prioritizing records with contact_name
       const groupedByPhone = new Map<string, Conversation>();
+      const phoneKeyMap = new Map<string, string>(); // normalized -> original
       
       for (const conv of (data || []) as Conversation[]) {
-        const existing = groupedByPhone.get(conv.contact_phone);
+        const normalizedPhone = normalizePhone(conv.contact_phone);
+        const existingKey = phoneKeyMap.get(normalizedPhone);
+        const existing = existingKey ? groupedByPhone.get(existingKey) : undefined;
         
         if (!existing) {
+          phoneKeyMap.set(normalizedPhone, conv.contact_phone);
           groupedByPhone.set(conv.contact_phone, conv);
         } else {
           // Prioritize the one with contact_name
@@ -151,6 +167,9 @@ export function useWhatsAppChat() {
                 : existing.last_message_at,
               unread_count: conv.unread_count + existing.unread_count,
             };
+            // Remove old key and add with new phone
+            groupedByPhone.delete(existingKey!);
+            phoneKeyMap.set(normalizedPhone, conv.contact_phone);
             groupedByPhone.set(conv.contact_phone, merged);
           } else if (!newHasName && existingHasName) {
             // Existing has name, keep it but update message if newer
@@ -161,7 +180,7 @@ export function useWhatsAppChat() {
                 last_message_at: conv.last_message_at,
                 unread_count: conv.unread_count + existing.unread_count,
               };
-              groupedByPhone.set(conv.contact_phone, merged);
+              groupedByPhone.set(existingKey!, merged);
             } else {
               existing.unread_count += conv.unread_count;
             }
@@ -169,6 +188,8 @@ export function useWhatsAppChat() {
             // Both have name or both don't - keep most recent
             if (new Date(conv.last_message_at || 0) > new Date(existing.last_message_at || 0)) {
               conv.unread_count += existing.unread_count;
+              groupedByPhone.delete(existingKey!);
+              phoneKeyMap.set(normalizedPhone, conv.contact_phone);
               groupedByPhone.set(conv.contact_phone, conv);
             } else {
               existing.unread_count += conv.unread_count;
