@@ -157,6 +157,19 @@ export function NativoConfig() {
 
       const result = data.data || {};
 
+      // Check if status is 'open' - means already connected
+      if (result.status === 'open' || result.status === 'connected') {
+        await supabase
+          .from("whatsapp_instances")
+          .update({ status: "connected", qr_code: null })
+          .eq("id", instance.id);
+
+        setInstance((prev: any) => ({ ...prev, status: 'connected', qr_code: null }));
+        setQrCodeModal({ open: false, qrCode: null });
+        toast.success('WhatsApp já está conectado!');
+        return;
+      }
+
       if (result.qr_code) {
         // Save QR code to Supabase
         await supabase
