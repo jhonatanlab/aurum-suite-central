@@ -64,12 +64,27 @@ export function NativoConfig() {
     
     setConnecting(true);
     try {
+      // Check if instance already exists
+      const { data: existingInstance } = await supabase
+        .from('whatsapp_instances')
+        .select('*')
+        .eq('company_id', company.id)
+        .maybeSingle();
+
+      // If instance already exists with instance_id, just generate QR
+      if (existingInstance?.instance_id) {
+        setInstance(existingInstance);
+        toast.info('Instância encontrada. Gerando QR Code...');
+        await handleRefreshQR();
+        return;
+      }
+
+      // No instance exists, create new one
       const settings = await getN8nSettings();
       if (!settings?.create_url) {
         throw new Error("Configurações do n8n não encontradas. Contate o administrador.");
       }
 
-      // Use n8n-proxy to create instance (same as admin)
       const { data, error } = await supabase.functions.invoke('n8n-proxy', {
         body: {
           action: "create-instance",
@@ -86,11 +101,11 @@ export function NativoConfig() {
 
       toast.success('Instância criada! Gerando QR Code...');
       
-      // Wait a bit for webhook to save the instance
+      // Wait for webhook to save the instance
       await new Promise(resolve => setTimeout(resolve, 1500));
       await fetchInstance();
       
-      // Now generate QR code
+      // Generate QR code
       await handleRefreshQR();
     } catch (err: any) {
       console.error('Error connecting:', err);
