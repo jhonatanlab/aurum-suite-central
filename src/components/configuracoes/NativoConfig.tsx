@@ -2,6 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { QrCode, RefreshCw, Smartphone, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -12,8 +19,15 @@ export function NativoConfig() {
   const [instance, setInstance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [generatingQR, setGeneratingQR] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [resetting, setResetting] = useState(false);
+
+  // QR Code modal state
+  const [qrCodeModal, setQrCodeModal] = useState<{ open: boolean; qrCode: string | null }>({
+    open: false,
+    qrCode: null
+  });
 
   useEffect(() => {
     if (company?.id) {
@@ -21,15 +35,15 @@ export function NativoConfig() {
     }
   }, [company?.id]);
 
-  // Poll for status when QR is ready
+  // Poll for status when QR modal is open
   useEffect(() => {
-    if (instance?.status === 'qrcode' || instance?.status === 'qr_ready' || instance?.status === 'connecting') {
+    if (qrCodeModal.open && instance?.id) {
       const interval = setInterval(() => {
         checkStatus();
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [instance?.status, instance?.id]);
+  }, [qrCodeModal.open, instance?.id]);
 
   async function fetchInstance() {
     if (!company?.id) return;
@@ -71,11 +85,10 @@ export function NativoConfig() {
         .eq('company_id', company.id)
         .maybeSingle();
 
-      // If instance already exists with instance_id, just generate QR
+      // If instance already exists with instance_id, it's ready
       if (existingInstance?.instance_id) {
         setInstance(existingInstance);
-        toast.info('Instância encontrada. Gerando QR Code...');
-        await handleRefreshQR();
+        toast.success('Instância encontrada! Clique em "Gerar QR Code" para conectar.');
         return;
       }
 
@@ -99,14 +112,11 @@ export function NativoConfig() {
         throw new Error(detailsMsg || data?.error || 'Erro ao criar instância no servidor');
       }
 
-      toast.success('Instância criada! Gerando QR Code...');
+      toast.success('Instância criada! Clique em "Gerar QR Code" para conectar.');
       
       // Wait for webhook to save the instance
       await new Promise(resolve => setTimeout(resolve, 1500));
       await fetchInstance();
-      
-      // Generate QR code
-      await handleRefreshQR();
     } catch (err: any) {
       console.error('Error connecting:', err);
       toast.error(err.message || 'Erro ao conectar');
@@ -115,33 +125,25 @@ export function NativoConfig() {
     }
   }
 
-  async function handleRefreshQR() {
-    // Fetch latest instance to get instance_id
-    const { data: latestInstance } = await supabase
-      .from('whatsapp_instances')
-      .select('*')
-      .eq('company_id', company?.id)
-      .maybeSingle();
-
-    if (!latestInstance?.instance_id) {
+  async function handleGenerateQR() {
+    if (!instance?.instance_id) {
       toast.error("ID da instância não encontrado. Tente reconectar.");
       return;
     }
 
-    setConnecting(true);
+    setGeneratingQR(true);
     try {
       const settings = await getN8nSettings();
       if (!settings?.qr_url) {
         throw new Error("Configurações do n8n não encontradas. Contate o administrador.");
       }
 
-      // Use n8n-proxy to generate QR (same as admin)
       const { data, error } = await supabase.functions.invoke('n8n-proxy', {
         body: {
           action: "generate-qr",
           endpoint_url: settings.qr_url,
           payload: { 
-            instance_id: latestInstance.instance_id,
+            instance_id: instance.instance_id,
             company_id: company?.id
           }
         }
@@ -160,18 +162,23 @@ export function NativoConfig() {
         await supabase
           .from("whatsapp_instances")
           .update({ qr_code: result.qr_code, status: "qrcode" })
-          .eq("id", latestInstance.id);
+          .eq("id", instance.id);
+
+        // Open modal with QR code
+        setQrCodeModal({
+          open: true,
+          qrCode: result.qr_code
+        });
 
         setInstance((prev: any) => ({ ...prev, qr_code: result.qr_code, status: 'qrcode' }));
-        toast.success('QR Code gerado! Escaneie com seu WhatsApp.');
       } else {
         throw new Error("QR Code não retornado pelo servidor");
       }
     } catch (err: any) {
-      console.error('Error refreshing QR:', err);
-      toast.error(err.message || 'Erro ao atualizar QR Code');
+      console.error('Error generating QR:', err);
+      toast.error(err.message || 'Erro ao gerar QR Code');
     } finally {
-      setConnecting(false);
+      setGeneratingQR(false);
     }
   }
 
@@ -180,7 +187,6 @@ export function NativoConfig() {
     
     setCheckingStatus(true);
     try {
-      // Just re-fetch from database to check if status changed
       const { data } = await supabase
         .from('whatsapp_instances')
         .select('*')
@@ -190,6 +196,7 @@ export function NativoConfig() {
       if (data?.status === 'connected' && instance.status !== 'connected') {
         toast.success('WhatsApp conectado com sucesso!');
         setInstance(data);
+        setQrCodeModal({ open: false, qrCode: null });
       } else if (data?.status !== instance.status) {
         setInstance(data);
       }
@@ -208,7 +215,6 @@ export function NativoConfig() {
       const settings = await getN8nSettings();
       
       if (instance.instance_id && settings?.delete_url) {
-        // Use n8n-proxy to delete instance
         await supabase.functions.invoke('n8n-proxy', {
           body: {
             action: "delete-instance",
@@ -221,7 +227,6 @@ export function NativoConfig() {
         });
       }
 
-      // Delete from Supabase
       await supabase.from('whatsapp_instances').delete().eq('id', instance.id);
       
       toast.success('WhatsApp desconectado');
@@ -239,7 +244,6 @@ export function NativoConfig() {
     
     setResetting(true);
     try {
-      // Reset instance data but keep record
       await supabase
         .from('whatsapp_instances')
         .update({
@@ -262,8 +266,7 @@ export function NativoConfig() {
   }
 
   const isConnected = instance?.status === 'connected';
-  const isQRReady = instance?.status === 'qrcode' || instance?.status === 'qr_ready' || instance?.status === 'connecting';
-  const hasStuckInstance = isQRReady && !instance?.qr_code;
+  const hasInstance = instance?.instance_id;
 
   if (loading) {
     return (
@@ -276,91 +279,95 @@ export function NativoConfig() {
   }
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Smartphone className="h-5 w-5 text-[hsl(var(--gold))]" />
-          Configuração Nativo
-        </CardTitle>
-        <CardDescription>
-          Conecte seu WhatsApp escaneando o QR Code
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Connection Status */}
-        <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-secondary/30">
-          <div className="flex items-center gap-3">
-            {isConnected ? (
-              <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                <Wifi className="h-5 w-5 text-emerald-500" />
-              </div>
-            ) : (
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                <WifiOff className="h-5 w-5 text-muted-foreground" />
-              </div>
-            )}
-            <div>
-              <p className="font-medium">Status da Conexão</p>
-              <p className="text-sm text-muted-foreground">
-                {isConnected 
-                  ? `WhatsApp conectado${instance?.phone_number ? ` (${instance.phone_number})` : ''}`
-                  : isQRReady 
-                    ? "Aguardando leitura do QR Code" 
-                    : "Aguardando conexão"}
-              </p>
-            </div>
-          </div>
-          <Badge 
-            variant={isConnected ? "default" : "secondary"} 
-            className={isConnected ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/30" : ""}
-          >
-            {isConnected ? "Conectado" : isQRReady ? "QR Pronto" : "Desconectado"}
-          </Badge>
-        </div>
-
-        {/* QR Code Section */}
-        {!isConnected && (
-          <div className="space-y-4">
-            {isQRReady && instance?.qr_code ? (
-              <div className="flex flex-col items-center gap-4 p-6 rounded-xl border border-border bg-white">
-                <img 
-                  src={instance.qr_code.startsWith('data:') ? instance.qr_code : `data:image/png;base64,${instance.qr_code}`} 
-                  alt="QR Code WhatsApp" 
-                  className="w-64 h-64"
-                />
-                <p className="text-sm text-muted-foreground text-center max-w-xs">
-                  Abra o WhatsApp no seu celular, vá em <strong>Configurações &gt; Aparelhos conectados</strong> e escaneie o código
+    <>
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Smartphone className="h-5 w-5 text-[hsl(var(--gold))]" />
+            Configuração Nativo
+          </CardTitle>
+          <CardDescription>
+            Conecte seu WhatsApp escaneando o QR Code
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Connection Status */}
+          <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-secondary/30">
+            <div className="flex items-center gap-3">
+              {isConnected ? (
+                <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <Wifi className="h-5 w-5 text-emerald-500" />
+                </div>
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <WifiOff className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
+              <div>
+                <p className="font-medium">Status da Conexão</p>
+                <p className="text-sm text-muted-foreground">
+                  {isConnected 
+                    ? `WhatsApp conectado${instance?.phone_number ? ` (${instance.phone_number})` : ''}`
+                    : hasInstance
+                      ? "Instância pronta. Gere o QR Code para conectar."
+                      : "Aguardando conexão"}
                 </p>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleRefreshQR}
-                    disabled={connecting}
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${connecting ? 'animate-spin' : ''}`} />
-                    Atualizar QR
-                  </Button>
-                </div>
-                {checkingStatus && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Verificando conexão...
-                  </p>
-                )}
               </div>
-            ) : hasStuckInstance ? (
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10">
-                  <p className="text-sm text-amber-600 dark:text-amber-400">
-                    Existe uma instância com status "{instance.status}" mas sem QR Code válido. 
-                    Resete a instância para tentar novamente.
-                  </p>
-                </div>
+            </div>
+            <Badge 
+              variant={isConnected ? "default" : "secondary"} 
+              className={isConnected ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/30" : ""}
+            >
+              {isConnected ? "Conectado" : hasInstance ? "Pronto" : "Desconectado"}
+            </Badge>
+          </div>
+
+          {/* Actions */}
+          {!isConnected && (
+            <div className="space-y-3">
+              {!hasInstance ? (
                 <Button 
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="w-full gold-gradient text-primary-foreground"
+                >
+                  {connecting ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Criando instância...
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone className="h-4 w-4 mr-2" />
+                      Conectar WhatsApp
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleGenerateQR}
+                  disabled={generatingQR}
+                  className="w-full gold-gradient text-primary-foreground"
+                >
+                  {generatingQR ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Gerando QR Code...
+                    </>
+                  ) : (
+                    <>
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Gerar QR Code
+                    </>
+                  )}
+                </Button>
+              )}
+
+              {hasInstance && (
+                <Button 
+                  variant="outline" 
                   onClick={handleReset}
                   disabled={resetting}
-                  variant="outline"
                   className="w-full border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
                 >
                   {resetting ? (
@@ -375,46 +382,75 @@ export function NativoConfig() {
                     </>
                   )}
                 </Button>
+              )}
+            </div>
+          )}
+
+          {/* Disconnect Button */}
+          {isConnected && (
+            <Button 
+              variant="outline" 
+              onClick={handleDisconnect}
+              disabled={connecting}
+              className="w-full border-destructive/50 text-destructive hover:bg-destructive/10"
+            >
+              {connecting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <WifiOff className="h-4 w-4 mr-2" />
+              )}
+              Desconectar
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* QR Code Modal */}
+      <Dialog open={qrCodeModal.open} onOpenChange={(open) => setQrCodeModal(prev => ({ ...prev, open }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-[hsl(var(--gold))]" />
+              Escaneie o QR Code
+            </DialogTitle>
+            <DialogDescription>
+              Abra o WhatsApp no seu celular, vá em Configurações &gt; Aparelhos conectados e escaneie o código abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            {qrCodeModal.qrCode ? (
+              <div className="p-4 bg-white rounded-xl">
+                <img 
+                  src={qrCodeModal.qrCode.startsWith('data:') ? qrCodeModal.qrCode : `data:image/png;base64,${qrCodeModal.qrCode}`} 
+                  alt="QR Code WhatsApp" 
+                  className="w-64 h-64"
+                />
               </div>
             ) : (
-              <Button 
-                onClick={handleConnect}
-                disabled={connecting}
-                className="w-full gold-gradient text-primary-foreground"
-              >
-                {connecting ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Conectando...
-                  </>
-                ) : (
-                  <>
-                    <QrCode className="h-4 w-4 mr-2" />
-                    Conectar WhatsApp
-                  </>
-                )}
-              </Button>
+              <div className="w-64 h-64 flex items-center justify-center bg-muted rounded-xl">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
             )}
-          </div>
-        )}
+            
+            {checkingStatus && (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Verificando conexão...
+              </p>
+            )}
 
-        {/* Disconnect Button */}
-        {isConnected && (
-          <Button 
-            variant="outline" 
-            onClick={handleDisconnect}
-            disabled={connecting}
-            className="w-full border-destructive/50 text-destructive hover:bg-destructive/10"
-          >
-            {connecting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <WifiOff className="h-4 w-4 mr-2" />
-            )}
-            Desconectar
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleGenerateQR}
+              disabled={generatingQR}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${generatingQR ? 'animate-spin' : ''}`} />
+              Atualizar QR Code
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
