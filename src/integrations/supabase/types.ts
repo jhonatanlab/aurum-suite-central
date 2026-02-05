@@ -1447,6 +1447,7 @@ export type Database = {
           contact_name: string | null
           contact_phone: string
           created_at: string | null
+          crm_contact_id: string | null
           id: string
           last_message: string | null
           last_message_at: string | null
@@ -1458,6 +1459,7 @@ export type Database = {
           contact_name?: string | null
           contact_phone: string
           created_at?: string | null
+          crm_contact_id?: string | null
           id?: string
           last_message?: string | null
           last_message_at?: string | null
@@ -1469,6 +1471,7 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string
           created_at?: string | null
+          crm_contact_id?: string | null
           id?: string
           last_message?: string | null
           last_message_at?: string | null
@@ -1481,6 +1484,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_crm_contact_id_fkey"
+            columns: ["crm_contact_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]

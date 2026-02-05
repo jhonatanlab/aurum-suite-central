@@ -12,6 +12,7 @@ interface Conversation {
   last_message_at: string | null;
   unread_count: number;
   created_at: string;
+   crm_contact_id: string | null;
 }
 
 interface Message {
@@ -430,5 +431,21 @@ export function useWhatsAppChat() {
     loading,
     sendingMessage,
     sendMessage,
+     refetchConversations: async () => {
+       if (!company?.id) return;
+       const { data } = await supabase
+         .from("whatsapp_conversations")
+         .select("*")
+         .eq("company_id", company.id)
+         .order("last_message_at", { ascending: false });
+       if (data) {
+         setConversations(data as Conversation[]);
+         // Update selected conversation if it exists
+         if (selectedConversation) {
+           const updated = data.find((c: any) => c.id === selectedConversation.id);
+           if (updated) setSelectedConversation(updated as Conversation);
+         }
+       }
+     },
   };
 }

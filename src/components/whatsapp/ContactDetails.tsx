@@ -1,7 +1,7 @@
- import { useState } from "react";
+ import { useState, useEffect } from "react";
  import { format } from "date-fns";
  import { ptBR } from "date-fns/locale";
- import { User, Phone, Clock, Tag, Plus, X, Check } from "lucide-react";
+ import { User, Phone, Clock, Tag, Plus, X, Check, Link2, ExternalLink, UserPlus, Search, Loader2 } from "lucide-react";
  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  import { Button } from "@/components/ui/button";
  import { Input } from "@/components/ui/input";
@@ -11,8 +11,18 @@
    PopoverContent,
    PopoverTrigger,
  } from "@/components/ui/popover";
+ import {
+   Dialog,
+   DialogContent,
+   DialogHeader,
+   DialogTitle,
+ } from "@/components/ui/dialog";
+ import { ScrollArea } from "@/components/ui/scroll-area";
  import { useWhatsAppTags } from "@/hooks/useWhatsAppTags";
+ import { useCompany } from "@/hooks/useCompany";
+ import { supabase } from "@/integrations/supabase/client";
  import { toast } from "sonner";
+ import { useNavigate } from "react-router-dom";
 
 interface Conversation {
   id: string;
@@ -23,10 +33,20 @@ interface Conversation {
   last_message_at: string | null;
   unread_count: number;
   created_at: string;
+   crm_contact_id?: string | null;
 }
 
+ interface Lead {
+   id: string;
+   name: string;
+   phone: string | null;
+   email: string | null;
+   status: string | null;
+ }
+ 
 interface ContactDetailsProps {
   conversation: Conversation | null;
+   onConversationUpdate?: () => void;
 }
 
  const TAG_COLORS = [
@@ -41,11 +61,21 @@ interface ContactDetailsProps {
    "#6B7280", // gray
  ];
  
-export function ContactDetails({ conversation }: ContactDetailsProps) {
+ export function ContactDetails({ conversation, onConversationUpdate }: ContactDetailsProps) {
+   const navigate = useNavigate();
+   const { company } = useCompany();
    const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
    const [showCreateTag, setShowCreateTag] = useState(false);
    const [newTagName, setNewTagName] = useState("");
    const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
+
+   // CRM integration state
+   const [crmModalOpen, setCrmModalOpen] = useState(false);
+   const [crmSearchQuery, setCrmSearchQuery] = useState("");
+   const [crmLeads, setCrmLeads] = useState<Lead[]>([]);
+   const [crmLoading, setCrmLoading] = useState(false);
+   const [linkedLead, setLinkedLead] = useState<Lead | null>(null);
+   const [creatingLead, setCreatingLead] = useState(false);
  
    const {
      tags,
@@ -90,6 +120,124 @@ export function ContactDetails({ conversation }: ContactDetailsProps) {
      } catch {
        toast.error("Erro ao criar tag");
      }
+   };
+
+   // Fetch linked lead when conversation changes
+   useEffect(() => {
+     if (!conversation?.crm_contact_id) {
+       setLinkedLead(null);
+       return;
+     }
+ 
+     async function fetchLinkedLead() {
+       const { data, error } = await supabase
+         .from("leads")
+         .select("id, name, phone, email, status")
+         .eq("id", conversation!.crm_contact_id!)
+         .single();
+ 
+       if (!error && data) {
+         setLinkedLead(data);
+       }
+     }
+ 
+     fetchLinkedLead();
+   }, [conversation?.crm_contact_id]);
+ 
+   // Search CRM leads
+   const searchCrmLeads = async (query: string) => {
+     if (!company?.id) return;
+     setCrmLoading(true);
+ 
+     try {
+       let queryBuilder = supabase
+         .from("leads")
+         .select("id, name, phone, email, status")
+         .eq("company_id", company.id)
+         .order("created_at", { ascending: false })
+         .limit(20);
+ 
+       if (query.trim()) {
+         queryBuilder = queryBuilder.or(`name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%`);
+       }
+ 
+       const { data, error } = await queryBuilder;
+ 
+       if (error) throw error;
+       setCrmLeads(data || []);
+     } catch (error) {
+       console.error("Error searching leads:", error);
+       toast.error("Erro ao buscar contatos");
+     } finally {
+       setCrmLoading(false);
+     }
+   };
+ 
+   // Link conversation to CRM lead
+   const linkToCrm = async (leadId: string) => {
+     if (!conversation) return;
+ 
+     try {
+       const { error } = await supabase
+         .from("whatsapp_conversations")
+         .update({ crm_contact_id: leadId })
+         .eq("id", conversation.id);
+ 
+       if (error) throw error;
+ 
+       toast.success("Conversa vinculada ao CRM");
+       setCrmModalOpen(false);
+       onConversationUpdate?.();
+     } catch (error) {
+       console.error("Error linking to CRM:", error);
+       toast.error("Erro ao vincular ao CRM");
+     }
+   };
+ 
+   // Create new lead and link
+   const createAndLinkLead = async () => {
+     if (!conversation || !company?.id) return;
+     setCreatingLead(true);
+ 
+     try {
+       // Create lead
+       const { data: newLead, error: createError } = await supabase
+         .from("leads")
+         .insert({
+           company_id: company.id,
+           name: conversation.contact_name || `WhatsApp ${conversation.contact_phone}`,
+           phone: conversation.contact_phone,
+           source: "whatsapp",
+           status: "new",
+         })
+         .select("id")
+         .single();
+ 
+       if (createError) throw createError;
+ 
+       // Link to conversation
+       const { error: linkError } = await supabase
+         .from("whatsapp_conversations")
+         .update({ crm_contact_id: newLead.id })
+         .eq("id", conversation.id);
+ 
+       if (linkError) throw linkError;
+ 
+       toast.success("Lead criado e vinculado");
+       onConversationUpdate?.();
+     } catch (error) {
+       console.error("Error creating lead:", error);
+       toast.error("Erro ao criar lead");
+     } finally {
+       setCreatingLead(false);
+     }
+   };
+ 
+   // Open CRM modal and load leads
+   const openCrmModal = () => {
+     setCrmModalOpen(true);
+     setCrmSearchQuery("");
+     searchCrmLeads("");
    };
  
   if (!conversation) {
@@ -159,6 +307,73 @@ export function ContactDetails({ conversation }: ContactDetailsProps) {
         </CardContent>
       </Card>
 
+       {/* CRM Integration Section */}
+       <Card>
+         <CardHeader className="pb-3">
+           <CardTitle className="text-sm font-medium flex items-center gap-2">
+             <Link2 className="h-4 w-4" />
+             CRM
+           </CardTitle>
+         </CardHeader>
+         <CardContent className="space-y-3">
+           {linkedLead ? (
+             <>
+               <div className="p-3 bg-muted/50 rounded-lg">
+                 <p className="font-medium text-sm">{linkedLead.name}</p>
+                 {linkedLead.email && (
+                   <p className="text-xs text-muted-foreground">{linkedLead.email}</p>
+                 )}
+                 {linkedLead.status && (
+                   <Badge variant="outline" className="mt-1 text-xs">
+                     {linkedLead.status}
+                   </Badge>
+                 )}
+               </div>
+               <Button
+                 variant="outline"
+                 size="sm"
+                 className="w-full"
+                 onClick={() => navigate("/crm")}
+               >
+                 <ExternalLink className="h-4 w-4 mr-1" />
+                 Abrir no CRM
+               </Button>
+             </>
+           ) : (
+             <>
+               <p className="text-xs text-muted-foreground">
+                 Este contato não está vinculado ao CRM
+               </p>
+               <div className="flex flex-col gap-2">
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   className="w-full"
+                   onClick={openCrmModal}
+                 >
+                   <Link2 className="h-4 w-4 mr-1" />
+                   Vincular ao CRM
+                 </Button>
+                 <Button
+                   variant="default"
+                   size="sm"
+                   className="w-full"
+                   onClick={createAndLinkLead}
+                   disabled={creatingLead}
+                 >
+                   {creatingLead ? (
+                     <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                   ) : (
+                     <UserPlus className="h-4 w-4 mr-1" />
+                   )}
+                   Criar Lead no CRM
+                 </Button>
+               </div>
+             </>
+           )}
+         </CardContent>
+       </Card>
+ 
        {/* Tags Section */}
        <Card>
          <CardHeader className="pb-3">
@@ -282,6 +497,65 @@ export function ContactDetails({ conversation }: ContactDetailsProps) {
            </Popover>
          </CardContent>
        </Card>
+
+       {/* CRM Search Modal */}
+       <Dialog open={crmModalOpen} onOpenChange={setCrmModalOpen}>
+         <DialogContent className="max-w-md">
+           <DialogHeader>
+             <DialogTitle>Vincular ao CRM</DialogTitle>
+           </DialogHeader>
+           <div className="space-y-4">
+             <div className="relative">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+               <Input
+                 placeholder="Buscar por nome, telefone ou email..."
+                 value={crmSearchQuery}
+                 onChange={(e) => {
+                   setCrmSearchQuery(e.target.value);
+                   searchCrmLeads(e.target.value);
+                 }}
+                 className="pl-9"
+               />
+             </div>
+             <ScrollArea className="h-64">
+               {crmLoading ? (
+                 <div className="flex items-center justify-center py-8">
+                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                 </div>
+               ) : crmLeads.length === 0 ? (
+                 <p className="text-sm text-muted-foreground text-center py-8">
+                   Nenhum contato encontrado
+                 </p>
+               ) : (
+                 <div className="space-y-1">
+                   {crmLeads.map((lead) => (
+                     <button
+                       key={lead.id}
+                       onClick={() => linkToCrm(lead.id)}
+                       className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted text-left"
+                     >
+                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                         <User className="h-4 w-4 text-primary" />
+                       </div>
+                       <div className="min-w-0 flex-1">
+                         <p className="font-medium text-sm truncate">{lead.name}</p>
+                         <p className="text-xs text-muted-foreground truncate">
+                           {lead.phone || lead.email || "Sem contato"}
+                         </p>
+                       </div>
+                       {lead.status && (
+                         <Badge variant="outline" className="text-xs flex-shrink-0">
+                           {lead.status}
+                         </Badge>
+                       )}
+                     </button>
+                   ))}
+                 </div>
+               )}
+             </ScrollArea>
+           </div>
+         </DialogContent>
+       </Dialog>
     </div>
   );
 }
