@@ -1,14 +1,19 @@
-import { Link } from "react-router-dom";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { ConversationList } from "@/components/whatsapp/ConversationList";
-import { ChatMessages } from "@/components/whatsapp/ChatMessages";
-import { ContactDetails } from "@/components/whatsapp/ContactDetails";
-import { InstanceStatusBanner } from "@/components/whatsapp/InstanceStatusBanner";
-import { useWhatsAppChat } from "@/hooks/useWhatsAppChat";
-import { Button } from "@/components/ui/button";
-import { Settings, MessageCircle } from "lucide-react";
+ import { useState, useEffect, useMemo } from "react";
+ import { Link } from "react-router-dom";
+ import { AppLayout } from "@/components/layout/AppLayout";
+ import { ConversationList } from "@/components/whatsapp/ConversationList";
+ import { ChatMessages } from "@/components/whatsapp/ChatMessages";
+ import { ContactDetails } from "@/components/whatsapp/ContactDetails";
+ import { InstanceStatusBanner } from "@/components/whatsapp/InstanceStatusBanner";
+ import { useWhatsAppChat } from "@/hooks/useWhatsAppChat";
+ import { useWhatsAppTags } from "@/hooks/useWhatsAppTags";
+ import { Button } from "@/components/ui/button";
+ import { Settings, MessageCircle } from "lucide-react";
+ import { supabase } from "@/integrations/supabase/client";
+ import { useCompany } from "@/hooks/useCompany";
 
 export default function Whatsapp() {
+   const { company } = useCompany();
   const {
     conversations,
     messages,
@@ -20,6 +25,38 @@ export default function Whatsapp() {
     sendMessage,
   } = useWhatsAppChat();
 
+   const { tags } = useWhatsAppTags();
+   const [selectedTagFilter, setSelectedTagFilter] = useState("all");
+   const [conversationTagsMap, setConversationTagsMap] = useState<Map<string, string[]>>(new Map());
+ 
+   // Fetch all conversation tags for the company
+   useEffect(() => {
+     if (!company?.id || conversations.length === 0) return;
+ 
+     async function fetchConversationTags() {
+       const conversationIds = conversations.map((c) => c.id);
+       const { data, error } = await supabase
+         .from("whatsapp_conversation_tags")
+         .select("conversation_id, tag_id")
+         .in("conversation_id", conversationIds);
+ 
+       if (error) {
+         console.error("Error fetching conversation tags:", error);
+         return;
+       }
+ 
+       const map = new Map<string, string[]>();
+       for (const row of data || []) {
+         const existing = map.get(row.conversation_id) || [];
+         existing.push(row.tag_id);
+         map.set(row.conversation_id, existing);
+       }
+       setConversationTagsMap(map);
+     }
+ 
+     fetchConversationTags();
+   }, [company?.id, conversations]);
+ 
   const hasInstance = !!instance;
   const isConnected = instance?.status === "connected";
 
@@ -68,6 +105,10 @@ export default function Whatsapp() {
                 conversations={conversations}
                 selectedId={selectedConversation?.id || null}
                 onSelect={setSelectedConversation}
+                   tags={tags}
+                   selectedTagFilter={selectedTagFilter}
+                   onTagFilterChange={setSelectedTagFilter}
+                   conversationTagsMap={conversationTagsMap}
               />
             </div>
           </div>
