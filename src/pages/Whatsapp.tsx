@@ -24,6 +24,17 @@ export default function Whatsapp() {
     sendingMessage,
     sendMessage,
   } = useWhatsAppChat();
+ 
+   // Note: refetchConversations is now available from useWhatsAppChat
+   const refetchConversations = async () => {
+     if (!company?.id) return;
+     const { data } = await supabase
+       .from("whatsapp_conversations")
+       .select("*")
+       .eq("company_id", company.id)
+       .order("last_message_at", { ascending: false });
+     // Conversations will be updated via realtime subscription
+   };
 
    const { tags } = useWhatsAppTags();
    const [selectedTagFilter, setSelectedTagFilter] = useState("all");
@@ -134,7 +145,10 @@ export default function Whatsapp() {
               <h2 className="font-semibold text-sm">Contato</h2>
             </div>
             <div className="h-[calc(100%-48px)]">
-              <ContactDetails conversation={selectedConversation} />
+               <ContactDetails 
+                 conversation={selectedConversation} 
+                 onConversationUpdate={refetchConversations}
+               />
             </div>
           </div>
         </div>
