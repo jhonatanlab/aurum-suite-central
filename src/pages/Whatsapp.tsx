@@ -144,7 +144,7 @@ export default function Whatsapp() {
             <div className="p-3 border-b bg-muted/30">
               <h2 className="font-semibold text-sm">Contato</h2>
             </div>
-            <div className="h-[calc(100%-48px)]">
+            <div className="h-[calc(100%-48px)] overflow-y-auto">
                <ContactDetails 
                  conversation={selectedConversation} 
                  onConversationUpdate={refetchConversations}
