@@ -1552,10 +1552,16 @@ export type Database = {
           conversation_id: string
           created_at: string | null
           direction: string
+          file_name: string | null
           id: string
+          media_duration: number | null
+          media_mime_type: string | null
+          media_size: number | null
+          media_thumbnail: string | null
           media_type: string | null
           media_url: string | null
           message_id: string | null
+          message_type: string | null
           phone_number: string | null
           sent_at: string | null
           status: string | null
@@ -1566,10 +1572,16 @@ export type Database = {
           conversation_id: string
           created_at?: string | null
           direction: string
+          file_name?: string | null
           id?: string
+          media_duration?: number | null
+          media_mime_type?: string | null
+          media_size?: number | null
+          media_thumbnail?: string | null
           media_type?: string | null
           media_url?: string | null
           message_id?: string | null
+          message_type?: string | null
           phone_number?: string | null
           sent_at?: string | null
           status?: string | null
@@ -1580,10 +1592,16 @@ export type Database = {
           conversation_id?: string
           created_at?: string | null
           direction?: string
+          file_name?: string | null
           id?: string
+          media_duration?: number | null
+          media_mime_type?: string | null
+          media_size?: number | null
+          media_thumbnail?: string | null
           media_type?: string | null
           media_url?: string | null
           message_id?: string | null
+          message_type?: string | null
           phone_number?: string | null
           sent_at?: string | null
           status?: string | null
