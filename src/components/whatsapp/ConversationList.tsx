@@ -1,8 +1,15 @@
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { MessageCircle, User } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+ import { format } from "date-fns";
+ import { ptBR } from "date-fns/locale";
+ import { MessageCircle, User, Filter, Tag } from "lucide-react";
+ import { ScrollArea } from "@/components/ui/scroll-area";
+ import { cn } from "@/lib/utils";
+ import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+ } from "@/components/ui/select";
 
 interface Conversation {
   id: string;
@@ -19,9 +26,21 @@ interface ConversationListProps {
   conversations: Conversation[];
   selectedId: string | null;
   onSelect: (conversation: Conversation) => void;
+   tags?: { id: string; name: string; color: string }[];
+   selectedTagFilter?: string;
+   onTagFilterChange?: (tagId: string) => void;
+   conversationTagsMap?: Map<string, string[]>;
 }
 
-export function ConversationList({ conversations, selectedId, onSelect }: ConversationListProps) {
+ export function ConversationList({
+   conversations,
+   selectedId,
+   onSelect,
+   tags = [],
+   selectedTagFilter = "all",
+   onTagFilterChange,
+   conversationTagsMap = new Map(),
+ }: ConversationListProps) {
   function formatDate(dateStr: string | null) {
     if (!dateStr) return "";
     const date = new Date(dateStr);
@@ -39,6 +58,17 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
     }
   }
 
+   // Filter conversations by tag
+   const filteredConversations = conversations.filter((conv) => {
+     if (selectedTagFilter === "all") return true;
+     if (selectedTagFilter === "none") {
+       const convTags = conversationTagsMap.get(conv.id) || [];
+       return convTags.length === 0;
+     }
+     const convTags = conversationTagsMap.get(conv.id) || [];
+     return convTags.includes(selectedTagFilter);
+   });
+ 
   if (conversations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4">
@@ -52,9 +82,37 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
   }
 
   return (
-    <ScrollArea className="h-full">
+     <div className="h-full flex flex-col">
+       {/* Tag Filter */}
+       {onTagFilterChange && (
+         <div className="p-2 border-b">
+           <Select value={selectedTagFilter} onValueChange={onTagFilterChange}>
+             <SelectTrigger className="h-8 text-xs">
+               <Filter className="h-3 w-3 mr-1" />
+               <SelectValue placeholder="Filtrar" />
+             </SelectTrigger>
+             <SelectContent>
+               <SelectItem value="all">Todas</SelectItem>
+               <SelectItem value="none">Sem tag</SelectItem>
+               {tags.map((tag) => (
+                 <SelectItem key={tag.id} value={tag.id}>
+                   <div className="flex items-center gap-2">
+                     <span
+                       className="h-2 w-2 rounded-full"
+                       style={{ backgroundColor: tag.color }}
+                     />
+                     {tag.name}
+                   </div>
+                 </SelectItem>
+               ))}
+             </SelectContent>
+           </Select>
+         </div>
+       )}
+ 
+       <ScrollArea className="flex-1">
       <div className="divide-y divide-border">
-        {conversations.map((conversation) => (
+         {filteredConversations.map((conversation) => (
           <button
             key={conversation.id}
             onClick={() => onSelect(conversation)}
@@ -86,11 +144,32 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                     </span>
                   )}
                 </div>
+               {/* Show tags as small dots */}
+               {(conversationTagsMap.get(conversation.id)?.length ?? 0) > 0 && (
+                 <div className="flex gap-0.5 mt-1">
+                   {conversationTagsMap.get(conversation.id)?.slice(0, 3).map((tagId) => {
+                     const tag = tags.find((t) => t.id === tagId);
+                     return tag ? (
+                       <span
+                         key={tagId}
+                         className="h-1.5 w-1.5 rounded-full"
+                         style={{ backgroundColor: tag.color }}
+                       />
+                     ) : null;
+                   })}
+                   {(conversationTagsMap.get(conversation.id)?.length ?? 0) > 3 && (
+                     <span className="text-[8px] text-muted-foreground ml-0.5">
+                       +{(conversationTagsMap.get(conversation.id)?.length ?? 0) - 3}
+                     </span>
+                   )}
+                 </div>
+               )}
               </div>
             </div>
           </button>
         ))}
       </div>
     </ScrollArea>
+     </div>
   );
 }
