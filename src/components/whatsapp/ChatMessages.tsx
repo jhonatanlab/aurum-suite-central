@@ -36,7 +36,7 @@ interface MediaAttachment {
 interface ChatMessagesProps {
   messages: Message[];
   contactName: string;
-  onSendMessage: (content: string, mediaOptions?: { mediaUrl: string; mimetype: string; fileName?: string }) => void;
+  onSendMessage: (content: string, mediaOptions?: { file?: File; mimetype: string; fileName?: string }) => void;
   sendingMessage: boolean;
   instanceConnected: boolean;
 }
@@ -81,8 +81,9 @@ export function ChatMessages({
     if ((!newMessage.trim() && !attachment) || sendingMessage || !instanceConnected) return;
     
     if (attachment) {
+      // Pass the actual File object for upload to Supabase Storage
       onSendMessage(newMessage.trim(), {
-        mediaUrl: attachment.url,
+        file: attachment.file,
         mimetype: attachment.mimetype,
         fileName: attachment.file.name,
       });
@@ -91,6 +92,10 @@ export function ChatMessages({
     }
     
     setNewMessage("");
+    // Clean up local blob URL
+    if (attachment) {
+      URL.revokeObjectURL(attachment.url);
+    }
     setAttachment(null);
     textareaRef.current?.focus();
   }

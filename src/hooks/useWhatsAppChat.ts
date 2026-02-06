@@ -414,11 +414,36 @@ export function useWhatsAppChat() {
     return "document";
   }
 
+  // Upload file to Supabase Storage and return public URL
+  async function uploadToStorage(file: File): Promise<string> {
+    const timestamp = Date.now();
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const filePath = `${company!.id}/${timestamp}_${sanitizedName}`;
+
+    const { data, error } = await supabase.storage
+      .from("campaign-media")
+      .upload(filePath, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (error) {
+      throw new Error(`Erro ao fazer upload: ${error.message}`);
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from("campaign-media")
+      .getPublicUrl(data.path);
+
+    return urlData.publicUrl;
+  }
+
   // Send message (text or media)
   async function sendMessage(
     content: string, 
     mediaOptions?: { 
-      mediaUrl: string; 
+      file?: File;
       mimetype: string; 
       fileName?: string;
     }
@@ -433,13 +458,30 @@ export function useWhatsAppChat() {
 
       let apiSuccess = false;
       let errorMessage = "";
+      let publicMediaUrl: string | null = null;
 
       // Determine type based on media presence
       const messageType = mediaOptions ? getMessageType(mediaOptions.mimetype) : "text";
 
+      // Upload file to Supabase Storage if present
+      if (mediaOptions?.file) {
+        try {
+          publicMediaUrl = await uploadToStorage(mediaOptions.file);
+        } catch (uploadError) {
+          const msg = uploadError instanceof Error ? uploadError.message : "Erro no upload";
+          toast({
+            title: "Erro no upload",
+            description: msg,
+            variant: "destructive",
+          });
+          setSendingMessage(false);
+          return;
+        }
+      }
+
       // Try n8n-proxy if settings available, fallback to uazapi-send-message
       if (whatsappSettings?.send_message_url) {
-        // Build payload with type field
+        // Build payload with type field - using "text" field name for n8n compatibility
         const payload: Record<string, any> = {
           company_id: company.id,
           instance_id: instance.instance_id,
@@ -448,12 +490,12 @@ export function useWhatsAppChat() {
           type: messageType,
         };
 
-        // Add media fields if present
-        if (mediaOptions) {
-          payload.media_url = mediaOptions.mediaUrl;
-          payload.mimetype = mediaOptions.mimetype;
-          if (mediaOptions.fileName) {
-            payload.file_name = mediaOptions.fileName;
+        // Add media fields if present (with public URL from Supabase Storage)
+        if (publicMediaUrl) {
+          payload.media_url = publicMediaUrl;
+          payload.mimetype = mediaOptions!.mimetype;
+          if (mediaOptions!.fileName) {
+            payload.file_name = mediaOptions!.fileName;
           }
         }
 
@@ -482,7 +524,7 @@ export function useWhatsAppChat() {
             companyId: company.id,
             phone,
             message: content,
-            mediaUrl: mediaOptions?.mediaUrl,
+            mediaUrl: publicMediaUrl,
             mediaType: mediaOptions ? messageType : undefined,
           }
         });
@@ -493,7 +535,7 @@ export function useWhatsAppChat() {
         }
       }
 
-      // Save message to database with media info
+      // Save message to database with media info (using public URL)
       const { error } = await supabase.from("whatsapp_messages").insert({
         company_id: company.id,
         conversation_id: selectedConversation.id,
@@ -502,7 +544,7 @@ export function useWhatsAppChat() {
         status: apiSuccess ? "sent" : "failed",
         sent_at: new Date().toISOString(),
         message_type: messageType,
-        media_url: mediaOptions?.mediaUrl || null,
+        media_url: publicMediaUrl,
         media_type: mediaOptions ? messageType : null,
         media_mime_type: mediaOptions?.mimetype || null,
         file_name: mediaOptions?.fileName || null,
