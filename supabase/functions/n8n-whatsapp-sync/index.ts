@@ -394,17 +394,25 @@ Deno.serve(async (req) => {
           phone_number, 
           contact_name, 
           content, 
+          caption,
           direction, 
           media_url, 
-          media_type, 
+          media_type,
+          message_type,
+          mimetype,
+          duration,
+          file_name,
           status, 
           sent_at,
-          message_id  // NEW: WhatsApp message ID for deduplication
+          message_id
         } = data;
         
-        if (!company_id || !phone_number || !content) {
+        // Use caption as fallback for content (media messages often have caption instead of content)
+        const messageContent = content || caption || "";
+
+        if (!company_id || !phone_number) {
           return new Response(
-            JSON.stringify({ error: "company_id, phone_number, and content are required" }),
+            JSON.stringify({ error: "company_id and phone_number are required" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
@@ -459,10 +467,14 @@ Deno.serve(async (req) => {
           conversationId = existingConversation.id;
           
           // Update conversation with last message
+          const previewText = media_url 
+            ? `📎 ${message_type || media_type || "Mídia"}${messageContent ? `: ${messageContent}` : ""}`
+            : messageContent;
+
           await supabaseAdmin
             .from("whatsapp_conversations")
             .update({
-              last_message: content,
+              last_message: previewText || "Mídia recebida",
               last_message_at: sent_at || new Date().toISOString(),
               contact_name: contact_name || undefined,
               unread_count: direction === "inbound" ? 1 : 0,
@@ -477,7 +489,9 @@ Deno.serve(async (req) => {
               company_id,
               contact_phone: phone_number,
               contact_name: contact_name || null,
-              last_message: content,
+              last_message: (media_url 
+                ? `📎 ${message_type || media_type || "Mídia"}${messageContent ? `: ${messageContent}` : ""}`
+                : messageContent) || "Mídia recebida",
               last_message_at: sent_at || new Date().toISOString(),
               unread_count: direction === "inbound" ? 1 : 0,
             })
@@ -495,18 +509,25 @@ Deno.serve(async (req) => {
           conversationId = newConversation.id;
         }
 
-        // Now insert the message with message_id
+        // Resolve the effective message_type
+        const effectiveMessageType = message_type || media_type || (media_url ? "document" : "text");
+
+        // Now insert the message with all media fields
         const { data: messageData, error: messageError } = await supabaseAdmin
           .from("whatsapp_messages")
           .insert({
             company_id,
             conversation_id: conversationId,
             phone_number: phone_number,
-            message_id: message_id || null,  // Store the WhatsApp message ID
-            content,
+            message_id: message_id || null,
+            content: messageContent,
             direction: direction || "inbound",
             media_url: media_url || null,
             media_type: media_type || null,
+            message_type: effectiveMessageType !== "text" ? effectiveMessageType : null,
+            media_mime_type: mimetype || null,
+            media_duration: duration ? Number(duration) : null,
+            file_name: file_name || null,
             status: status || "received",
             sent_at: sent_at || new Date().toISOString(),
           })
@@ -597,6 +618,70 @@ Deno.serve(async (req) => {
           old_status: null, // We don't track old status in this simple update
           new_status: newStatus 
         };
+        break;
+      }
+
+      // ============ INSTANCE STATUS ACTION ============
+
+      case "update_instance_status": {
+        const { instance_id, company_id, status: newInstanceStatus } = data;
+
+        if (!company_id) {
+          return new Response(
+            JSON.stringify({ success: false, error: "company_id is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!newInstanceStatus) {
+          return new Response(
+            JSON.stringify({ success: false, error: "status is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        console.log(`[n8n-whatsapp-sync] Updating instance status for company ${company_id} to ${newInstanceStatus}`);
+
+        // Build update object
+        const instanceUpdate: Record<string, any> = {
+          status: newInstanceStatus,
+          updated_at: new Date().toISOString(),
+        };
+
+        // If connected, update last_connected_at
+        if (["open", "connected"].includes(newInstanceStatus)) {
+          instanceUpdate.last_connected_at = new Date().toISOString();
+        }
+
+        // Update by company_id (and optionally filter by instance_id)
+        let query = supabaseAdmin
+          .from("whatsapp_instances")
+          .update(instanceUpdate)
+          .eq("company_id", company_id);
+
+        if (instance_id) {
+          query = query.eq("instance_id", instance_id);
+        }
+
+        const { data: updatedInstance, error: updateInstanceError } = await query.select().maybeSingle();
+
+        if (updateInstanceError) {
+          console.error("[n8n-whatsapp-sync] Update instance status error:", updateInstanceError);
+          return new Response(
+            JSON.stringify({ success: false, error: updateInstanceError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!updatedInstance) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Instance not found" }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        console.log(`[n8n-whatsapp-sync] Instance status updated successfully`);
+        result = { updated: true, instance: updatedInstance };
         break;
       }
 

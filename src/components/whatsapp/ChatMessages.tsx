@@ -24,6 +24,8 @@ interface Message {
   message_type?: string | null;
   media_mime_type?: string | null;
   file_name?: string | null;
+  media_duration?: number | null;
+  media_thumbnail?: string | null;
 }
 
 interface MediaAttachment {
@@ -141,11 +143,15 @@ export function ChatMessages({
   // Render message content with media
   function renderMessageMedia(message: Message) {
     const mediaUrl = message.media_url;
-    const mediaType = message.message_type || message.media_type;
-
     if (!mediaUrl) return null;
 
-    switch (mediaType) {
+    // Resolve the effective media type from multiple possible fields
+    const resolvedType = message.message_type 
+      || message.media_type 
+      || (message.media_mime_type ? getMediaTypeFromMime(message.media_mime_type) : null)
+      || "document";
+
+    switch (resolvedType) {
       case "image":
         return (
           <div className="mb-2">
@@ -153,7 +159,19 @@ export function ChatMessages({
               src={mediaUrl}
               alt="Imagem"
               className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+              style={{ maxHeight: 300 }}
               onClick={() => window.open(mediaUrl, "_blank")}
+              onError={(e) => {
+                // Fallback: show link if image fails to load
+                const target = e.currentTarget;
+                target.style.display = "none";
+                const link = document.createElement("a");
+                link.href = mediaUrl;
+                link.target = "_blank";
+                link.textContent = "📷 Ver imagem";
+                link.className = "text-sm underline";
+                target.parentElement?.appendChild(link);
+              }}
             />
           </div>
         );
@@ -166,10 +184,11 @@ export function ChatMessages({
       case "video":
         return (
           <div className="mb-2">
-            <video controls src={mediaUrl} className="max-w-full rounded-lg" />
+            <video controls src={mediaUrl} className="max-w-full rounded-lg" style={{ maxHeight: 300 }} />
           </div>
         );
       case "document":
+      default:
         return (
           <div className="mb-2">
             <a
@@ -182,41 +201,6 @@ export function ChatMessages({
               <span className="text-sm underline truncate">
                 {message.file_name || "Ver documento"}
               </span>
-            </a>
-          </div>
-        );
-      default:
-        // Fallback for legacy media_type field
-        if (message.media_type?.startsWith("image")) {
-          return (
-            <div className="mb-2">
-              <img src={mediaUrl} alt="Mídia" className="max-w-full rounded" />
-            </div>
-          );
-        }
-        if (message.media_type?.startsWith("audio")) {
-          return (
-            <div className="mb-2">
-              <audio controls src={mediaUrl} className="max-w-full" />
-            </div>
-          );
-        }
-        if (message.media_type?.startsWith("video")) {
-          return (
-            <div className="mb-2">
-              <video controls src={mediaUrl} className="max-w-full rounded" />
-            </div>
-          );
-        }
-        return (
-          <div className="mb-2">
-            <a
-              href={mediaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm underline"
-            >
-              Ver arquivo
             </a>
           </div>
         );
