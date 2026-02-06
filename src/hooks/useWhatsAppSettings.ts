@@ -18,6 +18,49 @@ export function useWhatsAppSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+  const [instanceStatus, setInstanceStatus] = useState<string | null>(null);
+
+  // Fetch instance status from whatsapp_instances table
+  useEffect(() => {
+    if (!company?.id) return;
+
+    const fetchInstanceStatus = async () => {
+      const { data } = await supabase
+        .from('whatsapp_instances')
+        .select('status')
+        .eq('company_id', company.id)
+        .maybeSingle();
+      
+      if (data) {
+        setInstanceStatus(data.status);
+      }
+    };
+
+    fetchInstanceStatus();
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('instance-status-settings')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_instances',
+          filter: `company_id=eq.${company.id}`
+        },
+        (payload) => {
+          if (payload.new && 'status' in payload.new) {
+            setInstanceStatus(payload.new.status as string);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [company?.id]);
 
   useEffect(() => {
     if (company) {
@@ -236,7 +279,9 @@ export function useWhatsAppSettings() {
     
     switch (provider) {
       case 'uazapi':
-        return creds.uazapi_connected || false;
+        // Check instance status from whatsapp_instances table
+        const connectedStatuses = ['open', 'connected'];
+        return connectedStatuses.includes(instanceStatus || '') || creds.uazapi_connected || false;
       case 'zapi':
         return creds.zapi_connected || false;
       case 'meta_oficial':
