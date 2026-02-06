@@ -23,6 +23,11 @@ interface Message {
   content: string;
   media_url: string | null;
   media_type: string | null;
+  message_type: string | null;
+  media_mime_type: string | null;
+  file_name: string | null;
+  media_duration: number | null;
+  media_thumbnail: string | null;
   status: string;
   sent_at: string;
   created_at: string;
