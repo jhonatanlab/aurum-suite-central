@@ -626,9 +626,9 @@ Deno.serve(async (req) => {
       case "update_instance_status": {
         const { instance_id, company_id, status: newInstanceStatus } = data;
 
-        if (!company_id) {
+        if (!company_id && !instance_id) {
           return new Response(
-            JSON.stringify({ success: false, error: "company_id is required" }),
+            JSON.stringify({ success: false, error: "company_id or instance_id is required" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
@@ -640,7 +640,7 @@ Deno.serve(async (req) => {
           );
         }
 
-        console.log(`[n8n-whatsapp-sync] Updating instance status for company ${company_id} to ${newInstanceStatus}`);
+        console.log(`[n8n-whatsapp-sync] Updating instance status - company_id: ${company_id}, instance_id: ${instance_id}, status: ${newInstanceStatus}`);
 
         // Build update object
         const instanceUpdate: Record<string, any> = {
@@ -653,17 +653,42 @@ Deno.serve(async (req) => {
           instanceUpdate.last_connected_at = new Date().toISOString();
         }
 
-        // Update by company_id (and optionally filter by instance_id)
-        let query = supabaseAdmin
-          .from("whatsapp_instances")
-          .update(instanceUpdate)
-          .eq("company_id", company_id);
+        // Strategy: prioritize company_id (UUID, unique, reliable)
+        // Only fall back to instance_id if company_id is not provided
+        let updatedInstance = null;
+        let updateInstanceError = null;
 
-        if (instance_id) {
-          query = query.eq("instance_id", instance_id);
+        if (company_id) {
+          // Primary lookup: use company_id only (it's unique/one-to-one)
+          const res = await supabaseAdmin
+            .from("whatsapp_instances")
+            .update(instanceUpdate)
+            .eq("company_id", company_id)
+            .select()
+            .maybeSingle();
+
+          updatedInstance = res.data;
+          updateInstanceError = res.error;
+
+          console.log(`[n8n-whatsapp-sync] Lookup by company_id ${company_id}: found=${!!updatedInstance}`);
         }
 
-        const { data: updatedInstance, error: updateInstanceError } = await query.select().maybeSingle();
+        // Fallback: if company_id didn't match, try by instance_id
+        if (!updatedInstance && !updateInstanceError && instance_id) {
+          console.log(`[n8n-whatsapp-sync] Fallback: trying lookup by instance_id ${instance_id}`);
+          
+          const res = await supabaseAdmin
+            .from("whatsapp_instances")
+            .update(instanceUpdate)
+            .eq("instance_id", instance_id)
+            .select()
+            .maybeSingle();
+
+          updatedInstance = res.data;
+          updateInstanceError = res.error;
+
+          console.log(`[n8n-whatsapp-sync] Lookup by instance_id ${instance_id}: found=${!!updatedInstance}`);
+        }
 
         if (updateInstanceError) {
           console.error("[n8n-whatsapp-sync] Update instance status error:", updateInstanceError);
@@ -674,13 +699,18 @@ Deno.serve(async (req) => {
         }
 
         if (!updatedInstance) {
+          console.error(`[n8n-whatsapp-sync] Instance not found - company_id: ${company_id}, instance_id: ${instance_id}`);
           return new Response(
-            JSON.stringify({ success: false, error: "Instance not found" }),
+            JSON.stringify({ 
+              success: false, 
+              error: "Instance not found", 
+              searched_by: { company_id: company_id || null, instance_id: instance_id || null }
+            }),
             { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
-        console.log(`[n8n-whatsapp-sync] Instance status updated successfully`);
+        console.log(`[n8n-whatsapp-sync] Instance status updated successfully to ${newInstanceStatus}`);
         result = { updated: true, instance: updatedInstance };
         break;
       }
