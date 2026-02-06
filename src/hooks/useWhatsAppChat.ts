@@ -405,8 +405,24 @@ export function useWhatsAppChat() {
     };
   }, [selectedConversation?.id]);
 
-  // Send message
-  async function sendMessage(content: string) {
+  // Determine message type from mimetype
+  function getMessageType(mimetype?: string): string {
+    if (!mimetype) return "text";
+    if (mimetype.startsWith("image/")) return "image";
+    if (mimetype.startsWith("audio/")) return "audio";
+    if (mimetype.startsWith("video/")) return "video";
+    return "document";
+  }
+
+  // Send message (text or media)
+  async function sendMessage(
+    content: string, 
+    mediaOptions?: { 
+      mediaUrl: string; 
+      mimetype: string; 
+      fileName?: string;
+    }
+  ) {
     if (!selectedConversation || !company || !instance) return;
 
     setSendingMessage(true);
@@ -418,19 +434,35 @@ export function useWhatsAppChat() {
       let apiSuccess = false;
       let errorMessage = "";
 
+      // Determine type based on media presence
+      const messageType = mediaOptions ? getMessageType(mediaOptions.mimetype) : "text";
+
       // Try n8n-proxy if settings available, fallback to uazapi-send-message
       if (whatsappSettings?.send_message_url) {
-        // Send via n8n-proxy with number and text params
+        // Build payload with type field
+        const payload: Record<string, any> = {
+          company_id: company.id,
+          instance_id: instance.instance_id,
+          number: phone,
+          text: content,
+          type: messageType,
+        };
+
+        // Add media fields if present
+        if (mediaOptions) {
+          payload.media_url = mediaOptions.mediaUrl;
+          payload.mimetype = mediaOptions.mimetype;
+          if (mediaOptions.fileName) {
+            payload.file_name = mediaOptions.fileName;
+          }
+        }
+
+        // Send via n8n-proxy
         const { data, error: sendError } = await supabase.functions.invoke('n8n-proxy', {
           body: {
             action: "send-message",
             endpoint_url: whatsappSettings.send_message_url,
-            payload: {
-              company_id: company.id,
-              instance_id: instance.instance_id,
-              number: phone,
-              text: content
-            }
+            payload
           }
         });
 
@@ -450,6 +482,8 @@ export function useWhatsAppChat() {
             companyId: company.id,
             phone,
             message: content,
+            mediaUrl: mediaOptions?.mediaUrl,
+            mediaType: mediaOptions ? messageType : undefined,
           }
         });
 
@@ -459,7 +493,7 @@ export function useWhatsAppChat() {
         }
       }
 
-      // Save message to database
+      // Save message to database with media info
       const { error } = await supabase.from("whatsapp_messages").insert({
         company_id: company.id,
         conversation_id: selectedConversation.id,
@@ -467,15 +501,24 @@ export function useWhatsAppChat() {
         content,
         status: apiSuccess ? "sent" : "failed",
         sent_at: new Date().toISOString(),
+        message_type: messageType,
+        media_url: mediaOptions?.mediaUrl || null,
+        media_type: mediaOptions ? messageType : null,
+        media_mime_type: mediaOptions?.mimetype || null,
+        file_name: mediaOptions?.fileName || null,
       });
 
       if (error) throw error;
 
-      // Update conversation
+      // Update conversation with preview text
+      const previewText = mediaOptions 
+        ? `📎 ${messageType === "image" ? "Imagem" : messageType === "audio" ? "Áudio" : messageType === "video" ? "Vídeo" : "Documento"}${content ? `: ${content}` : ""}`
+        : content;
+
       await supabase
         .from("whatsapp_conversations")
         .update({
-          last_message: content,
+          last_message: previewText,
           last_message_at: new Date().toISOString(),
         })
         .eq("id", selectedConversation.id);
