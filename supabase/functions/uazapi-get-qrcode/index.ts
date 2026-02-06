@@ -95,7 +95,7 @@ serve(async (req) => {
         .from("whatsapp_instances")
         .update({
           qr_code: extractedQR,
-          status: "qr_ready",
+          status: "qrcode",
           updated_at: new Date().toISOString(),
         })
         .eq("id", instanceId);
@@ -104,7 +104,7 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           qrcode: extractedQR,
-          status: "qr_ready",
+          status: "qrcode",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -140,7 +140,7 @@ serve(async (req) => {
         .from("whatsapp_instances")
         .update({
           qr_code: extractedQR,
-          status: "qr_ready",
+          status: "qrcode",
           updated_at: new Date().toISOString(),
         })
         .eq("id", instanceId);
@@ -149,7 +149,7 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           qrcode: extractedQR,
-          status: "qr_ready",
+          status: "qrcode",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

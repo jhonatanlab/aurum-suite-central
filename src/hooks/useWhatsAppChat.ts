@@ -12,7 +12,7 @@ interface Conversation {
   last_message_at: string | null;
   unread_count: number;
   created_at: string;
-   crm_contact_id: string | null;
+  crm_contact_id: string | null;
 }
 
 interface Message {
@@ -42,6 +42,13 @@ interface WhatsAppSettings {
   send_message_url: string;
 }
 
+function normalizeInstanceStatus(status: string | null | undefined): string {
+  if (!status) return "disconnected";
+  // Backward-compat for older status naming
+  if (status === "qr_ready") return "qrcode";
+  return status;
+}
+
 export function useWhatsAppChat() {
   const { company } = useCompany();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -55,13 +62,11 @@ export function useWhatsAppChat() {
   // Mark conversation as read when selected
   const handleSelectConversation = async (conversation: Conversation | null) => {
     setSelectedConversation(conversation);
-    
+
     if (conversation && conversation.unread_count > 0) {
       // Update local state immediately for better UX
       setConversations((prev) =>
-        prev.map((c) =>
-          c.id === conversation.id ? { ...c, unread_count: 0 } : c
-        )
+        prev.map((c) => (c.id === conversation.id ? { ...c, unread_count: 0 } : c))
       );
 
       // Update in database
@@ -91,7 +96,15 @@ export function useWhatsAppChat() {
       if (instanceError) {
         console.error("Error fetching instance:", instanceError);
       }
-      setInstance(instanceData);
+
+      setInstance(
+        instanceData
+          ? ({
+              ...(instanceData as WhatsAppInstance),
+              status: normalizeInstanceStatus((instanceData as any).status),
+            } as WhatsAppInstance)
+          : null
+      );
 
       // Fetch WhatsApp settings (global n8n config)
       const { data: settingsData } = await supabase
@@ -124,7 +137,8 @@ export function useWhatsAppChat() {
           if (payload.eventType === "DELETE") {
             setInstance(null);
           } else {
-            setInstance(payload.new as WhatsAppInstance);
+            const next = payload.new as WhatsAppInstance;
+            setInstance({ ...next, status: normalizeInstanceStatus(next.status) });
           }
         }
       )
@@ -134,6 +148,66 @@ export function useWhatsAppChat() {
       supabase.removeChannel(channel);
     };
   }, [company?.id]);
+
+  // Auto-refresh instance connection status while not connected
+  useEffect(() => {
+    if (!instance?.id) return;
+
+    const isConnected = ["connected", "open"].includes(instance.status);
+    if (isConnected) return;
+
+    let stopped = false;
+    let attempts = 0;
+    const maxAttempts = 24; // ~2min at 5s
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const stop = () => {
+      stopped = true;
+      if (interval) clearInterval(interval);
+      interval = null;
+    };
+
+    const runCheck = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("uazapi-check-status", {
+          body: { instanceId: instance.id },
+        });
+
+        if (error) throw error;
+
+        // Optimistic local update (DB will also update and trigger realtime)
+        if (!stopped && data?.status) {
+          setInstance((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: normalizeInstanceStatus(data.status),
+                  phone_number: data.phoneNumber ?? prev.phone_number,
+                }
+              : prev
+          );
+        }
+      } catch {
+        // Avoid spamming if backend check fails
+        stop();
+      }
+    };
+
+    runCheck();
+
+    interval = setInterval(() => {
+      attempts += 1;
+      if (attempts >= maxAttempts) {
+        stop();
+        return;
+      }
+      runCheck();
+    }, 5000);
+
+    return () => {
+      stop();
+    };
+  }, [instance?.id, instance?.status]);
 
   // Fetch conversations (grouped by phone_number, prioritizing records with contact_name)
   useEffect(() => {
@@ -166,12 +240,12 @@ export function useWhatsAppChat() {
       // Group by normalized phone_number, prioritizing records with contact_name
       const groupedByPhone = new Map<string, Conversation>();
       const phoneKeyMap = new Map<string, string>(); // normalized -> original
-      
+
       for (const conv of (data || []) as Conversation[]) {
         const normalizedPhone = normalizePhone(conv.contact_phone);
         const existingKey = phoneKeyMap.get(normalizedPhone);
         const existing = existingKey ? groupedByPhone.get(existingKey) : undefined;
-        
+
         if (!existing) {
           phoneKeyMap.set(normalizedPhone, conv.contact_phone);
           groupedByPhone.set(conv.contact_phone, conv);
@@ -179,17 +253,19 @@ export function useWhatsAppChat() {
           // Prioritize the one with contact_name
           const existingHasName = existing.contact_name && existing.contact_name.trim() !== "";
           const newHasName = conv.contact_name && conv.contact_name.trim() !== "";
-          
+
           if (newHasName && !existingHasName) {
             // New has name, existing doesn't - use new but keep most recent message
             const merged = {
               ...conv,
-              last_message: new Date(conv.last_message_at || 0) > new Date(existing.last_message_at || 0) 
-                ? conv.last_message 
-                : existing.last_message,
-              last_message_at: new Date(conv.last_message_at || 0) > new Date(existing.last_message_at || 0)
-                ? conv.last_message_at
-                : existing.last_message_at,
+              last_message:
+                new Date(conv.last_message_at || 0) > new Date(existing.last_message_at || 0)
+                  ? conv.last_message
+                  : existing.last_message,
+              last_message_at:
+                new Date(conv.last_message_at || 0) > new Date(existing.last_message_at || 0)
+                  ? conv.last_message_at
+                  : existing.last_message_at,
               unread_count: conv.unread_count + existing.unread_count,
             };
             // Remove old key and add with new phone
@@ -251,8 +327,10 @@ export function useWhatsAppChat() {
             setConversations((prev) =>
               prev
                 .map((c) => (c.id === payload.new.id ? (payload.new as Conversation) : c))
-                .sort((a, b) => 
-                  new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()
+                .sort(
+                  (a, b) =>
+                    new Date(b.last_message_at || 0).getTime() -
+                    new Date(a.last_message_at || 0).getTime()
                 )
             );
             // Update selected conversation if it's the one being updated

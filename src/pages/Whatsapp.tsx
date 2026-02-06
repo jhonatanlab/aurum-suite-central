@@ -69,7 +69,7 @@ export default function Whatsapp() {
    }, [company?.id, conversations]);
  
   const hasInstance = !!instance;
-  const isConnected = instance?.status === "connected";
+  const isConnected = ["connected", "open"].includes(instance?.status ?? "");
 
   return (
     <AppLayout title="WhatsApp">

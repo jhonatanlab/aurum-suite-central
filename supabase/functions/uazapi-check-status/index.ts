@@ -85,7 +85,8 @@ serve(async (req) => {
     } else if (statusResult.state === "connecting" || statusResult.status === "CONNECTING") {
       newStatus = "connecting";
     } else if (statusResult.state === "close" && statusResult.qrcode) {
-      newStatus = "qr_ready";
+      // Standardize status naming for the UI
+      newStatus = "qrcode";
     }
 
     // Update instance in DB
