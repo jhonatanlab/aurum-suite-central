@@ -53,6 +53,12 @@ export function InstanceStatusBanner({ status, loading }: InstanceStatusBannerPr
       label: "QR Code Pronto",
       className: "bg-blue-500/10 text-blue-600 border-blue-500/20",
     },
+    // Backward-compat (older naming used by some backend functions)
+    qr_ready: {
+      icon: QrCode,
+      label: "QR Code Pronto",
+      className: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    },
   };
 
   const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.disconnected;
