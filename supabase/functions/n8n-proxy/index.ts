@@ -73,9 +73,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("[n8n-proxy] Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    // Return 200 with error details to prevent blank screens in the frontend
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: errorMessage }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
