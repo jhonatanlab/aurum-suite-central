@@ -1,114 +1,102 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, Users, ShoppingCart, DollarSign, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DollarSign,
+  ShoppingCart,
+  Users,
+  Package,
+  TrendingUp,
+  ArrowUpRight,
+} from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
-const revenueData = [
-  { name: "Jan", value: 4000 },
-  { name: "Fev", value: 3000 },
-  { name: "Mar", value: 5000 },
-  { name: "Abr", value: 4500 },
-  { name: "Mai", value: 6000 },
-  { name: "Jun", value: 5500 },
-  { name: "Jul", value: 7000 },
-];
+const formatCurrency = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const salesData = [
-  { name: "Seg", vendas: 12 },
-  { name: "Ter", vendas: 19 },
-  { name: "Qua", vendas: 15 },
-  { name: "Qui", vendas: 22 },
-  { name: "Sex", vendas: 28 },
-  { name: "Sab", vendas: 35 },
-  { name: "Dom", vendas: 18 },
-];
-
-const stats = [
-  {
-    title: "Receita Total",
-    value: "R$ 45.231",
-    change: "+20.1%",
-    trend: "up",
-    icon: DollarSign,
-  },
-  {
-    title: "Novos Clientes",
-    value: "2.350",
-    change: "+18.2%",
-    trend: "up",
-    icon: Users,
-  },
-  {
-    title: "Vendas",
-    value: "12.234",
-    change: "+12.5%",
-    trend: "up",
-    icon: ShoppingCart,
-  },
-  {
-    title: "Taxa de Conversão",
-    value: "3.2%",
-    change: "-4.1%",
-    trend: "down",
-    icon: TrendingUp,
-  },
-];
+const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  completed: { label: "Concluída", variant: "default" },
+  cancelled: { label: "Cancelada", variant: "destructive" },
+  pending: { label: "Pendente", variant: "secondary" },
+};
 
 export default function Dashboard() {
+  const {
+    kpis,
+    kpisLoading,
+    revenueChart,
+    chartLoading,
+    recentSales,
+    salesLoading,
+    recentContacts,
+    contactsLoading,
+    lowStockProducts,
+    stockLoading,
+  } = useDashboardData();
+
+  const stats = [
+    { title: "Receita do Mês", value: formatCurrency(kpis.monthRevenue), icon: DollarSign },
+    { title: "Vendas", value: kpis.salesCount.toString(), icon: ShoppingCart },
+    { title: "Ticket Médio", value: formatCurrency(kpis.averageTicket), icon: TrendingUp },
+    { title: "Novos Clientes", value: kpis.newClients.toString(), icon: Users },
+    { title: "Produtos Vendidos", value: kpis.productsSold.toString(), icon: Package },
+  ];
+
   return (
     <AppLayout title="Dashboard">
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      {/* KPIs */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <Card
               key={stat.title}
-              className="bg-card border-border card-hover animate-fade-in"
-              style={{ animationDelay: `${index * 100}ms` }}
+              className="bg-card border-border animate-fade-in"
+              style={{ animationDelay: `${index * 80}ms` }}
             >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-xs font-medium text-muted-foreground">
                   {stat.title}
                 </CardTitle>
-                <div className="h-9 w-9 rounded-xl bg-secondary flex items-center justify-center">
+                <div className="h-8 w-8 rounded-xl bg-secondary flex items-center justify-center">
                   <Icon className="h-4 w-4 text-gold" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                <div className="flex items-center gap-1 mt-1">
-                  {stat.trend === "up" ? (
-                    <ArrowUpRight className="h-4 w-4 text-emerald-500" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 text-red-500" />
-                  )}
-                  <span
-                    className={
-                      stat.trend === "up" ? "text-emerald-500 text-sm" : "text-red-500 text-sm"
-                    }
-                  >
-                    {stat.change}
-                  </span>
-                  <span className="text-muted-foreground text-sm">vs mês anterior</span>
-                </div>
+                {kpisLoading ? (
+                  <Skeleton className="h-7 w-24" />
+                ) : (
+                  <div className="text-xl font-bold text-foreground">{stat.value}</div>
+                )}
               </CardContent>
             </Card>
           );
         })}
       </div>
 
-      {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Revenue Chart */}
-        <Card className="bg-card border-border card-hover animate-fade-in" style={{ animationDelay: "400ms" }}>
-          <CardHeader>
-            <CardTitle className="text-foreground">Receita Mensal</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
+      {/* Revenue Chart */}
+      <Card className="bg-card border-border mb-6 animate-fade-in" style={{ animationDelay: "400ms" }}>
+        <CardHeader>
+          <CardTitle className="text-foreground text-base">Receita — Últimos 30 dias</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {chartLoading ? (
+            <Skeleton className="h-[280px] w-full rounded-xl" />
+          ) : (
+            <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueData}>
+                <AreaChart data={revenueChart}>
                   <defs>
                     <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(40, 45%, 55%)" stopOpacity={0.3} />
@@ -116,8 +104,12 @@ export default function Dashboard() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 20%)" />
-                  <XAxis dataKey="name" stroke="hsl(0, 0%, 60%)" fontSize={12} />
-                  <YAxis stroke="hsl(0, 0%, 60%)" fontSize={12} />
+                  <XAxis dataKey="label" stroke="hsl(0, 0%, 60%)" fontSize={11} interval="preserveStartEnd" />
+                  <YAxis
+                    stroke="hsl(0, 0%, 60%)"
+                    fontSize={11}
+                    tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "hsl(0, 0%, 12%)",
@@ -125,6 +117,7 @@ export default function Dashboard() {
                       borderRadius: "0.75rem",
                     }}
                     labelStyle={{ color: "hsl(40, 20%, 95%)" }}
+                    formatter={(value: number) => [formatCurrency(value), "Receita"]}
                   />
                   <Area
                     type="monotone"
@@ -136,33 +129,121 @@ export default function Dashboard() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Tables */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Recent Sales */}
+        <Card className="bg-card border-border animate-fade-in lg:col-span-1" style={{ animationDelay: "500ms" }}>
+          <CardHeader>
+            <CardTitle className="text-foreground text-base flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4 text-gold" />
+              Últimas Vendas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {salesLoading ? (
+              <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+            ) : recentSales.length === 0 ? (
+              <p className="text-muted-foreground text-sm text-center py-6">Nenhuma venda registrada</p>
+            ) : (
+              <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                {recentSales.map((sale) => (
+                  <div key={sale.id} className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-secondary/50 transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {sale.customer_name || "Cliente não informado"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(sale.created_at!), "dd/MM/yy HH:mm")}
+                      </p>
+                    </div>
+                    <div className="text-right ml-2 shrink-0">
+                      <p className="text-sm font-semibold text-gold">{formatCurrency(sale.total)}</p>
+                      <Badge variant={statusLabels[sale.status]?.variant ?? "outline"} className="text-[10px] px-1.5">
+                        {statusLabels[sale.status]?.label ?? sale.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Sales Chart */}
-        <Card className="bg-card border-border card-hover animate-fade-in" style={{ animationDelay: "500ms" }}>
+        {/* Recent Contacts */}
+        <Card className="bg-card border-border animate-fade-in lg:col-span-1" style={{ animationDelay: "600ms" }}>
           <CardHeader>
-            <CardTitle className="text-foreground">Vendas Semanais</CardTitle>
+            <CardTitle className="text-foreground text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-gold" />
+              Contatos Recentes
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salesData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 20%)" />
-                  <XAxis dataKey="name" stroke="hsl(0, 0%, 60%)" fontSize={12} />
-                  <YAxis stroke="hsl(0, 0%, 60%)" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(0, 0%, 12%)",
-                      border: "1px solid hsl(0, 0%, 20%)",
-                      borderRadius: "0.75rem",
-                    }}
-                    labelStyle={{ color: "hsl(40, 20%, 95%)" }}
-                  />
-                  <Bar dataKey="vendas" fill="hsl(40, 45%, 55%)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <CardContent className="px-4 pb-4">
+            {contactsLoading ? (
+              <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+            ) : recentContacts.length === 0 ? (
+              <p className="text-muted-foreground text-sm text-center py-6">Nenhum contato adicionado</p>
+            ) : (
+              <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                {recentContacts.map((contact) => (
+                  <div key={contact.id} className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-secondary/50 transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{contact.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {contact.phone || contact.email || "—"}
+                      </p>
+                    </div>
+                    <div className="text-right ml-2 shrink-0">
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(contact.created_at!), "dd/MM/yy")}
+                      </p>
+                      {contact.source && (
+                        <Badge variant="outline" className="text-[10px] px-1.5">{contact.source}</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Low Stock */}
+        <Card className="bg-card border-border animate-fade-in lg:col-span-1" style={{ animationDelay: "700ms" }}>
+          <CardHeader>
+            <CardTitle className="text-foreground text-base flex items-center gap-2">
+              <Package className="h-4 w-4 text-gold" />
+              Estoque Baixo
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {stockLoading ? (
+              <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+            ) : lowStockProducts.length === 0 ? (
+              <p className="text-muted-foreground text-sm text-center py-6">Estoque OK ✓</p>
+            ) : (
+              <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                {lowStockProducts.map((product) => (
+                  <div key={product.id} className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-secondary/50 transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
+                      {product.category && (
+                        <p className="text-xs text-muted-foreground">{product.category}</p>
+                      )}
+                    </div>
+                    <div className="text-right ml-2 shrink-0">
+                      <p className="text-sm font-semibold text-destructive">
+                        {product.stock ?? 0} / {product.minimum_stock ?? 0}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{formatCurrency(product.price)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
