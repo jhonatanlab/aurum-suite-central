@@ -114,6 +114,8 @@ export default function Dashboard() {
     chartLoading,
     leadSources,
     sourcesLoading,
+    leadFunnel,
+    funnelLoading,
     topProducts,
     topProductsLoading,
     recentSales,
@@ -134,12 +136,13 @@ export default function Dashboard() {
 
   const totalLeads = leadSources.reduce((s, l) => s + l.count, 0);
 
-  // Funnel data - cumulative from top source down
-  const funnelData = leadSources.slice(0, 5).map((s, i) => ({
-    name: sourceLabels[s.source] || s.source,
-    value: s.count,
-    fill: SOURCE_COLORS[i % SOURCE_COLORS.length],
-  }));
+  const FUNNEL_COLORS = [
+    "hsl(40, 50%, 65%)",
+    "hsl(40, 45%, 55%)",
+    "hsl(40, 40%, 48%)",
+    "hsl(40, 35%, 40%)",
+    "hsl(160, 45%, 45%)",
+  ];
 
   return (
     <AppLayout title="Dashboard">
@@ -174,7 +177,7 @@ export default function Dashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className={`text-xl font-bold tracking-tight ${kpi.accent ? "gold-text" : "text-foreground"}`}>
+                <div className={`text-xl font-bold tracking-tight ${kpi.accent ? "text-gold" : "text-foreground"}`}>
                   {kpi.value}
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1">Este mês</p>
@@ -281,31 +284,31 @@ export default function Dashboard() {
         {/* Funnel */}
         <Card className="bg-card border-border animate-fade-in overflow-hidden" style={{ animationDelay: "580ms" }}>
           <CardHeader className="flex flex-row items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-gold" />
-            <CardTitle className="text-foreground text-base">Funil por Origem</CardTitle>
+            <Filter className="h-4 w-4 text-gold" />
+            <CardTitle className="text-foreground text-base">Funil de Leads</CardTitle>
           </CardHeader>
           <CardContent>
-            {sourcesLoading ? (
+            {funnelLoading ? (
               <Skeleton className="h-[220px] w-full rounded-xl" />
-            ) : funnelData.length === 0 ? (
+            ) : leadFunnel.length === 0 ? (
               <EmptyState icon={Filter} title="Sem dados" description="Adicione leads para visualizar o funil." />
             ) : (
               <div className="space-y-3">
-                {funnelData.map((item, i) => {
-                  const maxVal = funnelData[0]?.value || 1;
-                  const pct = (item.value / maxVal) * 100;
+                {leadFunnel.map((stage, i) => {
+                  const maxVal = leadFunnel[0]?.count || 1;
+                  const pct = (stage.count / maxVal) * 100;
                   return (
-                    <div key={item.name} className="animate-fade-in" style={{ animationDelay: `${i * 60}ms` }}>
+                    <div key={stage.stage} className="animate-fade-in" style={{ animationDelay: `${i * 60}ms` }}>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm text-foreground font-medium">{item.name}</span>
-                        <span className="text-xs text-muted-foreground tabular-nums">{item.value} leads</span>
+                        <span className="text-sm text-foreground font-medium">{stage.label}</span>
+                        <span className="text-xs text-muted-foreground tabular-nums">{stage.count} leads</span>
                       </div>
                       <div className="h-7 rounded-lg bg-secondary/60 overflow-hidden relative">
                         <div
                           className="h-full rounded-lg transition-all duration-700 ease-out"
                           style={{
-                            width: `${pct}%`,
-                            background: `linear-gradient(90deg, ${item.fill}, ${item.fill}dd)`,
+                            width: `${Math.max(pct, 5)}%`,
+                            background: FUNNEL_COLORS[i % FUNNEL_COLORS.length],
                             minWidth: "2rem",
                           }}
                         />

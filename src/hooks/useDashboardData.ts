@@ -50,6 +50,12 @@ export interface SourceData {
   count: number;
 }
 
+export interface FunnelStage {
+  stage: string;
+  label: string;
+  count: number;
+}
+
 export interface TopProduct {
   product_id: string;
   name: string;
@@ -170,6 +176,39 @@ export function useDashboardData() {
     refetchInterval: 60000,
   });
 
+  // Lead funnel by status
+  const FUNNEL_ORDER = [
+    { stage: "new", label: "Novos" },
+    { stage: "contacted", label: "Contatados" },
+    { stage: "qualified", label: "Qualificados" },
+    { stage: "proposal", label: "Proposta" },
+    { stage: "won", label: "Convertidos" },
+  ];
+
+  const { data: leadFunnel = [], isLoading: funnelLoading } = useQuery({
+    queryKey: ["dashboard-lead-funnel", companyId],
+    queryFn: async (): Promise<FunnelStage[]> => {
+      if (!companyId) return [];
+      const { data } = await supabase
+        .from("leads")
+        .select("status")
+        .eq("company_id", companyId);
+
+      const map: Record<string, number> = {};
+      data?.forEach((l) => {
+        const st = l.status || "new";
+        map[st] = (map[st] || 0) + 1;
+      });
+
+      return FUNNEL_ORDER.map((f) => ({
+        ...f,
+        count: map[f.stage] || 0,
+      })).filter((f) => f.count > 0 || f.stage === "new");
+    },
+    enabled: !!companyId,
+    refetchInterval: 60000,
+  });
+
   // Top 5 products
   const { data: topProducts = [], isLoading: topProductsLoading } = useQuery({
     queryKey: ["dashboard-top-products", companyId],
@@ -280,6 +319,8 @@ export function useDashboardData() {
     chartLoading,
     leadSources,
     sourcesLoading,
+    leadFunnel,
+    funnelLoading,
     topProducts,
     topProductsLoading,
     recentSales,
