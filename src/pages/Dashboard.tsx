@@ -10,6 +10,9 @@ import {
   BarChart3,
   Inbox,
   PackageCheck,
+  Target,
+  Award,
+  Filter,
 } from "lucide-react";
 import {
   AreaChart,
@@ -19,6 +22,11 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
 } from "recharts";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { format } from "date-fns";
@@ -31,6 +39,27 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
   completed: { label: "Concluída", variant: "default" },
   cancelled: { label: "Cancelada", variant: "destructive" },
   pending: { label: "Pendente", variant: "secondary" },
+};
+
+const SOURCE_COLORS = [
+  "hsl(40, 45%, 55%)",
+  "hsl(40, 50%, 65%)",
+  "hsl(40, 40%, 45%)",
+  "hsl(200, 45%, 50%)",
+  "hsl(160, 40%, 45%)",
+  "hsl(280, 40%, 55%)",
+  "hsl(0, 0%, 50%)",
+];
+
+const sourceLabels: Record<string, string> = {
+  manual: "Manual",
+  whatsapp: "WhatsApp",
+  website: "Website",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  referral: "Indicação",
+  other: "Outro",
+  Desconhecido: "Desconhecido",
 };
 
 function KpiSkeleton() {
@@ -83,6 +112,10 @@ export default function Dashboard() {
     kpisLoading,
     revenueChart,
     chartLoading,
+    leadSources,
+    sourcesLoading,
+    topProducts,
+    topProductsLoading,
     recentSales,
     salesLoading,
     recentContacts,
@@ -92,33 +125,21 @@ export default function Dashboard() {
   } = useDashboardData();
 
   const kpiCards = [
-    {
-      title: "Receita do Mês",
-      value: formatCurrency(kpis.monthRevenue),
-      icon: DollarSign,
-      accent: true,
-    },
-    {
-      title: "Vendas",
-      value: kpis.salesCount.toString(),
-      icon: ShoppingCart,
-    },
-    {
-      title: "Ticket Médio",
-      value: formatCurrency(kpis.averageTicket),
-      icon: TrendingUp,
-    },
-    {
-      title: "Novos Clientes",
-      value: kpis.newClients.toString(),
-      icon: Users,
-    },
-    {
-      title: "Produtos Vendidos",
-      value: kpis.productsSold.toString(),
-      icon: Package,
-    },
+    { title: "Receita do Mês", value: formatCurrency(kpis.monthRevenue), icon: DollarSign, accent: true },
+    { title: "Vendas", value: kpis.salesCount.toString(), icon: ShoppingCart },
+    { title: "Ticket Médio", value: formatCurrency(kpis.averageTicket), icon: TrendingUp },
+    { title: "Novos Clientes", value: kpis.newClients.toString(), icon: Users },
+    { title: "Taxa de Conversão", value: `${kpis.conversionRate.toFixed(1)}%`, icon: Target },
   ];
+
+  const totalLeads = leadSources.reduce((s, l) => s + l.count, 0);
+
+  // Funnel data - cumulative from top source down
+  const funnelData = leadSources.slice(0, 5).map((s, i) => ({
+    name: sourceLabels[s.source] || s.source,
+    value: s.count,
+    fill: SOURCE_COLORS[i % SOURCE_COLORS.length],
+  }));
 
   return (
     <AppLayout title="Dashboard">
@@ -126,9 +147,7 @@ export default function Dashboard() {
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
         {kpiCards.map((kpi, index) => {
           const Icon = kpi.icon;
-
           if (kpisLoading) return <KpiSkeleton key={index} />;
-
           return (
             <Card
               key={kpi.title}
@@ -137,7 +156,6 @@ export default function Dashboard() {
               }`}
               style={{ animationDelay: `${index * 80}ms` }}
             >
-              {/* Subtle gold accent line for primary KPI */}
               {kpi.accent && (
                 <div className="absolute top-0 left-0 right-0 h-[2px] gold-gradient opacity-60" />
               )}
@@ -152,15 +170,11 @@ export default function Dashboard() {
                       : "bg-secondary group-hover:bg-secondary/80"
                   }`}
                 >
-                  <Icon className={`h-4 w-4 ${kpi.accent ? "text-gold" : "text-gold"}`} />
+                  <Icon className="h-4 w-4 text-gold" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div
-                  className={`text-xl font-bold tracking-tight ${
-                    kpi.accent ? "gold-text" : "text-foreground"
-                  }`}
-                >
+                <div className={`text-xl font-bold tracking-tight ${kpi.accent ? "gold-text" : "text-foreground"}`}>
                   {kpi.value}
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1">Este mês</p>
@@ -170,85 +184,183 @@ export default function Dashboard() {
         })}
       </div>
 
-      {/* Revenue Chart */}
-      <Card
-        className="bg-card border-border mb-6 animate-fade-in overflow-hidden"
-        style={{ animationDelay: "420ms" }}
-      >
-        <CardHeader className="flex flex-row items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-gold" />
-          <CardTitle className="text-foreground text-base">Receita — Últimos 30 dias</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {chartLoading ? (
-            <Skeleton className="h-[280px] w-full rounded-xl" />
-          ) : (
-            <div className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueChart}>
-                  <defs>
-                    <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(40, 45%, 55%)" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="hsl(40, 45%, 55%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 18%)" />
-                  <XAxis
-                    dataKey="label"
-                    stroke="hsl(0, 0%, 45%)"
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    stroke="hsl(0, 0%, 45%)"
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v) =>
-                      v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : `R$${v}`
-                    }
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(0, 0%, 10%)",
-                      border: "1px solid hsl(0, 0%, 18%)",
-                      borderRadius: "0.75rem",
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-                    }}
-                    labelStyle={{ color: "hsl(40, 20%, 95%)", fontWeight: 500, fontSize: 12 }}
-                    formatter={(value: number) => [formatCurrency(value), "Receita"]}
-                    cursor={{ stroke: "hsl(40, 45%, 55%)", strokeWidth: 1, strokeDasharray: "4 4" }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="hsl(40, 45%, 55%)"
-                    strokeWidth={2}
-                    fill="url(#goldGradient)"
-                    dot={false}
-                    activeDot={{
-                      r: 4,
-                      fill: "hsl(40, 45%, 55%)",
-                      stroke: "hsl(0, 0%, 12%)",
-                      strokeWidth: 2,
-                    }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Revenue Chart + Sources Pie */}
+      <div className="grid gap-4 lg:grid-cols-3 mb-6">
+        <Card className="bg-card border-border animate-fade-in overflow-hidden lg:col-span-2" style={{ animationDelay: "420ms" }}>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-gold" />
+            <CardTitle className="text-foreground text-base">Receita — Últimos 30 dias</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {chartLoading ? (
+              <Skeleton className="h-[280px] w-full rounded-xl" />
+            ) : (
+              <div className="h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueChart}>
+                    <defs>
+                      <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(40, 45%, 55%)" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="hsl(40, 45%, 55%)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 18%)" />
+                    <XAxis dataKey="label" stroke="hsl(0, 0%, 45%)" fontSize={10} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis stroke="hsl(0, 0%, 45%)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : `R$${v}`} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "hsl(0, 0%, 10%)", border: "1px solid hsl(0, 0%, 18%)", borderRadius: "0.75rem", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
+                      labelStyle={{ color: "hsl(40, 20%, 95%)", fontWeight: 500, fontSize: 12 }}
+                      formatter={(value: number) => [formatCurrency(value), "Receita"]}
+                      cursor={{ stroke: "hsl(40, 45%, 55%)", strokeWidth: 1, strokeDasharray: "4 4" }}
+                    />
+                    <Area type="monotone" dataKey="value" stroke="hsl(40, 45%, 55%)" strokeWidth={2} fill="url(#goldGradient)" dot={false} activeDot={{ r: 4, fill: "hsl(40, 45%, 55%)", stroke: "hsl(0, 0%, 12%)", strokeWidth: 2 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Tables */}
+        {/* Sources Pie Chart */}
+        <Card className="bg-card border-border animate-fade-in overflow-hidden" style={{ animationDelay: "500ms" }}>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <Filter className="h-4 w-4 text-gold" />
+            <CardTitle className="text-foreground text-base">Origens dos Leads</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {sourcesLoading ? (
+              <Skeleton className="h-[280px] w-full rounded-xl" />
+            ) : leadSources.length === 0 ? (
+              <EmptyState icon={Users} title="Sem dados de origem" description="Adicione leads para ver de onde vêm." />
+            ) : (
+              <div className="h-[280px] flex flex-col">
+                <div className="h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={leadSources.slice(0, 6)}
+                        dataKey="count"
+                        nameKey="source"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={70}
+                        innerRadius={40}
+                        paddingAngle={3}
+                        strokeWidth={0}
+                      >
+                        {leadSources.slice(0, 6).map((_, i) => (
+                          <Cell key={i} fill={SOURCE_COLORS[i % SOURCE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "hsl(0, 0%, 10%)", border: "1px solid hsl(0, 0%, 18%)", borderRadius: "0.75rem" }}
+                        formatter={(value: number, name: string) => [`${value} leads`, sourceLabels[name] || name]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-1.5 mt-auto">
+                  {leadSources.slice(0, 5).map((s, i) => (
+                    <div key={s.source} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: SOURCE_COLORS[i % SOURCE_COLORS.length] }} />
+                        <span className="text-muted-foreground">{sourceLabels[s.source] || s.source}</span>
+                      </div>
+                      <span className="text-foreground font-medium tabular-nums">{s.count} <span className="text-muted-foreground font-normal">({totalLeads > 0 ? ((s.count / totalLeads) * 100).toFixed(0) : 0}%)</span></span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Funnel + Top Products */}
+      <div className="grid gap-4 lg:grid-cols-2 mb-6">
+        {/* Funnel */}
+        <Card className="bg-card border-border animate-fade-in overflow-hidden" style={{ animationDelay: "580ms" }}>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-gold" />
+            <CardTitle className="text-foreground text-base">Funil por Origem</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {sourcesLoading ? (
+              <Skeleton className="h-[220px] w-full rounded-xl" />
+            ) : funnelData.length === 0 ? (
+              <EmptyState icon={Filter} title="Sem dados" description="Adicione leads para visualizar o funil." />
+            ) : (
+              <div className="space-y-3">
+                {funnelData.map((item, i) => {
+                  const maxVal = funnelData[0]?.value || 1;
+                  const pct = (item.value / maxVal) * 100;
+                  return (
+                    <div key={item.name} className="animate-fade-in" style={{ animationDelay: `${i * 60}ms` }}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm text-foreground font-medium">{item.name}</span>
+                        <span className="text-xs text-muted-foreground tabular-nums">{item.value} leads</span>
+                      </div>
+                      <div className="h-7 rounded-lg bg-secondary/60 overflow-hidden relative">
+                        <div
+                          className="h-full rounded-lg transition-all duration-700 ease-out"
+                          style={{
+                            width: `${pct}%`,
+                            background: `linear-gradient(90deg, ${item.fill}, ${item.fill}dd)`,
+                            minWidth: "2rem",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top 5 Products */}
+        <Card className="bg-card border-border animate-fade-in overflow-hidden" style={{ animationDelay: "660ms" }}>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <Award className="h-4 w-4 text-gold" />
+            <CardTitle className="text-foreground text-base">Top 5 Produtos Vendidos</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {topProductsLoading ? (
+              <TableSkeleton />
+            ) : topProducts.length === 0 ? (
+              <EmptyState icon={Package} title="Sem vendas no mês" description="Os produtos mais vendidos aparecerão aqui." />
+            ) : (
+              <div className="space-y-1">
+                {topProducts.map((product, i) => (
+                  <div
+                    key={product.product_id}
+                    className="flex items-center justify-between py-2.5 px-2.5 rounded-xl hover:bg-secondary/60 transition-all duration-200 group/row animate-fade-in"
+                    style={{ animationDelay: `${i * 40}ms` }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="h-8 w-8 rounded-full bg-[hsl(var(--gold)/0.1)] flex items-center justify-center shrink-0 text-xs font-bold text-gold">
+                        {i + 1}º
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
+                        <p className="text-[11px] text-muted-foreground">{product.quantity} un. vendidas</p>
+                      </div>
+                    </div>
+                    <div className="text-right ml-3 shrink-0">
+                      <p className="text-sm font-semibold text-gold tabular-nums">{formatCurrency(product.revenue)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Tables */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Recent Sales */}
-        <Card
-          className="bg-card border-border animate-fade-in"
-          style={{ animationDelay: "520ms" }}
-        >
+        <Card className="bg-card border-border animate-fade-in" style={{ animationDelay: "740ms" }}>
           <CardHeader className="flex flex-row items-center gap-2">
             <ShoppingCart className="h-4 w-4 text-gold" />
             <CardTitle className="text-foreground text-sm font-semibold">Últimas Vendas</CardTitle>
@@ -257,42 +369,23 @@ export default function Dashboard() {
             {salesLoading ? (
               <TableSkeleton />
             ) : recentSales.length === 0 ? (
-              <EmptyState
-                icon={Inbox}
-                title="Nenhuma venda registrada"
-                description="As vendas realizadas aparecerão aqui automaticamente."
-              />
+              <EmptyState icon={Inbox} title="Nenhuma venda registrada" description="As vendas realizadas aparecerão aqui automaticamente." />
             ) : (
               <div className="space-y-1 max-h-[340px] overflow-y-auto pr-1">
                 {recentSales.map((sale, i) => (
-                  <div
-                    key={sale.id}
-                    className="flex items-center justify-between py-2.5 px-2.5 rounded-xl hover:bg-secondary/60 transition-all duration-200 group/row animate-fade-in"
-                    style={{ animationDelay: `${i * 40}ms` }}
-                  >
+                  <div key={sale.id} className="flex items-center justify-between py-2.5 px-2.5 rounded-xl hover:bg-secondary/60 transition-all duration-200 group/row animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0 group-hover/row:bg-[hsl(var(--gold)/0.1)] transition-colors">
                         <DollarSign className="h-3.5 w-3.5 text-muted-foreground group-hover/row:text-gold transition-colors" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {sale.customer_name || "Cliente não informado"}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {format(new Date(sale.created_at!), "dd/MM/yy · HH:mm")}
-                        </p>
+                        <p className="text-sm font-medium text-foreground truncate">{sale.customer_name || "Cliente não informado"}</p>
+                        <p className="text-[11px] text-muted-foreground">{format(new Date(sale.created_at!), "dd/MM/yy · HH:mm")}</p>
                       </div>
                     </div>
                     <div className="text-right ml-3 shrink-0">
-                      <p className="text-sm font-semibold text-gold tabular-nums">
-                        {formatCurrency(sale.total)}
-                      </p>
-                      <Badge
-                        variant={statusLabels[sale.status]?.variant ?? "outline"}
-                        className="text-[10px] px-1.5 h-4"
-                      >
-                        {statusLabels[sale.status]?.label ?? sale.status}
-                      </Badge>
+                      <p className="text-sm font-semibold text-gold tabular-nums">{formatCurrency(sale.total)}</p>
+                      <Badge variant={statusLabels[sale.status]?.variant ?? "outline"} className="text-[10px] px-1.5 h-4">{statusLabels[sale.status]?.label ?? sale.status}</Badge>
                     </div>
                   </div>
                 ))}
@@ -302,10 +395,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Recent Contacts */}
-        <Card
-          className="bg-card border-border animate-fade-in"
-          style={{ animationDelay: "600ms" }}
-        >
+        <Card className="bg-card border-border animate-fade-in" style={{ animationDelay: "820ms" }}>
           <CardHeader className="flex flex-row items-center gap-2">
             <Users className="h-4 w-4 text-gold" />
             <CardTitle className="text-foreground text-sm font-semibold">Contatos Recentes</CardTitle>
@@ -314,39 +404,21 @@ export default function Dashboard() {
             {contactsLoading ? (
               <TableSkeleton />
             ) : recentContacts.length === 0 ? (
-              <EmptyState
-                icon={Users}
-                title="Nenhum contato adicionado"
-                description="Adicione contatos no CRM para vê-los aqui."
-              />
+              <EmptyState icon={Users} title="Nenhum contato adicionado" description="Adicione contatos no CRM para vê-los aqui." />
             ) : (
               <div className="space-y-1 max-h-[340px] overflow-y-auto pr-1">
                 {recentContacts.map((contact, i) => (
-                  <div
-                    key={contact.id}
-                    className="flex items-center justify-between py-2.5 px-2.5 rounded-xl hover:bg-secondary/60 transition-all duration-200 group/row animate-fade-in"
-                    style={{ animationDelay: `${i * 40}ms` }}
-                  >
+                  <div key={contact.id} className="flex items-center justify-between py-2.5 px-2.5 rounded-xl hover:bg-secondary/60 transition-all duration-200 group/row animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0 text-xs font-semibold text-foreground group-hover/row:bg-[hsl(var(--gold)/0.1)] group-hover/row:text-gold transition-colors">
-                        {contact.name.charAt(0).toUpperCase()}
-                      </div>
+                      <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0 text-xs font-semibold text-foreground group-hover/row:bg-[hsl(var(--gold)/0.1)] group-hover/row:text-gold transition-colors">{contact.name.charAt(0).toUpperCase()}</div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{contact.name}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {contact.phone || contact.email || "Sem contato"}
-                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">{contact.phone || contact.email || "Sem contato"}</p>
                       </div>
                     </div>
                     <div className="text-right ml-3 shrink-0">
-                      <p className="text-[11px] text-muted-foreground">
-                        {format(new Date(contact.created_at!), "dd/MM/yy")}
-                      </p>
-                      {contact.source && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 h-4 mt-0.5">
-                          {contact.source}
-                        </Badge>
-                      )}
+                      <p className="text-[11px] text-muted-foreground">{format(new Date(contact.created_at!), "dd/MM/yy")}</p>
+                      {contact.source && <Badge variant="outline" className="text-[10px] px-1.5 h-4 mt-0.5">{contact.source}</Badge>}
                     </div>
                   </div>
                 ))}
@@ -356,10 +428,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Low Stock */}
-        <Card
-          className="bg-card border-border animate-fade-in"
-          style={{ animationDelay: "680ms" }}
-        >
+        <Card className="bg-card border-border animate-fade-in" style={{ animationDelay: "900ms" }}>
           <CardHeader className="flex flex-row items-center gap-2">
             <Package className="h-4 w-4 text-gold" />
             <CardTitle className="text-foreground text-sm font-semibold">Estoque Baixo</CardTitle>
@@ -368,35 +437,22 @@ export default function Dashboard() {
             {stockLoading ? (
               <TableSkeleton />
             ) : lowStockProducts.length === 0 ? (
-              <EmptyState
-                icon={PackageCheck}
-                title="Estoque em dia"
-                description="Todos os produtos estão acima do estoque mínimo."
-              />
+              <EmptyState icon={PackageCheck} title="Estoque em dia" description="Todos os produtos estão acima do estoque mínimo." />
             ) : (
               <div className="space-y-1 max-h-[340px] overflow-y-auto pr-1">
                 {lowStockProducts.map((product, i) => (
-                  <div
-                    key={product.id}
-                    className="flex items-center justify-between py-2.5 px-2.5 rounded-xl hover:bg-secondary/60 transition-all duration-200 group/row animate-fade-in"
-                    style={{ animationDelay: `${i * 40}ms` }}
-                  >
+                  <div key={product.id} className="flex items-center justify-between py-2.5 px-2.5 rounded-xl hover:bg-secondary/60 transition-all duration-200 group/row animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
                         <Package className="h-3.5 w-3.5 text-destructive" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
-                        {product.category && (
-                          <p className="text-[11px] text-muted-foreground">{product.category}</p>
-                        )}
+                        {product.category && <p className="text-[11px] text-muted-foreground">{product.category}</p>}
                       </div>
                     </div>
                     <div className="text-right ml-3 shrink-0">
-                      <p className="text-sm font-semibold text-destructive tabular-nums">
-                        {product.stock ?? 0}
-                        <span className="text-muted-foreground font-normal"> / {product.minimum_stock ?? 0}</span>
-                      </p>
+                      <p className="text-sm font-semibold text-destructive tabular-nums">{product.stock ?? 0}<span className="text-muted-foreground font-normal"> / {product.minimum_stock ?? 0}</span></p>
                       <p className="text-[11px] text-muted-foreground">{formatCurrency(product.price)}</p>
                     </div>
                   </div>
