@@ -17,6 +17,7 @@ import {
   Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { systemSettings } from "@/config/systemSettings";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -66,7 +67,9 @@ export function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         <div className="space-y-1">
-          {menuItems.map((item, index) => {
+          {menuItems
+            .filter((item) => !systemSettings.modes.mvp || !systemSettings.mvpHiddenModules.includes(item.path))
+            .map((item, index) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
 

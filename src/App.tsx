@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { CompanyProvider } from "@/hooks/useCompany";
+import { systemSettings } from "@/config/systemSettings";
+import { Navigate } from "react-router-dom";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AdminProtectedRoute from "@/components/admin/AdminProtectedRoute";
 import Auth from "./pages/Auth";
@@ -93,16 +95,19 @@ function App() {
                   </ProtectedRoute>
                 } />
                 <Route path="/whatsapp" element={
+                  systemSettings.modes.mvp ? <Navigate to="/" replace /> :
                   <ProtectedRoute>
                     <Whatsapp />
                   </ProtectedRoute>
                 } />
                 <Route path="/campanhas" element={
+                  systemSettings.modes.mvp ? <Navigate to="/" replace /> :
                   <ProtectedRoute>
                     <Campanhas />
                   </ProtectedRoute>
                 } />
                 <Route path="/automacoes" element={
+                  systemSettings.modes.mvp ? <Navigate to="/" replace /> :
                   <ProtectedRoute>
                     <Automacoes />
                   </ProtectedRoute>
