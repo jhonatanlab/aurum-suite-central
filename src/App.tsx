@@ -29,6 +29,7 @@ import Garantias from "./pages/Garantias";
 import Configuracoes from "./pages/Configuracoes";
 import MeuNegocio from "./pages/MeuNegocio";
 import NotFound from "./pages/NotFound";
+import Pricing from "./pages/Pricing";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -60,6 +61,7 @@ function App() {
               <Routes>
                 {/* Public routes */}
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/pricing" element={<Pricing />} />
                 
                 {/* Create company route (requires auth but not company) */}
                 <Route path="/criar-empresa" element={
