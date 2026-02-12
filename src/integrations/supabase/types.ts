@@ -1239,6 +1239,73 @@ export type Database = {
           },
         ]
       }
+      stripe_customers: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          stripe_customer_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          stripe_customer_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          stripe_customer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          company_id: string
+          created_at: string
+          current_period_end: string | null
+          id: string
+          plan: string
+          status: string
+          stripe_subscription_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan?: string
+          status?: string
+          stripe_subscription_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan?: string
+          status?: string
+          stripe_subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           active: boolean
