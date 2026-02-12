@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.stripe-service]
 verify_jwt = false
+
+[functions.check-plan-limits]
+verify_jwt = false
