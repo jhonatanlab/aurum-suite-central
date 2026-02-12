@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.n8n-whatsapp-sync]
 verify_jwt = false
+
+[functions.stripe-service]
+verify_jwt = false
