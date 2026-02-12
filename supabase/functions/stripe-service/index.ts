@@ -94,6 +94,18 @@ serve(async (req) => {
 
       const planConfig = PLAN_MAP[plan];
       if (!planConfig) throw new Error(`Invalid plan: ${plan}. Use: starter, profissional, growth`);
+
+      // Block Growth plan from checkout — it's display-only ("em breve")
+      if (plan === "growth") {
+        logStep("Growth plan blocked from checkout");
+        return new Response(
+          JSON.stringify({
+            error: "PLAN_NOT_AVAILABLE",
+            message: "O plano Growth ainda não está disponível para assinatura. Em breve!",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+        );
+      }
       logStep("Plan resolved", { plan, price_id: planConfig.price_id });
 
       // Find or create Stripe customer (idempotent)
@@ -173,17 +185,26 @@ serve(async (req) => {
       await verifyCompany(supabase, company_id);
 
       const cs = await stripe.customers.list({ email: user.email!, limit: 1 });
+      const PRODUCT_TO_PLAN: Record<string, string> = {
+        "prod_TxloA2DvJpzDfY": "starter",
+        "prod_TxlqeNUHbcFsqx": "profissional",
+        "prod_TxltCMJQ2SONaC": "growth",
+      };
+
       if (cs.data.length === 0) {
-        result = { subscribed: false, product_id: null, subscription_end: null };
+        result = { subscribed: false, plan: "free", product_id: null, subscription_end: null };
       } else {
         const subs = await stripe.subscriptions.list({ customer: cs.data[0].id, status: "active", limit: 1 });
         if (subs.data.length === 0) {
-          result = { subscribed: false, product_id: null, subscription_end: null };
+          result = { subscribed: false, plan: "free", product_id: null, subscription_end: null };
         } else {
           const sub = subs.data[0];
+          const productId = sub.items.data[0]?.price?.product as string;
+          const planName = PRODUCT_TO_PLAN[productId] || "free";
           result = {
             subscribed: true,
-            product_id: sub.items.data[0]?.price?.product as string,
+            plan: planName,
+            product_id: productId,
             subscription_end: new Date(sub.current_period_end * 1000).toISOString(),
             subscription_id: sub.id,
           };
