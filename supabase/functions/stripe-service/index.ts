@@ -1,10 +1,18 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-Deno.serve(async (req) => {
+const PLAN_MAP: Record<string, { product_id: string; price_id: string }> = {
+  starter: { product_id: "prod_TxloA2DvJpzDfY", price_id: "price_1SzqGfRpBEKvV4xv6a5NoVDs" },
+  profissional: { product_id: "prod_TxlqeNUHbcFsqx", price_id: "price_1SzqJIRpBEKvV4xvcgo6O71x" },
+  growth: { product_id: "prod_TxltCMJQ2SONaC", price_id: "price_1SzqLkRpBEKvV4xvm5hbB3gK" },
+};
+
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -20,14 +28,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Dynamic imports to avoid build-time resolution issues
-    const { default: Stripe } = await import("https://esm.sh/stripe@14.21.0?target=deno&deno-std=0.190.0");
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.0");
-
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2023-10-16" });
+    const Stripe = (await import("https://esm.sh/stripe@14.21.0")).default;
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2023-10-16", httpClient: Stripe.createFetchHttpClient() });
 
     function getSupabase(authHeader?: string) {
-      const opts: Record<string, unknown> = {};
+      const opts: Record<string, any> = {};
       if (authHeader) opts.global = { headers: { Authorization: authHeader } };
       return createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", opts);
     }
@@ -42,10 +47,15 @@ Deno.serve(async (req) => {
       return { user: data.user, supabase };
     }
 
-    async function verifyCompany(supabase: ReturnType<typeof getSupabase>, companyId: string) {
+    async function verifyCompany(supabase: any, companyId: string) {
       const { data } = await supabase.rpc("user_belongs_to_company", { _company_id: companyId });
       if (!data) throw new Error("User does not belong to this company");
     }
+
+    const logStep = (step: string, details?: unknown) => {
+      const d = details ? ` — ${JSON.stringify(details)}` : "";
+      console.log(`[STRIPE-SERVICE][${action}] ${step}${d}`);
+    };
 
     let result: unknown;
 
@@ -55,6 +65,7 @@ Deno.serve(async (req) => {
       const { company_id, name, email, metadata } = body;
       if (!company_id) throw new Error("company_id is required");
       await verifyCompany(supabase, company_id);
+      logStep("Creating/finding customer", { company_id, email: email || user.email });
 
       const existing = await stripe.customers.list({ limit: 1, email: email || user.email });
       if (existing.data.length > 0) {
@@ -62,14 +73,69 @@ Deno.serve(async (req) => {
         if (!c.metadata?.company_id || c.metadata.company_id !== company_id) {
           await stripe.customers.update(c.id, { metadata: { ...c.metadata, company_id } });
         }
+        logStep("Customer found", { customer_id: c.id });
         result = { customer_id: c.id, existing: true };
       } else {
         const c = await stripe.customers.create({
           email: email || user.email, name: name || undefined,
           metadata: { company_id, supabase_user_id: user.id, ...metadata },
         });
+        logStep("Customer created", { customer_id: c.id });
         result = { customer_id: c.id, existing: false };
       }
+
+    } else if (action === "create-checkout-session") {
+      const { user, supabase } = await getAuthUser();
+      const body = await req.json();
+      const { company_id, plan, success_url, cancel_url } = body;
+      if (!company_id) throw new Error("company_id is required");
+      if (!plan) throw new Error("plan is required");
+      await verifyCompany(supabase, company_id);
+
+      const planConfig = PLAN_MAP[plan];
+      if (!planConfig) throw new Error(`Invalid plan: ${plan}. Use: starter, profissional, growth`);
+      logStep("Plan resolved", { plan, price_id: planConfig.price_id });
+
+      // Find or create Stripe customer (idempotent)
+      let customerId: string | undefined;
+      const cs = await stripe.customers.list({ email: user.email!, limit: 1 });
+      if (cs.data.length > 0) {
+        customerId = cs.data[0].id;
+        if (cs.data[0].metadata?.company_id !== company_id) {
+          await stripe.customers.update(customerId, { metadata: { ...cs.data[0].metadata, company_id, supabase_user_id: user.id } });
+        }
+        logStep("Existing customer found", { customerId });
+      } else {
+        const newCust = await stripe.customers.create({
+          email: user.email!,
+          metadata: { company_id, supabase_user_id: user.id },
+        });
+        customerId = newCust.id;
+        logStep("Customer created", { customerId });
+      }
+
+      // Check for existing active subscription to prevent duplicates (idempotency)
+      const activeSubs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 10 });
+      const alreadySubscribed = activeSubs.data.find(
+        (s: any) => s.items.data[0]?.price?.product === planConfig.product_id
+      );
+      if (alreadySubscribed) {
+        logStep("Already subscribed to this plan", { subscription_id: alreadySubscribed.id });
+        throw new Error("User already has an active subscription for this plan");
+      }
+
+      const origin = req.headers.get("origin") || "http://localhost:3000";
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        line_items: [{ price: planConfig.price_id, quantity: 1 }],
+        mode: "subscription",
+        success_url: success_url || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: cancel_url || `${origin}/payment-canceled`,
+        metadata: { company_id, supabase_user_id: user.id, plan },
+        subscription_data: { metadata: { company_id, plan } },
+      });
+      logStep("Checkout session created", { session_id: session.id, url: session.url });
+      result = { url: session.url, session_id: session.id };
 
     } else if (action === "create-checkout") {
       const { user, supabase } = await getAuthUser();
@@ -78,11 +144,12 @@ Deno.serve(async (req) => {
       if (!company_id) throw new Error("company_id is required");
       if (!price_id) throw new Error("price_id is required");
       await verifyCompany(supabase, company_id);
+      logStep("Legacy create-checkout", { company_id, price_id });
 
       let cid = customer_id;
       if (!cid) {
-        const cs = await stripe.customers.list({ email: user.email!, limit: 1 });
-        if (cs.data.length > 0) cid = cs.data[0].id;
+        const csList = await stripe.customers.list({ email: user.email!, limit: 1 });
+        if (csList.data.length > 0) cid = csList.data[0].id;
       }
 
       const origin = req.headers.get("origin") || "http://localhost:3000";
@@ -95,6 +162,7 @@ Deno.serve(async (req) => {
         cancel_url: cancel_url || `${origin}/payment-canceled`,
         metadata: { company_id, supabase_user_id: user.id },
       });
+      logStep("Checkout session created", { session_id: session.id });
       result = { url: session.url, session_id: session.id };
 
     } else if (action === "check-subscription") {
@@ -139,7 +207,7 @@ Deno.serve(async (req) => {
 
     } else {
       return new Response(
-        JSON.stringify({ error: "Invalid action. Use: create-customer, create-checkout, check-subscription, customer-portal" }),
+        JSON.stringify({ error: "Invalid action. Use: create-customer, create-checkout-session, create-checkout, check-subscription, customer-portal" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
