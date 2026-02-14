@@ -90,23 +90,57 @@ serve(async (req) => {
 // --- Handlers ---
 
 async function handleCheckoutCompleted(session: any, stripe: any) {
-  const companyId = session.metadata?.company_id;
-  if (!companyId) throw new Error("Missing metadata.company_id");
-
   const customerId = session.customer;
   const subscriptionId = session.subscription;
   if (!subscriptionId) return; // one-off payment, skip
+
+  // Resolve company_id: metadata > stripe_customers > email lookup
+  let companyId = session.metadata?.company_id;
+  if (!companyId) {
+    companyId = await resolveCompanyIdFromCustomer(customerId);
+  }
+  if (!companyId && session.customer_email) {
+    companyId = await resolveCompanyIdFromEmail(session.customer_email);
+  }
+  if (!companyId && session.metadata?.email) {
+    companyId = await resolveCompanyIdFromEmail(session.metadata.email);
+  }
+  if (!companyId) {
+    console.error("[stripe-webhook] Could not resolve company_id for checkout", { customerId, email: session.metadata?.email });
+    throw new Error("Could not resolve company_id for checkout session");
+  }
+
+  console.log("[stripe-webhook] checkout.session.completed resolved", { companyId, customerId });
 
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
   await upsertSubscription(companyId, customerId, sub);
 }
 
 async function handleSubscriptionUpsert(subscription: any, stripe: any) {
-  // Resolve company_id from stripe_customers table
   const customerId = subscription.customer;
-  const companyId = await resolveCompanyId(customerId, subscription);
-  if (!companyId) throw new Error(`No company found for customer ${customerId}`);
+  
+  // Resolve company_id: metadata > stripe_customers > customer email
+  let companyId = subscription.metadata?.company_id;
+  if (!companyId) {
+    companyId = await resolveCompanyIdFromCustomer(customerId);
+  }
+  if (!companyId) {
+    // Try to get email from Stripe customer object
+    try {
+      const customer = await stripe.customers.retrieve(customerId);
+      if (customer.email) {
+        companyId = await resolveCompanyIdFromEmail(customer.email);
+      }
+    } catch (e) {
+      console.error("[stripe-webhook] Failed to retrieve customer", e);
+    }
+  }
+  if (!companyId) {
+    console.error("[stripe-webhook] Could not resolve company_id for subscription", { customerId });
+    throw new Error(`No company found for customer ${customerId}`);
+  }
 
+  console.log("[stripe-webhook] subscription upsert resolved", { companyId, customerId });
   await upsertSubscription(companyId, customerId, subscription);
 }
 
@@ -120,19 +154,29 @@ async function handleSubscriptionDeleted(subscription: any) {
 
 // --- Helpers ---
 
-async function resolveCompanyId(customerId: string, subscription: any): Promise<string | null> {
-  // Try metadata first
-  if (subscription.metadata?.company_id) return subscription.metadata.company_id;
-
-  // Fallback: lookup from stripe_customers
+async function resolveCompanyIdFromCustomer(customerId: string): Promise<string | null> {
   const db = supabaseAdmin();
   const { data } = await db
     .from("stripe_customers")
     .select("company_id")
     .eq("stripe_customer_id", customerId)
     .maybeSingle();
-
   return data?.company_id || null;
+}
+
+async function resolveCompanyIdFromEmail(email: string): Promise<string | null> {
+  const db = supabaseAdmin();
+  // Find user by email, then find their company
+  const { data: authData } = await db.auth.admin.listUsers();
+  const user = authData?.users?.find((u: any) => u.email === email);
+  if (!user) return null;
+  
+  const { data: companyUser } = await db
+    .from("company_users")
+    .select("company_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  return companyUser?.company_id || null;
 }
 
 async function upsertSubscription(

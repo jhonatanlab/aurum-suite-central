@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +68,22 @@ export default function Pricing() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadCompanyId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("company_users")
+          .select("company_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (data) setCompanyId(data.company_id);
+      }
+    };
+    loadCompanyId();
+  }, []);
 
   const handleCheckout = async (planKey: string) => {
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -78,7 +94,7 @@ export default function Pricing() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
-        body: { plan: planKey, email: email.trim() },
+        body: { plan: planKey, email: email.trim(), company_id: companyId },
       });
 
       if (error) throw error;

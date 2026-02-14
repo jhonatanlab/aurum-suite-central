@@ -45,10 +45,10 @@ serve(async (req) => {
 
   try {
     const environment = getEnvironment();
-    const { plan, email } = await req.json();
+    const { plan, email, company_id } = await req.json();
 
     const keyPrefix = getStripeKey(environment).substring(0, 7);
-    log("Starting", { plan, email, environment, keyPrefix });
+    log("Starting", { plan, email, company_id, environment, keyPrefix });
 
     if (!plan) {
       return new Response(JSON.stringify({ error: "plan is required" }), {
@@ -173,14 +173,17 @@ serve(async (req) => {
 
     // Create checkout session
     const origin = req.headers.get("origin") || "https://id-preview--32b2eeba-480a-4994-bf2f-9b35c703f805.lovable.app";
+    const sessionMetadata: Record<string, string> = { plan, email, environment };
+    if (company_id) sessionMetadata.company_id = company_id;
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
       success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/payment-canceled`,
-      metadata: { plan, email, environment },
-      subscription_data: { metadata: { plan, email, environment } },
+      metadata: sessionMetadata,
+      subscription_data: { metadata: sessionMetadata },
     });
 
     log("Session created", { session_id: session.id, url: session.url, environment, priceId });
