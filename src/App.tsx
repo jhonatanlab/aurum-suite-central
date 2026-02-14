@@ -30,6 +30,7 @@ import Configuracoes from "./pages/Configuracoes";
 import MeuNegocio from "./pages/MeuNegocio";
 import NotFound from "./pages/NotFound";
 import Pricing from "./pages/Pricing";
+import ResetPassword from "./pages/ResetPassword";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -62,6 +63,7 @@ function App() {
                 {/* Public routes */}
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/pricing" element={<Pricing />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 
                 {/* Create company route (requires auth but not company) */}
                 <Route path="/criar-empresa" element={
