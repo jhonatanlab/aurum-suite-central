@@ -162,6 +162,25 @@ serve(async (req) => {
     if (existing.data.length > 0) {
       customerId = existing.data[0].id;
       log("Customer found", { customerId });
+
+      // Check for existing active subscription — prevent duplicates
+      const activeSubs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "active",
+        limit: 1,
+      });
+      if (activeSubs.data.length > 0) {
+        const currentSub = activeSubs.data[0];
+        log("Active subscription already exists", { subId: currentSub.id });
+        return new Response(
+          JSON.stringify({
+            error: "ALREADY_SUBSCRIBED",
+            message: "Você já possui uma assinatura ativa. Cancele a atual antes de assinar outro plano.",
+            subscription_id: currentSub.id,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 }
+        );
+      }
     } else {
       const customer = await stripe.customers.create({
         email,
