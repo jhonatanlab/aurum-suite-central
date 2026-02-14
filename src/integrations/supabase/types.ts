@@ -654,6 +654,45 @@ export type Database = {
           },
         ]
       }
+      leads_checkout: {
+        Row: {
+          company_name: string
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone: string
+          plan: string
+          session_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          phone: string
+          plan: string
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          plan?: string
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_gateways: {
         Row: {
           active: boolean
