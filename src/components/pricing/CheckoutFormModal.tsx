@@ -72,8 +72,16 @@ export default function CheckoutFormModal({
         },
       });
 
-      // supabase.functions.invoke puts non-2xx response body in `error` or `data`
-      const responseData = data || (error as any);
+      // supabase.functions.invoke returns non-2xx body in error as FunctionsHttpError
+      let responseData = data;
+      if (error) {
+        try {
+          // Try to parse error context (FunctionsHttpError)
+          responseData = error.context ? await error.context.json() : (typeof error === 'object' ? error : null);
+        } catch {
+          responseData = null;
+        }
+      }
       
       // Check for known error codes in the response
       if (responseData?.error === "ALREADY_SUBSCRIBED") {
