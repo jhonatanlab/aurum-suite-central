@@ -72,27 +72,31 @@ export default function CheckoutFormModal({
         },
       });
 
-      if (error) throw error;
-      if (data?.error) {
-        if (data.error === "ALREADY_SUBSCRIBED") {
-          toast.error(data.message || "Você já possui uma assinatura ativa.");
-        } else {
-          toast.error(data.message || data.error);
-        }
+      // supabase.functions.invoke puts non-2xx response body in `error` or `data`
+      const responseData = data || (error as any);
+      
+      // Check for known error codes in the response
+      if (responseData?.error === "ALREADY_SUBSCRIBED") {
+        toast.error(responseData.message || "Você já possui uma assinatura ativa.");
         return;
       }
+      if (responseData?.error && !responseData?.url) {
+        toast.error(responseData.message || responseData.error);
+        return;
+      }
+      if (error && !responseData?.url) throw error;
 
       // 3. Update lead with session_id
-      if (data?.session_id && (lead as any)?.id) {
+      if (responseData?.session_id && (lead as any)?.id) {
         await supabase
           .from("leads_checkout" as any)
-          .update({ session_id: data.session_id, status: "checkout_started" } as any)
+          .update({ session_id: responseData.session_id, status: "checkout_started" } as any)
           .eq("id", (lead as any).id);
       }
 
       // 4. Redirect
-      if (data?.url) {
-        window.open(data.url, "_blank");
+      if (responseData?.url) {
+        window.open(responseData.url, "_blank");
         onOpenChange(false);
       }
     } catch (err: any) {
