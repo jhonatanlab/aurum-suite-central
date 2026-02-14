@@ -47,7 +47,8 @@ serve(async (req) => {
     const environment = getEnvironment();
     const { plan, email } = await req.json();
 
-    log("Starting", { plan, email, environment });
+    const keyPrefix = getStripeKey(environment).substring(0, 7);
+    log("Starting", { plan, email, environment, keyPrefix });
 
     if (!plan) {
       return new Response(JSON.stringify({ error: "plan is required" }), {
