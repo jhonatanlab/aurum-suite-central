@@ -179,6 +179,15 @@ async function resolveCompanyIdFromEmail(email: string): Promise<string | null> 
   return companyUser?.company_id || null;
 }
 
+function safeTimestamp(ts: unknown): string | null {
+  if (ts === null || ts === undefined || typeof ts !== "number" || ts <= 0) return null;
+  try {
+    return new Date(ts * 1000).toISOString();
+  } catch {
+    return null;
+  }
+}
+
 async function upsertSubscription(
   companyId: string,
   customerId: string,
@@ -196,7 +205,7 @@ async function upsertSubscription(
       price_id: priceId,
       plan: planName,
       status: sub.status,
-      current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+      current_period_end: safeTimestamp(sub.current_period_end),
     },
     { onConflict: "stripe_subscription_id" }
   );
