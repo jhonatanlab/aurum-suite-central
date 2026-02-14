@@ -3,64 +3,49 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const getEnvironment = (): "test" | "live" => {
-  const env = (Deno.env.get("ENVIRONMENT") || "live").toLowerCase();
-  return env === "test" ? "test" : "live";
+const env = () => {
+  const e = (Deno.env.get("ENVIRONMENT") || "live").toLowerCase();
+  return e === "test" ? "test" : "live";
 };
 
-const getStripeKey = (environment: "test" | "live"): string => {
-  return environment === "test"
+const stripeKey = () =>
+  env() === "test"
     ? Deno.env.get("STRIPE_SECRET_KEY_TEST") || ""
     : Deno.env.get("STRIPE_SECRET_KEY") || "";
-};
 
-const getWebhookSecret = (environment: "test" | "live"): string => {
-  return environment === "test"
+const webhookSecret = () =>
+  env() === "test"
     ? Deno.env.get("STRIPE_WEBHOOK_SECRET_TEST") || ""
     : Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
-};
 
-const log = (step: string, details?: unknown) => {
-  const environment = getEnvironment();
-  const d = details ? ` — ${JSON.stringify({ environment, ...((details as object) || {}) })}` : ` — ${JSON.stringify({ environment })}`;
-  console.log(`[STRIPE-WEBHOOK] ${step}${d}`);
-};
+const supabaseAdmin = () =>
+  createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
+  );
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const environment = getEnvironment();
-
   try {
     const signature = req.headers.get("stripe-signature");
-    const secret = getWebhookSecret(environment);
-
+    const secret = webhookSecret();
     if (!signature || !secret) {
-      log("Missing signature or secret", { hasSignature: !!signature, hasSecret: !!secret });
-      return new Response(JSON.stringify({ error: "Missing signature or secret" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
+      return json({ error: "Missing signature or secret" }, 400);
     }
 
     const body = await req.text();
-    const stripeKey = getStripeKey(environment);
-
-    if (!stripeKey) {
-      log("Missing Stripe key for environment");
-      return new Response(JSON.stringify({ error: `STRIPE_SECRET_KEY not configured for ${environment}` }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      });
-    }
+    const key = stripeKey();
+    if (!key) return json({ error: "Stripe key not configured" }, 500);
 
     const Stripe = (await import("https://esm.sh/stripe@14.21.0")).default;
-    const stripe = new Stripe(stripeKey, {
+    const stripe = new Stripe(key, {
       apiVersion: "2023-10-16",
       httpClient: Stripe.createFetchHttpClient(),
     });
@@ -68,220 +53,127 @@ serve(async (req) => {
     let event;
     try {
       event = stripe.webhooks.constructEvent(body, signature, secret);
-    } catch (err) {
-      log("Signature verification failed", { error: String(err) });
-      return new Response(JSON.stringify({ error: "Invalid signature" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 401,
-      });
+    } catch {
+      return json({ error: "Invalid signature" }, 401);
     }
 
-    log("Event received", { event_type: event.type, id: event.id });
-
-    if (event.type === "checkout.session.completed") {
-      return await handleCheckoutCompleted(event.data.object, stripe, environment);
+    switch (event.type) {
+      case "checkout.session.completed":
+        await handleCheckoutCompleted(event.data.object, stripe);
+        break;
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+        await handleSubscriptionUpsert(event.data.object, stripe);
+        break;
+      case "customer.subscription.deleted":
+        await handleSubscriptionDeleted(event.data.object);
+        break;
+      default:
+        return json({ received: true });
     }
 
-    log("Event not handled", { event_type: event.type });
-    return new Response(JSON.stringify({ message: "Event not handled" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    return json({ received: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`[STRIPE-WEBHOOK] ERROR — ${JSON.stringify({ environment, message })}`);
-    return new Response(JSON.stringify({ error: message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[stripe-webhook]", msg);
+    return json({ error: msg }, 500);
   }
 });
 
-async function handleCheckoutCompleted(session: any, stripe: any, environment: "test" | "live") {
-  const email = session.customer_email || session.metadata?.email;
-  const plan = session.metadata?.plan;
+// --- Handlers ---
+
+async function handleCheckoutCompleted(session: any, stripe: any) {
+  const companyId = session.metadata?.company_id;
+  if (!companyId) throw new Error("Missing metadata.company_id");
+
   const customerId = session.customer;
+  const subscriptionId = session.subscription;
+  if (!subscriptionId) return; // one-off payment, skip
 
-  if (!email || !plan) {
-    log("Missing email or plan in metadata", { email, plan });
-    return new Response(JSON.stringify({ error: "Missing email or plan" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
-    });
-  }
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
+  await upsertSubscription(companyId, customerId, sub);
+}
 
-  log("Processing checkout", { email, plan, customerId, company_id: null, subscription_id: null, event_type: "checkout.session.completed" });
+async function handleSubscriptionUpsert(subscription: any, stripe: any) {
+  // Resolve company_id from stripe_customers table
+  const customerId = subscription.customer;
+  const companyId = await resolveCompanyId(customerId, subscription);
+  if (!companyId) throw new Error(`No company found for customer ${customerId}`);
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } }
-  );
+  await upsertSubscription(companyId, customerId, subscription);
+}
 
-  // 1. Retrieve Stripe subscription
-  const subscriptions = await stripe.subscriptions.list({ customer: customerId, limit: 1 });
-  if (subscriptions.data.length === 0) {
-    log("No subscription found", { customerId });
-    return new Response(JSON.stringify({ error: "No subscription found" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
-    });
-  }
+async function handleSubscriptionDeleted(subscription: any) {
+  const db = supabaseAdmin();
+  await db
+    .from("subscriptions")
+    .update({ status: "canceled" })
+    .eq("stripe_subscription_id", subscription.id);
+}
 
-  const subscription = subscriptions.data[0];
-  const stripeSubscriptionId = subscription.id;
-  const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
-  const status = subscription.status;
+// --- Helpers ---
 
-  log("Subscription retrieved", { subscription_id: stripeSubscriptionId, status, event_type: "checkout.session.completed" });
+async function resolveCompanyId(customerId: string, subscription: any): Promise<string | null> {
+  // Try metadata first
+  if (subscription.metadata?.company_id) return subscription.metadata.company_id;
 
-  // 2. Create or find auth user (idempotent)
-  let userId: string;
-  const { data: existingUsers } = await supabase.auth.admin.listUsers();
-  const existingUser = existingUsers?.users?.find((u: any) => u.email === email);
-
-  if (existingUser) {
-    userId = existingUser.id;
-    log("Existing user found", { userId, email });
-  } else {
-    const tempPassword = crypto.randomUUID() + "!Aa1";
-    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true,
-    });
-
-    if (createError || !newUser.user) {
-      log("Error creating user", { error: createError?.message });
-      throw new Error(`Failed to create user: ${createError?.message}`);
-    }
-
-    userId = newUser.user.id;
-    log("New user created", { userId, email });
-  }
-
-  // 3. Check if user already has a company (idempotent)
-  const { data: existingLink } = await supabase
-    .from("company_users")
+  // Fallback: lookup from stripe_customers
+  const db = supabaseAdmin();
+  const { data } = await db
+    .from("stripe_customers")
     .select("company_id")
-    .eq("user_id", userId)
+    .eq("stripe_customer_id", customerId)
     .maybeSingle();
 
-  let companyId: string;
+  return data?.company_id || null;
+}
 
-  if (existingLink?.company_id) {
-    companyId = existingLink.company_id;
-    log("Existing company found", { company_id: companyId });
-  } else {
-    const { data: newCompany, error: companyError } = await supabase
-      .from("companies")
-      .insert({
-        name: `Empresa de ${email.split("@")[0]}`,
-        owner_uid: userId,
-        plan,
-        status: "active",
-      })
-      .select("id")
-      .single();
+async function upsertSubscription(
+  companyId: string,
+  customerId: string,
+  sub: any
+) {
+  const db = supabaseAdmin();
+  const priceId = sub.items?.data?.[0]?.price?.id || null;
+  const planName = resolvePlanName(priceId);
 
-    if (companyError || !newCompany) {
-      log("Error creating company", { error: companyError?.message });
-      throw new Error(`Failed to create company: ${companyError?.message}`);
-    }
-
-    companyId = newCompany.id;
-    log("Company created", { company_id: companyId });
-
-    const { error: linkError } = await supabase
-      .from("company_users")
-      .insert({ user_id: userId, company_id: companyId, role: "owner" });
-
-    if (linkError) {
-      log("Error linking user to company", { error: linkError.message });
-      throw new Error(`Failed to link user: ${linkError.message}`);
-    }
-
-    log("User linked as owner", { userId, company_id: companyId });
-  }
-
-  // 4. Upsert stripe_customer (idempotent)
-  const { error: customerError } = await supabase
-    .from("stripe_customers")
-    .upsert(
-      { company_id: companyId, stripe_customer_id: customerId },
-      { onConflict: "stripe_customer_id" }
-    );
-
-  if (customerError) {
-    log("Error upserting stripe_customer", { error: customerError.message });
-    throw customerError;
-  }
-
-  log("Stripe customer saved", { customerId, company_id: companyId });
-
-  // 5. Upsert subscription (idempotent)
-  const { error: subError } = await supabase
-    .from("subscriptions")
-    .upsert(
-      {
-        company_id: companyId,
-        stripe_subscription_id: stripeSubscriptionId,
-        plan,
-        status,
-        current_period_end: currentPeriodEnd,
-      },
-      { onConflict: "stripe_subscription_id" }
-    );
-
-  if (subError) {
-    log("Error upserting subscription", { error: subError.message });
-    throw subError;
-  }
-
-  log("Subscription saved", { subscription_id: stripeSubscriptionId, plan, company_id: companyId, event_type: "checkout.session.completed" });
-
-  // 6. Update company plan (idempotent)
-  const { error: planError } = await supabase
-    .from("companies")
-    .update({ plan })
-    .eq("id", companyId);
-
-  if (planError) {
-    log("Error updating company plan", { error: planError.message });
-    throw planError;
-  }
-
-  log("Company plan updated", { company_id: companyId, plan });
-
-  // 7. Generate initial access link (magic link)
-  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-  });
-
-  const accessLink = linkData?.properties?.action_link || null;
-  if (linkError) {
-    log("Warning: could not generate magic link", { error: linkError.message });
-  } else {
-    log("Magic link generated", { email });
-  }
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      data: {
-        user_id: userId,
-        company_id: companyId,
-        stripe_customer_id: customerId,
-        subscription_id: stripeSubscriptionId,
-        plan,
-        environment,
-        access_link: accessLink,
-      },
-    }),
+  await db.from("subscriptions").upsert(
     {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    }
+      company_id: companyId,
+      stripe_subscription_id: sub.id,
+      stripe_customer_id: customerId,
+      price_id: priceId,
+      plan: planName,
+      status: sub.status,
+      current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+    },
+    { onConflict: "stripe_subscription_id" }
   );
+
+  // Keep stripe_customers in sync
+  await db.from("stripe_customers").upsert(
+    { company_id: companyId, stripe_customer_id: customerId },
+    { onConflict: "stripe_customer_id" }
+  );
+
+  // Update company plan
+  await db.from("companies").update({ plan: planName }).eq("id", companyId);
+}
+
+function resolvePlanName(priceId: string | null): string {
+  const map: Record<string, string> = {
+    price_1SzqGfRpBEKvV4xv6a5NoVDs: "starter",
+    price_1SzqJIRpBEKvV4xvcgo6O71x: "profissional",
+    price_1SzqLkRpBEKvV4xvm5hbB3gK: "growth",
+    // Test prices
+    price_1T0ENoRpBEKvV4xvmav7DE5k: "starter",
+  };
+  return map[priceId || ""] || "free";
+}
+
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status,
+  });
 }
