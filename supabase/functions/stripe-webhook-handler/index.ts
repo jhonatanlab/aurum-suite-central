@@ -92,28 +92,111 @@ serve(async (req) => {
 async function handleCheckoutCompleted(session: any, stripe: any) {
   const customerId = session.customer;
   const subscriptionId = session.subscription;
-  if (!subscriptionId) return; // one-off payment, skip
+  const db = supabaseAdmin();
 
-  // Resolve company_id: metadata > stripe_customers > email lookup
-  let companyId = session.metadata?.company_id;
-  if (!companyId) {
-    companyId = await resolveCompanyIdFromCustomer(customerId);
-  }
-  if (!companyId && session.customer_email) {
-    companyId = await resolveCompanyIdFromEmail(session.customer_email);
-  }
-  if (!companyId && session.metadata?.email) {
-    companyId = await resolveCompanyIdFromEmail(session.metadata.email);
-  }
-  if (!companyId) {
-    console.error("[stripe-webhook] Could not resolve company_id for checkout", { customerId, email: session.metadata?.email });
-    throw new Error("Could not resolve company_id for checkout session");
+  // 1️⃣ Read metadata
+  const email = session.metadata?.email || session.customer_email;
+  const name = session.metadata?.name || "";
+  const phone = session.metadata?.phone || "";
+  const companyName = session.metadata?.company || "Minha Empresa";
+
+  if (!email) {
+    console.error("[stripe-webhook] No email found in session metadata or customer_email");
+    throw new Error("No email found for checkout session");
   }
 
-  console.log("[stripe-webhook] checkout.session.completed resolved", { companyId, customerId });
+  console.log("[stripe-webhook] checkout.session.completed", { email, name, companyName, customerId });
 
-  const sub = await stripe.subscriptions.retrieve(subscriptionId);
-  await upsertSubscription(companyId, customerId, sub);
+  // 2️⃣ Create or find user in Supabase Auth
+  let userId: string;
+  const { data: existingUsers } = await db.auth.admin.listUsers();
+  const existingUser = existingUsers?.users?.find((u: any) => u.email === email);
+
+  if (existingUser) {
+    userId = existingUser.id;
+    console.log("[stripe-webhook] User already exists", { userId });
+  } else {
+    const tempPassword = crypto.randomUUID();
+    const { data: newUser, error: createError } = await db.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { name, phone, company_name: companyName },
+    });
+    if (createError || !newUser?.user) {
+      console.error("[stripe-webhook] Failed to create user", createError);
+      throw new Error(`Failed to create user: ${createError?.message}`);
+    }
+    userId = newUser.user.id;
+    console.log("[stripe-webhook] User created", { userId });
+  }
+
+  // 3️⃣ Create or find company
+  let companyId: string | null = null;
+
+  // Check if user already has a company
+  const { data: existingLink } = await db
+    .from("company_users")
+    .select("company_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingLink?.company_id) {
+    companyId = existingLink.company_id;
+    console.log("[stripe-webhook] Company already exists for user", { companyId });
+  } else {
+    const { data: newCompany, error: companyError } = await db
+      .from("companies")
+      .insert({ name: companyName, owner_uid: userId })
+      .select("id")
+      .single();
+    if (companyError || !newCompany) {
+      console.error("[stripe-webhook] Failed to create company", companyError);
+      throw new Error(`Failed to create company: ${companyError?.message}`);
+    }
+    companyId = newCompany.id;
+    console.log("[stripe-webhook] Company created", { companyId });
+
+    // 4️⃣ Link user to company
+    const { error: linkError } = await db
+      .from("company_users")
+      .insert({ user_id: userId, company_id: companyId, role: "owner" });
+    if (linkError) {
+      console.error("[stripe-webhook] Failed to link user to company", linkError);
+    }
+  }
+
+  // 5️⃣ Generate password reset link
+  const siteUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "").includes("vxjhggnoifgfnhsmdgbp")
+    ? "https://id-preview--32b2eeba-480a-4994-bf2f-9b35c703f805.lovable.app"
+    : "https://id-preview--32b2eeba-480a-4994-bf2f-9b35c703f805.lovable.app";
+
+  const { data: linkData, error: linkError } = await db.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: {
+      redirectTo: `${siteUrl}/reset-password`,
+    },
+  });
+
+  if (linkError) {
+    console.error("[stripe-webhook] Failed to generate recovery link", linkError);
+  } else {
+    console.log("[stripe-webhook] Recovery link generated for", email, linkData?.properties?.action_link ? "OK" : "NO_LINK");
+  }
+
+  // 6️⃣ Upsert subscription if present
+  if (subscriptionId) {
+    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+    await upsertSubscription(companyId!, customerId, sub);
+  }
+
+  // Update leads_checkout status
+  await db
+    .from("leads_checkout")
+    .update({ status: "completed" })
+    .eq("email", email)
+    .eq("status", "pending");
 }
 
 async function handleSubscriptionUpsert(subscription: any, stripe: any) {
