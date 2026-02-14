@@ -52,8 +52,15 @@ serve(async (req) => {
 
     let event;
     try {
-      event = stripe.webhooks.constructEvent(body, signature, secret);
-    } catch {
+      event = await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        secret,
+        undefined,
+        Stripe.createSubtleCryptoProvider()
+      );
+    } catch (err) {
+      console.error("[stripe-webhook] Signature verification failed:", err instanceof Error ? err.message : err);
       return json({ error: "Invalid signature" }, 401);
     }
 
