@@ -45,7 +45,7 @@ serve(async (req) => {
 
   try {
     const environment = getEnvironment();
-    const { plan, email, company_id } = await req.json();
+    const { plan, email, company_id, customer_name, customer_phone, customer_company } = await req.json();
 
     const keyPrefix = getStripeKey(environment).substring(0, 7);
     log("Starting", { plan, email, company_id, environment, keyPrefix });
@@ -194,6 +194,9 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://id-preview--32b2eeba-480a-4994-bf2f-9b35c703f805.lovable.app";
     const sessionMetadata: Record<string, string> = { plan, email, environment };
     if (company_id) sessionMetadata.company_id = company_id;
+    if (customer_name) sessionMetadata.name = customer_name;
+    if (customer_phone) sessionMetadata.phone = customer_phone;
+    if (customer_company) sessionMetadata.company = customer_company;
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,

@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Rocket, Zap, Lock, Loader2 } from "lucide-react";
+import { Check, Crown, Rocket, Zap, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import CheckoutFormModal from "@/components/pricing/CheckoutFormModal";
 
 const plans = [
   {
@@ -65,10 +64,8 @@ const plans = [
 ];
 
 export default function Pricing() {
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [modalPlan, setModalPlan] = useState<typeof plans[0] | null>(null);
 
   useEffect(() => {
     const loadCompanyId = async () => {
@@ -85,37 +82,8 @@ export default function Pricing() {
     loadCompanyId();
   }, []);
 
-  const handleCheckout = async (planKey: string) => {
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      toast.error("Insira um e-mail válido.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
-        body: { plan: planKey, email: email.trim(), company_id: companyId },
-      });
-
-      if (error) throw error;
-      if (data?.error) {
-        toast.error(data.message || data.error);
-        return;
-      }
-
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao iniciar checkout.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background flex flex-col items-center px-4 py-16">
-      {/* Header */}
       <div className="text-center max-w-2xl mb-14">
         <Badge variant="outline" className="mb-4 border-primary/40 text-primary px-4 py-1 text-xs tracking-wider uppercase">
           Planos
@@ -128,12 +96,9 @@ export default function Pricing() {
         </p>
       </div>
 
-      {/* Plans Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
         {plans.map((plan) => {
-          const isSelected = selectedPlan === plan.key;
           const Icon = plan.icon;
-
           return (
             <Card
               key={plan.key}
@@ -179,36 +144,13 @@ export default function Pricing() {
 
               <CardFooter className="flex flex-col gap-3 pt-2 pb-6">
                 {plan.available ? (
-                  <>
-                    {isSelected && (
-                      <Input
-                        type="email"
-                        placeholder="Seu melhor e-mail"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="bg-secondary border-border"
-                        autoFocus
-                      />
-                    )}
-                    <Button
-                      className="w-full"
-                      variant={plan.popular ? "default" : "outline"}
-                      disabled={loading && isSelected}
-                      onClick={() => {
-                        if (!isSelected) {
-                          setSelectedPlan(plan.key);
-                          setEmail("");
-                        } else {
-                          handleCheckout(plan.key);
-                        }
-                      }}
-                    >
-                      {loading && isSelected ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
-                      {isSelected ? "Ir para pagamento" : "Assinar agora"}
-                    </Button>
-                  </>
+                  <Button
+                    className="w-full"
+                    variant={plan.popular ? "default" : "outline"}
+                    onClick={() => setModalPlan(plan)}
+                  >
+                    Assinar agora
+                  </Button>
                 ) : (
                   <Button className="w-full" variant="outline" disabled>
                     <Lock className="h-4 w-4 mr-2" />
@@ -220,6 +162,17 @@ export default function Pricing() {
           );
         })}
       </div>
+
+      {modalPlan && (
+        <CheckoutFormModal
+          open={!!modalPlan}
+          onOpenChange={(open) => !open && setModalPlan(null)}
+          planKey={modalPlan.key}
+          planName={modalPlan.name}
+          planPrice={modalPlan.price}
+          companyId={companyId}
+        />
+      )}
     </div>
   );
 }
