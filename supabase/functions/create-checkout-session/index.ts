@@ -90,6 +90,15 @@ serve(async (req) => {
       );
     }
 
+    // Validate that we have a secret key, not a publishable key
+    if (stripeKey.startsWith("pk_")) {
+      log("ERROR: Publishable key detected instead of secret key", { environment, prefix: stripeKey.substring(0, 7) });
+      return new Response(
+        JSON.stringify({ error: `STRIPE_SECRET_KEY_${environment === "test" ? "TEST" : ""} contains a publishable key (pk_). Please update it with a secret key (sk_).` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+
     const Stripe = (await import("https://esm.sh/stripe@14.21.0")).default;
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
