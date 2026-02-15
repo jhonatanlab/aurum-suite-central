@@ -10,26 +10,31 @@ const corsHeaders = {
 const PLAN_LIMITS: Record<string, {
   max_users: number;
   max_products: number;
+  max_resellers: number;
   blocked_modules: string[];
 }> = {
   free: {
     max_users: 1,
     max_products: 20,
+    max_resellers: 0,
     blocked_modules: ["revendedores"],
   },
   starter: {
     max_users: 1,
     max_products: 100,
+    max_resellers: 0,
     blocked_modules: ["revendedores"],
   },
   profissional: {
-    max_users: 999,
+    max_users: 5,
     max_products: 999999,
+    max_resellers: 50,
     blocked_modules: [],
   },
   growth: {
     max_users: 999,
     max_products: 999999,
+    max_resellers: 999999,
     blocked_modules: [],
   },
 };
@@ -163,6 +168,31 @@ serve(async (req) => {
           current_plan: currentPlan,
           current_count: count,
           max_allowed: limits.max_users,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403,
+        });
+      }
+    }
+
+    // Enforce reseller limit
+    if (resource === "resellers" && operation === "create") {
+      const { count, error: countError } = await supabase
+        .from("resellers")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", company_id);
+
+      if (countError) throw countError;
+
+      if ((count || 0) >= limits.max_resellers) {
+        logStep("Reseller limit reached", { count, max: limits.max_resellers, plan: currentPlan });
+        return new Response(JSON.stringify({
+          allowed: false,
+          error: "PLAN_RESELLER_LIMIT",
+          message: `Limite de ${limits.max_resellers} revendedor(es) atingido no plano ${currentPlan}. Faça upgrade para adicionar mais.`,
+          current_plan: currentPlan,
+          current_count: count,
+          max_allowed: limits.max_resellers,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 403,
