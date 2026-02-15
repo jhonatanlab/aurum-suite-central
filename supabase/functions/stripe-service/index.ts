@@ -207,15 +207,15 @@ serve(async (req) => {
       };
 
       if (cs.data.length === 0) {
-        result = { subscribed: false, plan: "free", product_id: null, subscription_end: null };
+        result = { subscribed: false, plan: null, product_id: null, subscription_end: null };
       } else {
         const subs = await stripe.subscriptions.list({ customer: cs.data[0].id, status: "active", limit: 1 });
         if (subs.data.length === 0) {
-          result = { subscribed: false, plan: "free", product_id: null, subscription_end: null };
+          result = { subscribed: false, plan: null, product_id: null, subscription_end: null };
         } else {
           const sub = subs.data[0];
           const productId = sub.items.data[0]?.price?.product as string;
-          const planName = PRODUCT_TO_PLAN[productId] || "free";
+          const planName = PRODUCT_TO_PLAN[productId] || null;
           result = {
             subscribed: true,
             plan: planName,

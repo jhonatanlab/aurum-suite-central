@@ -262,7 +262,7 @@ async function handleSubscriptionDeleted(subscription: any) {
     .eq("stripe_subscription_id", subscription.id)
     .maybeSingle();
   if (sub?.company_id) {
-    await db.from("companies").update({ plan: "free" }).eq("id", sub.company_id);
+    await db.from("companies").update({ plan: null }).eq("id", sub.company_id);
   }
   console.log("[stripe-webhook] subscription.deleted", { subscriptionId: subscription.id });
 }
@@ -382,7 +382,7 @@ function resolvePlanName(priceId: string | null): string {
     // Test prices
     price_1T0ENoRpBEKvV4xvmav7DE5k: "starter",
   };
-  return map[priceId || ""] || "free";
+  return map[priceId || ""] || null;
 }
 
 function json(data: unknown, status = 200) {

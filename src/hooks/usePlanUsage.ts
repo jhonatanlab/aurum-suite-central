@@ -24,7 +24,6 @@ interface PlanUsageState {
 }
 
 const PLAN_LABELS: Record<string, string> = {
-  free: "Gratuito",
   starter: "Starter",
   profissional: "Profissional",
   growth: "Growth",
@@ -40,8 +39,8 @@ const GROWTH_LIMITS: PlanLimits = {
 export function usePlanUsage() {
   const { company } = useCompany();
   const [state, setState] = useState<PlanUsageState>({
-    plan: "free",
-    limits: { max_users: 1, max_products: 20, max_resellers: 0, blocked_modules: [] },
+    plan: "none",
+    limits: { max_users: 0, max_products: 0, max_resellers: 0, blocked_modules: [] },
     usage: { products: 0, users: 0, resellers: 0 },
     loading: true,
     isSuperAdmin: false,
@@ -74,8 +73,8 @@ export function usePlanUsage() {
         });
 
         if (!error && data) {
-          const resolvedPlan = isSuperAdmin ? "growth" : (data.current_plan || "free");
-          const resolvedLimits = isSuperAdmin ? GROWTH_LIMITS : (data.limits || { max_users: 1, max_products: 20, max_resellers: 0, blocked_modules: [] });
+          const resolvedPlan = isSuperAdmin ? "growth" : (data.current_plan || "none");
+          const resolvedLimits = isSuperAdmin ? GROWTH_LIMITS : (data.limits || { max_users: 0, max_products: 0, max_resellers: 0, blocked_modules: [] });
 
           setState({
             plan: resolvedPlan,

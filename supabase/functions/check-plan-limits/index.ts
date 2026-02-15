@@ -13,11 +13,11 @@ const PLAN_LIMITS: Record<string, {
   max_resellers: number;
   blocked_modules: string[];
 }> = {
-  free: {
-    max_users: 1,
-    max_products: 20,
+  none: {
+    max_users: 0,
+    max_products: 0,
     max_resellers: 0,
-    blocked_modules: ["revendedores"],
+    blocked_modules: ["revendedores", "produtos", "vendas", "crm", "financeiro", "whatsapp", "campanhas", "garantias"],
   },
   starter: {
     max_users: 1,
@@ -98,7 +98,7 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    let currentPlan = "free";
+    let currentPlan = "none";
     const customers = await stripe.customers.list({ email: user.email!, limit: 1 });
     if (customers.data.length > 0) {
       const subs = await stripe.subscriptions.list({
@@ -108,12 +108,12 @@ serve(async (req) => {
       });
       if (subs.data.length > 0) {
         const productId = subs.data[0].items.data[0]?.price?.product as string;
-        currentPlan = PRODUCT_TO_PLAN[productId] || "free";
+        currentPlan = PRODUCT_TO_PLAN[productId] || "none";
       }
     }
     logStep("Current plan resolved", { currentPlan });
 
-    const limits = PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free;
+    const limits = PLAN_LIMITS[currentPlan] || PLAN_LIMITS.none;
 
     // Enforce module access
     if (resource === "module") {
