@@ -20,6 +20,7 @@ export function useSubscription(): SubscriptionState {
   const [plan, setPlan] = useState('free');
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
     if (companyLoading || !company) {
@@ -33,6 +34,26 @@ export function useSubscription(): SubscriptionState {
     const fetchSubscription = async () => {
       setLoading(true);
       try {
+        // Check superadmin status first
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .eq('role', 'superadmin')
+            .maybeSingle();
+          
+          if (roleData) {
+            setIsSuperAdmin(true);
+            setStatus('active');
+            setPlan('growth');
+            setCurrentPeriodEnd(null);
+            setLoading(false);
+            return;
+          }
+        }
+
         const { data, error } = await supabase
           .from('subscriptions')
           .select('status, plan, current_period_end')
@@ -43,7 +64,6 @@ export function useSubscription(): SubscriptionState {
 
         if (error) {
           console.error('[useSubscription] Error:', error);
-          // If no subscription found, treat as free (allowed)
           setStatus('active');
           setPlan('free');
           setCurrentPeriodEnd(null);
@@ -51,7 +71,6 @@ export function useSubscription(): SubscriptionState {
         }
 
         if (!data) {
-          // No subscription record = free plan, allow access
           setStatus('active');
           setPlan('free');
           setCurrentPeriodEnd(null);
@@ -73,7 +92,7 @@ export function useSubscription(): SubscriptionState {
     fetchSubscription();
   }, [company, companyLoading]);
 
-  const isAllowed = loading || ALLOWED_STATUSES.includes(status) || status === 'inactive';
+  const isAllowed = loading || isSuperAdmin || ALLOWED_STATUSES.includes(status) || status === 'inactive';
 
   return { status, plan, loading, isAllowed, currentPeriodEnd };
 }
