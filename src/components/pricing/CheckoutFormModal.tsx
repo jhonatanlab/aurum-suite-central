@@ -45,22 +45,7 @@ export default function CheckoutFormModal({
     setLoading(true);
 
     try {
-      // 1. Insert lead into leads_checkout
-      const { data: lead, error: leadError } = await supabase
-        .from("leads_checkout" as any)
-        .insert({
-          name: form.name.trim(),
-          email: form.email.trim(),
-          phone: form.phone.trim(),
-          company_name: form.company.trim(),
-          plan: planKey,
-        } as any)
-        .select("id")
-        .single();
-
-      if (leadError) throw new Error("Erro ao salvar dados: " + leadError.message);
-
-      // 2. Create checkout session
+      // Call edge function which handles both lead saving and checkout session creation
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           plan: planKey,
@@ -72,18 +57,15 @@ export default function CheckoutFormModal({
         },
       });
 
-      // supabase.functions.invoke returns non-2xx body in error as FunctionsHttpError
       let responseData = data;
       if (error) {
         try {
-          // Try to parse error context (FunctionsHttpError)
           responseData = error.context ? await error.context.json() : (typeof error === 'object' ? error : null);
         } catch {
           responseData = null;
         }
       }
       
-      // Check for known error codes in the response
       if (responseData?.error === "ALREADY_SUBSCRIBED") {
         toast.error(responseData.message || "Você já possui uma assinatura ativa.");
         return;
@@ -94,15 +76,6 @@ export default function CheckoutFormModal({
       }
       if (error && !responseData?.url) throw error;
 
-      // 3. Update lead with session_id
-      if (responseData?.session_id && (lead as any)?.id) {
-        await supabase
-          .from("leads_checkout" as any)
-          .update({ session_id: responseData.session_id, status: "checkout_started" } as any)
-          .eq("id", (lead as any).id);
-      }
-
-      // 4. Redirect
       if (responseData?.url) {
         window.open(responseData.url, "_blank");
         onOpenChange(false);
