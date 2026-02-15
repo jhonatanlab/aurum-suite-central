@@ -1,42 +1,115 @@
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertTriangle, CreditCard, LogOut } from 'lucide-react';
+import {
+  AlertTriangle,
+  CreditCard,
+  LogOut,
+  Crown,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
-const STATUS_LABELS: Record<string, { label: string; description: string }> = {
+const STATUS_CONFIG: Record<string, {
+  label: string;
+  description: string;
+  variant: 'success' | 'warning' | 'error' | 'info';
+  icon: typeof CheckCircle2;
+}> = {
+  active: {
+    label: 'Ativa',
+    description: 'Sua assinatura está ativa e em dia.',
+    variant: 'success',
+    icon: CheckCircle2,
+  },
+  trialing: {
+    label: 'Período de teste',
+    description: 'Você está no período de teste gratuito.',
+    variant: 'info',
+    icon: Clock,
+  },
   canceled: {
     label: 'Cancelada',
     description: 'Sua assinatura foi cancelada. Renove para continuar usando o sistema.',
+    variant: 'error',
+    icon: XCircle,
   },
   unpaid: {
     label: 'Não paga',
-    description: 'Há um pagamento pendente na sua assinatura. Atualize seu método de pagamento.',
+    description: 'Há um pagamento pendente. Atualize seu método de pagamento.',
+    variant: 'warning',
+    icon: AlertCircle,
   },
   incomplete: {
     label: 'Incompleta',
-    description: 'Sua assinatura não foi concluída. Finalize o pagamento para acessar o sistema.',
+    description: 'Sua assinatura não foi concluída. Finalize o pagamento.',
+    variant: 'warning',
+    icon: AlertCircle,
   },
   past_due: {
     label: 'Atrasada',
-    description: 'Sua assinatura está com pagamento atrasado. Regularize para continuar.',
+    description: 'Pagamento atrasado. Regularize para continuar.',
+    variant: 'error',
+    icon: AlertTriangle,
   },
 };
 
+const PLAN_LABELS: Record<string, string> = {
+  starter: 'Starter',
+  profissional: 'Profissional',
+  growth: 'Growth',
+  free: 'Free',
+};
+
+const VARIANT_STYLES = {
+  success: {
+    badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
+  },
+  warning: {
+    badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    iconBg: 'bg-amber-500/10',
+    iconColor: 'text-amber-400',
+  },
+  error: {
+    badge: 'bg-destructive/15 text-destructive border-destructive/30',
+    iconBg: 'bg-destructive/10',
+    iconColor: 'text-destructive',
+  },
+  info: {
+    badge: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
+  },
+};
+
+const isBlocked = (status: string) =>
+  ['canceled', 'unpaid', 'incomplete', 'past_due'].includes(status);
+
 export default function Billing() {
-  const { status, plan } = useSubscription();
+  const { status, plan, loading, currentPeriodEnd } = useSubscription();
   const { signOut } = useAuth();
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
 
-  const statusInfo = STATUS_LABELS[status] || {
-    label: 'Bloqueada',
-    description: 'Sua conta está temporariamente bloqueada. Entre em contato com o suporte.',
-  };
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.canceled!;
+  const styles = VARIANT_STYLES[config.variant];
+  const StatusIcon = config.icon;
+  const blocked = isBlocked(status);
+  const planLabel = PLAN_LABELS[plan] || plan;
 
   const handleManageSubscription = async () => {
     setLoadingPortal(true);
@@ -74,68 +147,138 @@ export default function Billing() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg border-destructive/30 bg-card">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
-            <AlertTriangle className="h-8 w-8 text-destructive" />
+      <div className="w-full max-w-md space-y-5">
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <div className={`mx-auto w-14 h-14 rounded-2xl ${styles.iconBg} flex items-center justify-center`}>
+            {blocked ? (
+              <StatusIcon className={`h-7 w-7 ${styles.iconColor}`} />
+            ) : (
+              <Crown className="h-7 w-7 text-primary" />
+            )}
           </div>
-          <div>
-            <CardTitle className="text-2xl text-foreground">Acesso Bloqueado</CardTitle>
-            <Badge variant="destructive" className="mt-2">
-              {statusInfo.label}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <p className="text-muted-foreground text-center text-sm">
-            {statusInfo.description}
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">
+            {blocked ? 'Acesso Bloqueado' : 'Minha Assinatura'}
+          </h1>
+          {blocked && (
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              {config.description}
+            </p>
+          )}
+        </div>
 
-          {plan && plan !== 'free' && (
-            <div className="bg-muted/50 rounded-xl p-4 text-center">
-              <p className="text-xs text-muted-foreground">Plano atual</p>
-              <p className="text-lg font-semibold text-foreground capitalize">{plan}</p>
+        {/* Plan Card */}
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm overflow-hidden">
+          <CardContent className="p-0">
+            {/* Plan header */}
+            <div className="p-5 border-b border-border/50">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Plano atual
+                  </p>
+                  <p className="text-xl font-bold text-foreground">{planLabel}</p>
+                </div>
+                <Badge className={`${styles.badge} border text-xs font-medium px-2.5 py-1`}>
+                  <StatusIcon className="h-3 w-3 mr-1.5" />
+                  {config.label}
+                </Badge>
+              </div>
             </div>
+
+            {/* Info rows */}
+            <div className="divide-y divide-border/30">
+              <div className="flex items-center justify-between px-5 py-3.5">
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <CreditCard className="h-4 w-4" />
+                  <span className="text-sm">Status</span>
+                </div>
+                <span className="text-sm font-medium text-foreground">{config.label}</span>
+              </div>
+
+              {currentPeriodEnd && (
+                <div className="flex items-center justify-between px-5 py-3.5">
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    <span className="text-sm">
+                      {blocked ? 'Expirou em' : 'Próxima cobrança'}
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium text-foreground">
+                    {format(new Date(currentPeriodEnd), "dd 'de' MMM, yyyy", { locale: ptBR })}
+                  </span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Actions */}
+        <div className="space-y-3">
+          {status === 'canceled' ? (
+            <Button
+              onClick={handleNewSubscription}
+              disabled={loadingCheckout}
+              className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl"
+            >
+              {loadingCheckout ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CreditCard className="h-4 w-4 mr-2" />
+              )}
+              {loadingCheckout ? 'Redirecionando...' : 'Assinar Novamente'}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleManageSubscription}
+              disabled={loadingPortal}
+              className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl"
+            >
+              {loadingPortal ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CreditCard className="h-4 w-4 mr-2" />
+              )}
+              {loadingPortal ? 'Abrindo portal...' : 'Gerenciar Pagamento'}
+            </Button>
           )}
 
-          <div className="space-y-3">
-            {status === 'canceled' ? (
-              <Button
-                onClick={handleNewSubscription}
-                disabled={loadingCheckout}
-                className="w-full bg-gold hover:bg-gold/90 text-black font-semibold"
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                {loadingCheckout ? 'Carregando...' : 'Assinar Novamente'}
-              </Button>
-            ) : (
-              <Button
-                onClick={handleManageSubscription}
-                disabled={loadingPortal}
-                className="w-full bg-gold hover:bg-gold/90 text-black font-semibold"
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                {loadingPortal ? 'Carregando...' : 'Gerenciar Pagamento'}
-              </Button>
-            )}
-
+          {blocked && (
             <Button
               variant="outline"
-              onClick={signOut}
-              className="w-full border-border text-muted-foreground hover:text-foreground"
+              onClick={() => window.location.reload()}
+              className="w-full h-11 border-border/50 text-muted-foreground hover:text-foreground rounded-xl"
             >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sair da conta
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Já regularizei, atualizar
             </Button>
-          </div>
+          )}
 
-          <p className="text-xs text-muted-foreground text-center">
-            Após regularizar, atualize a página para acessar o sistema.
-          </p>
-        </CardContent>
-      </Card>
+          <Button
+            variant="ghost"
+            onClick={signOut}
+            className="w-full h-11 text-muted-foreground hover:text-foreground rounded-xl"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair da conta
+          </Button>
+        </div>
+
+        {/* Footer */}
+        <p className="text-xs text-muted-foreground text-center">
+          Pagamentos processados com segurança via Stripe.
+        </p>
+      </div>
     </div>
   );
 }
