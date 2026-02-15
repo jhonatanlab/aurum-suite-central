@@ -75,6 +75,12 @@ serve(async (req) => {
       case "customer.subscription.deleted":
         await handleSubscriptionDeleted(event.data.object);
         break;
+      case "invoice.payment_failed":
+        await handleInvoicePaymentFailed(event.data.object);
+        break;
+      case "invoice.payment_succeeded":
+        await handleInvoicePaymentSucceeded(event.data.object);
+        break;
       default:
         return json({ received: true });
     }
@@ -248,6 +254,56 @@ async function handleSubscriptionDeleted(subscription: any) {
     .from("subscriptions")
     .update({ status: "canceled" })
     .eq("stripe_subscription_id", subscription.id);
+
+  // Also update company plan to free
+  const { data: sub } = await db
+    .from("subscriptions")
+    .select("company_id")
+    .eq("stripe_subscription_id", subscription.id)
+    .maybeSingle();
+  if (sub?.company_id) {
+    await db.from("companies").update({ plan: "free" }).eq("id", sub.company_id);
+  }
+  console.log("[stripe-webhook] subscription.deleted", { subscriptionId: subscription.id });
+}
+
+async function handleInvoicePaymentFailed(invoice: any) {
+  const db = supabaseAdmin();
+  const subscriptionId = invoice.subscription;
+  if (!subscriptionId) {
+    console.log("[stripe-webhook] invoice.payment_failed without subscription, skipping");
+    return;
+  }
+
+  // Mark subscription as past_due/unpaid
+  const status = invoice.attempt_count >= 3 ? "unpaid" : "past_due";
+  await db
+    .from("subscriptions")
+    .update({ status })
+    .eq("stripe_subscription_id", subscriptionId);
+
+  console.log("[stripe-webhook] invoice.payment_failed", {
+    subscriptionId,
+    attemptCount: invoice.attempt_count,
+    newStatus: status,
+  });
+}
+
+async function handleInvoicePaymentSucceeded(invoice: any) {
+  const db = supabaseAdmin();
+  const subscriptionId = invoice.subscription;
+  if (!subscriptionId) {
+    console.log("[stripe-webhook] invoice.payment_succeeded without subscription, skipping");
+    return;
+  }
+
+  // Reactivate subscription to active
+  await db
+    .from("subscriptions")
+    .update({ status: "active" })
+    .eq("stripe_subscription_id", subscriptionId);
+
+  console.log("[stripe-webhook] invoice.payment_succeeded", { subscriptionId });
 }
 
 // --- Helpers ---
