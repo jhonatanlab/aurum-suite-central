@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCompany } from '@/hooks/useCompany';
+import { usePlanUsage } from '@/hooks/usePlanUsage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,14 +11,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Building2, Users, Calendar, Crown, Save, Tag, Kanban, CreditCard, Truck } from 'lucide-react';
+import { Loader2, Building2, Users, Calendar, Crown, Save, Tag, Kanban, CreditCard, Truck, Package, ArrowUpRight, UserPlus, Zap } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { TagManager } from '@/components/tags/TagManager';
 import { CrmSettingsPanel } from '@/components/crm/CrmSettingsPanel';
 import { PaymentSettingsPanel } from '@/components/pagamentos/PaymentSettingsPanel';
 import { SupplierManager } from '@/components/suppliers/SupplierManager';
 import { TeamManagementTab } from '@/components/equipe/TeamManagementTab';
+import { useNavigate } from 'react-router-dom';
 const companySchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100, 'Nome muito longo'),
   cnpj: z.string().max(18, 'CNPJ inválido').optional().or(z.literal('')),
@@ -28,7 +31,9 @@ type CompanyFormData = z.infer<typeof companySchema>;
 export default function MeuNegocio() {
   const [isLoading, setIsLoading] = useState(false);
   const { company, companyUser, updateCompany, loading } = useCompany();
+  const { plan, planLabel, limits, usage, loading: planLoading } = usePlanUsage();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const {
     register,
@@ -129,47 +134,105 @@ export default function MeuNegocio() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Info Cards */}
+        {/* Plan & Usage Cards */}
+        <div className="grid gap-4 md:grid-cols-4">
+          {/* Plan Card */}
           <Card className="card-premium">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gold/10">
-                  <Crown className="h-5 w-5 text-gold" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Crown className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Plano Atual</p>
+                    <p className="text-lg font-bold text-foreground">{planLabel}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Plano</p>
-                  <div className="mt-1">{getPlanBadge(company?.plan)}</div>
-                </div>
+                {plan !== "growth" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                    onClick={() => navigate("/billing")}
+                  >
+                    <Zap className="h-3.5 w-3.5" />
+                    Upgrade
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
 
+          {/* Products Usage */}
           <Card className="card-premium">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gold/10">
-                  <Users className="h-5 w-5 text-gold" />
+            <CardContent className="pt-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <Package className="h-4 w-4 text-primary" />
+                  </div>
+                  <span className="text-xs text-muted-foreground">Produtos</span>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Sua Função</p>
-                  <div className="mt-1">{getRoleBadge(companyUser?.role)}</div>
-                </div>
+                <span className="text-sm font-semibold tabular-nums">
+                  {planLoading ? "..." : `${usage.products}`}
+                  <span className="text-muted-foreground font-normal">
+                    /{limits.max_products >= 999999 ? "∞" : limits.max_products}
+                  </span>
+                </span>
               </div>
+              <Progress
+                value={limits.max_products >= 999999 ? 5 : Math.min((usage.products / limits.max_products) * 100, 100)}
+                className="h-2"
+              />
             </CardContent>
           </Card>
 
+          {/* Users Usage */}
           <Card className="card-premium">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gold/10">
-                  <Calendar className="h-5 w-5 text-gold" />
+            <CardContent className="pt-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <Users className="h-4 w-4 text-primary" />
+                  </div>
+                  <span className="text-xs text-muted-foreground">Usuários</span>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Criada em</p>
-                  <p className="font-medium">{formatDate(company?.created_at)}</p>
-                </div>
+                <span className="text-sm font-semibold tabular-nums">
+                  {planLoading ? "..." : `${usage.users}`}
+                  <span className="text-muted-foreground font-normal">
+                    /{limits.max_users >= 999 ? "∞" : limits.max_users}
+                  </span>
+                </span>
               </div>
+              <Progress
+                value={limits.max_users >= 999 ? 5 : Math.min((usage.users / limits.max_users) * 100, 100)}
+                className="h-2"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Resellers Usage */}
+          <Card className="card-premium">
+            <CardContent className="pt-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <Truck className="h-4 w-4 text-primary" />
+                  </div>
+                  <span className="text-xs text-muted-foreground">Revendedores</span>
+                </div>
+                <span className="text-sm font-semibold tabular-nums">
+                  {planLoading ? "..." : `${usage.resellers}`}
+                  <span className="text-muted-foreground font-normal">
+                    /{limits.max_resellers >= 999999 ? "∞" : limits.max_resellers === 0 ? "0" : limits.max_resellers}
+                  </span>
+                </span>
+              </div>
+              <Progress
+                value={limits.max_resellers <= 0 ? 0 : limits.max_resellers >= 999999 ? 5 : Math.min((usage.resellers / limits.max_resellers) * 100, 100)}
+                className="h-2"
+              />
             </CardContent>
           </Card>
         </div>
