@@ -71,14 +71,14 @@ serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !userData.user) {
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "User not authenticated" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
       });
     }
-    const user = userData.user;
+    const user = { id: claimsData.claims.sub, email: claimsData.claims.email };
     logStep("User authenticated", { userId: user.id });
 
     const body = await req.json();
