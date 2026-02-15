@@ -17,6 +17,7 @@ import { TagManager } from '@/components/tags/TagManager';
 import { CrmSettingsPanel } from '@/components/crm/CrmSettingsPanel';
 import { PaymentSettingsPanel } from '@/components/pagamentos/PaymentSettingsPanel';
 import { SupplierManager } from '@/components/suppliers/SupplierManager';
+import { TeamManagementTab } from '@/components/equipe/TeamManagementTab';
 const companySchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100, 'Nome muito longo'),
   cnpj: z.string().max(18, 'CNPJ inválido').optional().or(z.literal('')),
@@ -296,26 +297,7 @@ export default function MeuNegocio() {
 
           {/* Equipe Tab */}
           <TabsContent value="equipe" className="mt-0">
-            <Card className="card-premium">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-gold/10">
-                    <Users className="h-5 w-5 text-gold" />
-                  </div>
-                  <div>
-                    <CardTitle>Equipe</CardTitle>
-                    <CardDescription>Usuários vinculados à empresa</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>Gerenciamento de equipe em breve</p>
-                  <p className="text-sm">Você poderá convidar membros e gerenciar permissões</p>
-                </div>
-              </CardContent>
-            </Card>
+            <TeamManagementTab />
           </TabsContent>
         </Tabs>
       </div>
