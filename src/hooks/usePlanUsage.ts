@@ -41,9 +41,16 @@ export function usePlanUsage() {
   useEffect(() => {
     if (!company?.id) return;
 
-    const fetch = async () => {
+    const fetchUsage = async () => {
       setState((s) => ({ ...s, loading: true }));
       try {
+        // Ensure we have an active session before calling the edge function
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setState((s) => ({ ...s, loading: false }));
+          return;
+        }
+
         const { data, error } = await supabase.functions.invoke("check-plan-limits", {
           body: { company_id: company.id, resource: "usage" },
         });
@@ -51,8 +58,8 @@ export function usePlanUsage() {
         if (!error && data) {
           setState({
             plan: data.current_plan || "free",
-            limits: data.limits,
-            usage: data.usage,
+            limits: data.limits || { max_users: 1, max_products: 20, max_resellers: 0, blocked_modules: [] },
+            usage: data.usage || { products: 0, users: 0, resellers: 0 },
             loading: false,
           });
         } else {
@@ -63,7 +70,7 @@ export function usePlanUsage() {
       }
     };
 
-    fetch();
+    fetchUsage();
   }, [company?.id]);
 
   return { ...state, planLabel: PLAN_LABELS[state.plan] || state.plan };
