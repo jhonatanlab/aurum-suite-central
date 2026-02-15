@@ -1,15 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Dual environment plan configuration
 const PLAN_MAP: Record<string, { live: { product_id: string; price_id: string }; test: { product_id: string; price_id: string } }> = {
   starter: {
     live: { product_id: "prod_TxloA2DvJpzDfY", price_id: "price_1SzqGfRpBEKvV4xv6a5NoVDs" },
-    test: { product_id: "prod_TyAj8dl5s4vBEg", price_id: "" }, // price_id will be resolved from product
+    test: { product_id: "prod_TyAj8dl5s4vBEg", price_id: "" },
   },
   profissional: {
     live: { product_id: "prod_TxlqeNUHbcFsqx", price_id: "price_1SzqJIRpBEKvV4xvcgo6O71x" },
@@ -81,6 +81,36 @@ serve(async (req) => {
       );
     }
 
+    // Save lead using service role (bypasses RLS)
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+    );
+
+    let leadId: string | null = null;
+    try {
+      const { data: leadData, error: leadError } = await supabaseAdmin
+        .from("leads_checkout")
+        .insert({
+          name: customer_name || "",
+          email,
+          phone: customer_phone || "",
+          company_name: customer_company || "",
+          plan,
+        })
+        .select("id")
+        .single();
+
+      if (leadError) {
+        log("Lead insert error (non-blocking)", { error: leadError.message });
+      } else {
+        leadId = leadData?.id;
+        log("Lead saved", { leadId });
+      }
+    } catch (leadErr) {
+      log("Lead insert exception (non-blocking)", { error: String(leadErr) });
+    }
+
     const envConfig = planConfig[environment];
     const stripeKey = getStripeKey(environment);
 
@@ -91,11 +121,9 @@ serve(async (req) => {
       );
     }
 
-    // Validate that we have a secret key, not a publishable key
     if (stripeKey.startsWith("pk_")) {
-      log("ERROR: Publishable key detected instead of secret key", { environment, prefix: stripeKey.substring(0, 7) });
       return new Response(
-        JSON.stringify({ error: `STRIPE_SECRET_KEY_${environment === "test" ? "TEST" : ""} contains a publishable key (pk_). Please update it with a secret key (sk_).` }),
+        JSON.stringify({ error: `STRIPE_SECRET_KEY contains a publishable key. Please update with a secret key (sk_).` }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
@@ -106,14 +134,14 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    // Resolve price_id from product if not hardcoded (test environment)
+    // Resolve price_id
     let priceId = envConfig.price_id;
     if (!priceId) {
       log("Resolving price from product", { product_id: envConfig.product_id });
       const prices = await stripe.prices.list({ product: envConfig.product_id, active: true, limit: 1 });
       if (prices.data.length === 0) {
         return new Response(
-          JSON.stringify({ error: `No active price found for product ${envConfig.product_id} in ${environment} environment` }),
+          JSON.stringify({ error: `No active price found for product ${envConfig.product_id}` }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
         );
       }
@@ -121,36 +149,31 @@ serve(async (req) => {
       log("Price resolved", { priceId });
     }
 
-    // SECURITY: Validate key-price environment consistency
+    // Validate price
     const isTestKey = stripeKey.startsWith("sk_test_");
-    const isTestPrice = priceId.startsWith("price_"); // all prices start with price_, check via API
-    // Fetch the price to validate it belongs to the correct environment
     try {
       const priceObj = await stripe.prices.retrieve(priceId);
       if (!priceObj || !priceObj.active) {
         return new Response(
-          JSON.stringify({ error: "ENVIRONMENT_MISMATCH", message: `Price ${priceId} is not active or does not exist in the ${environment} Stripe environment.` }),
+          JSON.stringify({ error: "ENVIRONMENT_MISMATCH", message: `Price ${priceId} is not active.` }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
         );
       }
-      log("Price validated", { priceId, environment, livemode: priceObj.livemode });
-
-      // Prevent test key + live price or live key + test price
       if (isTestKey && priceObj.livemode) {
         return new Response(
-          JSON.stringify({ error: "ENVIRONMENT_MISMATCH", message: "Test API key cannot be used with live price IDs." }),
+          JSON.stringify({ error: "ENVIRONMENT_MISMATCH", message: "Test key cannot use live price." }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
         );
       }
       if (!isTestKey && !priceObj.livemode) {
         return new Response(
-          JSON.stringify({ error: "ENVIRONMENT_MISMATCH", message: "Live API key cannot be used with test price IDs." }),
+          JSON.stringify({ error: "ENVIRONMENT_MISMATCH", message: "Live key cannot use test price." }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
         );
       }
-    } catch (priceError) {
+    } catch {
       return new Response(
-        JSON.stringify({ error: "ENVIRONMENT_MISMATCH", message: `Price ${priceId} not found in ${environment} Stripe environment.` }),
+        JSON.stringify({ error: "ENVIRONMENT_MISMATCH", message: `Price ${priceId} not found.` }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
@@ -163,29 +186,19 @@ serve(async (req) => {
       customerId = existing.data[0].id;
       log("Customer found", { customerId });
 
-      // Check for existing active subscription — prevent duplicates
-      const activeSubs = await stripe.subscriptions.list({
-        customer: customerId,
-        status: "active",
-        limit: 1,
-      });
+      const activeSubs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
       if (activeSubs.data.length > 0) {
-        const currentSub = activeSubs.data[0];
-        log("Active subscription already exists", { subId: currentSub.id });
         return new Response(
           JSON.stringify({
             error: "ALREADY_SUBSCRIBED",
             message: "Você já possui uma assinatura ativa. Cancele a atual antes de assinar outro plano.",
-            subscription_id: currentSub.id,
+            subscription_id: activeSubs.data[0].id,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 }
         );
       }
     } else {
-      const customer = await stripe.customers.create({
-        email,
-        metadata: { plan, environment },
-      });
+      const customer = await stripe.customers.create({ email, metadata: { plan, environment } });
       customerId = customer.id;
       log("Customer created", { customerId });
     }
@@ -207,6 +220,14 @@ serve(async (req) => {
       metadata: sessionMetadata,
       subscription_data: { metadata: sessionMetadata },
     });
+
+    // Update lead with session_id
+    if (leadId && session.id) {
+      await supabaseAdmin
+        .from("leads_checkout")
+        .update({ session_id: session.id, status: "checkout_started" })
+        .eq("id", leadId);
+    }
 
     log("Session created", { session_id: session.id, url: session.url, environment, priceId });
 
