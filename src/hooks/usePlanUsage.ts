@@ -20,6 +20,7 @@ interface PlanUsageState {
   limits: PlanLimits;
   usage: PlanUsage;
   loading: boolean;
+  isSuperAdmin: boolean;
 }
 
 const PLAN_LABELS: Record<string, string> = {
@@ -29,6 +30,13 @@ const PLAN_LABELS: Record<string, string> = {
   growth: "Growth",
 };
 
+const GROWTH_LIMITS: PlanLimits = {
+  max_users: 999,
+  max_products: 999999,
+  max_resellers: 999999,
+  blocked_modules: [],
+};
+
 export function usePlanUsage() {
   const { company } = useCompany();
   const [state, setState] = useState<PlanUsageState>({
@@ -36,6 +44,7 @@ export function usePlanUsage() {
     limits: { max_users: 1, max_products: 20, max_resellers: 0, blocked_modules: [] },
     usage: { products: 0, users: 0, resellers: 0 },
     loading: true,
+    isSuperAdmin: false,
   });
 
   useEffect(() => {
@@ -44,26 +53,39 @@ export function usePlanUsage() {
     const fetchUsage = async () => {
       setState((s) => ({ ...s, loading: true }));
       try {
-        // Ensure we have an active session before calling the edge function
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
           setState((s) => ({ ...s, loading: false }));
           return;
         }
 
+        // Check if user is superadmin
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .eq("role", "superadmin")
+          .maybeSingle();
+
+        const isSuperAdmin = !!roleData;
+
         const { data, error } = await supabase.functions.invoke("check-plan-limits", {
           body: { company_id: company.id, resource: "usage" },
         });
 
         if (!error && data) {
+          const resolvedPlan = isSuperAdmin ? "growth" : (data.current_plan || "free");
+          const resolvedLimits = isSuperAdmin ? GROWTH_LIMITS : (data.limits || { max_users: 1, max_products: 20, max_resellers: 0, blocked_modules: [] });
+
           setState({
-            plan: data.current_plan || "free",
-            limits: data.limits || { max_users: 1, max_products: 20, max_resellers: 0, blocked_modules: [] },
+            plan: resolvedPlan,
+            limits: resolvedLimits,
             usage: data.usage || { products: 0, users: 0, resellers: 0 },
             loading: false,
+            isSuperAdmin,
           });
         } else {
-          setState((s) => ({ ...s, loading: false }));
+          setState((s) => ({ ...s, loading: false, isSuperAdmin }));
         }
       } catch {
         setState((s) => ({ ...s, loading: false }));
