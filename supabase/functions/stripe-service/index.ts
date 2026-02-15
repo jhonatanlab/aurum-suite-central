@@ -48,12 +48,20 @@ serve(async (req) => {
 
     async function getAuthUser() {
       const authHeader = req.headers.get("Authorization");
-      if (!authHeader) throw new Error("No authorization header");
+      if (!authHeader?.startsWith("Bearer ")) {
+        console.log("[STRIPE-SERVICE] SECURITY: Missing auth header");
+        throw new Error("No authorization header");
+      }
       const supabase = getSupabase(authHeader);
       const token = authHeader.replace("Bearer ", "");
-      const { data, error } = await supabase.auth.getUser(token);
-      if (error || !data.user) throw new Error("User not authenticated");
-      return { user: data.user, supabase };
+      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        console.log("[STRIPE-SERVICE] SECURITY: Invalid token");
+        throw new Error("User not authenticated");
+      }
+      // Build a user-like object from claims
+      const user = { id: claimsData.claims.sub as string, email: claimsData.claims.email as string };
+      return { user, supabase };
     }
 
     async function verifyCompany(supabase: any, companyId: string) {
