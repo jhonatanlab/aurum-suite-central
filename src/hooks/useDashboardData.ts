@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import { startOfMonth, subDays, format } from "date-fns";
+import { startOfMonth, subDays, format, endOfDay, startOfDay } from "date-fns";
+import type { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 
 export interface DashboardKPIs {
   monthRevenue: number;
@@ -63,36 +64,70 @@ export interface TopProduct {
   revenue: number;
 }
 
-export function useDashboardData() {
+export function useDashboardData(filters?: DashboardFilters) {
   const { company } = useCompany();
   const companyId = company?.id;
 
   const today = new Date();
-  const monthStart = format(startOfMonth(today), "yyyy-MM-dd");
+  const defaultFrom = filters?.dateFrom ? format(startOfDay(filters.dateFrom), "yyyy-MM-dd'T'HH:mm:ss") : format(startOfMonth(today), "yyyy-MM-dd");
+  const defaultTo = filters?.dateTo ? format(endOfDay(filters.dateTo), "yyyy-MM-dd'T'HH:mm:ss") : null;
   const thirtyDaysAgo = format(subDays(today, 30), "yyyy-MM-dd");
+
+  const filterKey = JSON.stringify(filters ?? {});
+
+  // Helper: apply date + seller filter to a sales query builder
+  const applySalesFilters = (query: any) => {
+    query = query.gte("created_at", defaultFrom);
+    if (defaultTo) query = query.lte("created_at", defaultTo);
+    if (filters?.sellerId) query = query.eq("seller_id", filters.sellerId);
+    return query;
+  };
+
+  // Helper: apply source filter to a leads query builder
+  const applyLeadFilters = (query: any) => {
+    if (filters?.source) query = query.eq("source", filters.source);
+    if (filters?.dateFrom) query = query.gte("created_at", format(startOfDay(filters.dateFrom), "yyyy-MM-dd'T'HH:mm:ss"));
+    if (filters?.dateTo) query = query.lte("created_at", format(endOfDay(filters.dateTo), "yyyy-MM-dd'T'HH:mm:ss"));
+    return query;
+  };
 
   // KPIs
   const { data: kpis, isLoading: kpisLoading } = useQuery({
-    queryKey: ["dashboard-kpis", companyId],
+    queryKey: ["dashboard-kpis", companyId, filterKey],
     queryFn: async (): Promise<DashboardKPIs> => {
       if (!companyId) return { monthRevenue: 0, salesCount: 0, averageTicket: 0, newClients: 0, productsSold: 0, conversionRate: 0 };
 
-      const { data: sales } = await supabase
+      let salesQuery = supabase
         .from("sales")
         .select("id, total")
         .eq("company_id", companyId)
-        .eq("status", "completed")
-        .gte("created_at", monthStart);
+        .eq("status", "completed");
+      salesQuery = applySalesFilters(salesQuery);
 
-      const monthRevenue = sales?.reduce((sum, s) => sum + Number(s.total), 0) ?? 0;
-      const salesCount = sales?.length ?? 0;
+      const { data: sales } = await salesQuery;
+
+      // If product filter, narrow sales to only those containing the product
+      let filteredSales = sales ?? [];
+      if (filters?.productId && filteredSales.length > 0) {
+        const { data: matchingItems } = await supabase
+          .from("sale_items")
+          .select("sale_id")
+          .eq("product_id", filters.productId)
+          .in("sale_id", filteredSales.map((s) => s.id));
+        const matchingSaleIds = new Set(matchingItems?.map((i) => i.sale_id) ?? []);
+        filteredSales = filteredSales.filter((s) => matchingSaleIds.has(s.id));
+      }
+
+      const monthRevenue = filteredSales.reduce((sum, s) => sum + Number(s.total), 0);
+      const salesCount = filteredSales.length;
       const averageTicket = salesCount > 0 ? monthRevenue / salesCount : 0;
 
-      const { count: newClients } = await supabase
+      let leadsQuery = supabase
         .from("leads")
         .select("id", { count: "exact", head: true })
-        .eq("company_id", companyId)
-        .gte("created_at", monthStart);
+        .eq("company_id", companyId);
+      leadsQuery = applyLeadFilters(leadsQuery);
+      const { count: newClients } = await leadsQuery;
 
       const { count: totalLeads } = await supabase
         .from("leads")
@@ -110,7 +145,7 @@ export function useDashboardData() {
       const { data: saleItems } = await supabase
         .from("sale_items")
         .select("quantity, sale_id")
-        .in("sale_id", sales?.map((s) => s.id) ?? []);
+        .in("sale_id", filteredSales.map((s) => s.id));
 
       const productsSold = saleItems?.reduce((sum, i) => sum + i.quantity, 0) ?? 0;
 
@@ -120,25 +155,46 @@ export function useDashboardData() {
     refetchInterval: 60000,
   });
 
-  // Revenue chart - last 30 days
+  // Revenue chart
   const { data: revenueChart = [], isLoading: chartLoading } = useQuery({
-    queryKey: ["dashboard-chart", companyId],
+    queryKey: ["dashboard-chart", companyId, filterKey],
     queryFn: async (): Promise<DailyRevenue[]> => {
       if (!companyId) return [];
-      const { data: sales } = await supabase
+
+      const chartFrom = filters?.dateFrom ? format(startOfDay(filters.dateFrom), "yyyy-MM-dd") : thirtyDaysAgo;
+      const chartTo = filters?.dateTo ? format(endOfDay(filters.dateTo), "yyyy-MM-dd") : format(today, "yyyy-MM-dd");
+
+      let query = supabase
         .from("sales")
-        .select("total, created_at")
+        .select("id, total, created_at")
         .eq("company_id", companyId)
         .eq("status", "completed")
-        .gte("created_at", thirtyDaysAgo)
+        .gte("created_at", chartFrom)
+        .lte("created_at", chartTo + "T23:59:59")
         .order("created_at", { ascending: true });
 
-      const dailyMap: Record<string, number> = {};
-      for (let i = 0; i <= 30; i++) {
-        const d = format(subDays(today, 30 - i), "yyyy-MM-dd");
-        dailyMap[d] = 0;
+      if (filters?.sellerId) query = query.eq("seller_id", filters.sellerId);
+      const { data: sales } = await query;
+
+      let filteredSales = sales ?? [];
+      if (filters?.productId && filteredSales.length > 0) {
+        const { data: matchingItems } = await supabase
+          .from("sale_items")
+          .select("sale_id")
+          .eq("product_id", filters.productId)
+          .in("sale_id", filteredSales.map((s) => s.id));
+        const matchingSaleIds = new Set(matchingItems?.map((i) => i.sale_id) ?? []);
+        filteredSales = filteredSales.filter((s) => matchingSaleIds.has(s.id));
       }
-      sales?.forEach((s) => {
+
+      const start = new Date(chartFrom);
+      const end = new Date(chartTo);
+      const dailyMap: Record<string, number> = {};
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dailyMap[format(d, "yyyy-MM-dd")] = 0;
+      }
+
+      filteredSales.forEach((s) => {
         const day = format(new Date(s.created_at!), "yyyy-MM-dd");
         if (dailyMap[day] !== undefined) dailyMap[day] += Number(s.total);
       });
@@ -155,13 +211,15 @@ export function useDashboardData() {
 
   // Lead sources
   const { data: leadSources = [], isLoading: sourcesLoading } = useQuery({
-    queryKey: ["dashboard-lead-sources", companyId],
+    queryKey: ["dashboard-lead-sources", companyId, filterKey],
     queryFn: async (): Promise<SourceData[]> => {
       if (!companyId) return [];
-      const { data } = await supabase
+      let query = supabase
         .from("leads")
         .select("source")
         .eq("company_id", companyId);
+      query = applyLeadFilters(query);
+      const { data } = await query;
 
       const map: Record<string, number> = {};
       data?.forEach((l) => {
@@ -176,7 +234,7 @@ export function useDashboardData() {
     refetchInterval: 60000,
   });
 
-  // Lead funnel by status
+  // Lead funnel
   const FUNNEL_ORDER = [
     { stage: "new", label: "Novos" },
     { stage: "contacted", label: "Contatados" },
@@ -186,13 +244,15 @@ export function useDashboardData() {
   ];
 
   const { data: leadFunnel = [], isLoading: funnelLoading } = useQuery({
-    queryKey: ["dashboard-lead-funnel", companyId],
+    queryKey: ["dashboard-lead-funnel", companyId, filterKey],
     queryFn: async (): Promise<FunnelStage[]> => {
       if (!companyId) return [];
-      const { data } = await supabase
+      let query = supabase
         .from("leads")
         .select("status")
         .eq("company_id", companyId);
+      query = applyLeadFilters(query);
+      const { data } = await query;
 
       const map: Record<string, number> = {};
       data?.forEach((l) => {
@@ -211,23 +271,27 @@ export function useDashboardData() {
 
   // Top 5 products
   const { data: topProducts = [], isLoading: topProductsLoading } = useQuery({
-    queryKey: ["dashboard-top-products", companyId],
+    queryKey: ["dashboard-top-products", companyId, filterKey],
     queryFn: async (): Promise<TopProduct[]> => {
       if (!companyId) return [];
 
-      const { data: sales } = await supabase
+      let salesQuery = supabase
         .from("sales")
         .select("id")
         .eq("company_id", companyId)
-        .eq("status", "completed")
-        .gte("created_at", monthStart);
+        .eq("status", "completed");
+      salesQuery = applySalesFilters(salesQuery);
+      const { data: sales } = await salesQuery;
 
       if (!sales?.length) return [];
 
-      const { data: items } = await supabase
+      let itemsQuery = supabase
         .from("sale_items")
         .select("product_id, quantity, price, subtotal")
         .in("sale_id", sales.map((s) => s.id));
+
+      if (filters?.productId) itemsQuery = itemsQuery.eq("product_id", filters.productId);
+      const { data: items } = await itemsQuery;
 
       if (!items?.length) return [];
 
@@ -263,15 +327,21 @@ export function useDashboardData() {
 
   // Recent sales
   const { data: recentSales = [], isLoading: salesLoading } = useQuery({
-    queryKey: ["dashboard-recent-sales", companyId],
+    queryKey: ["dashboard-recent-sales", companyId, filterKey],
     queryFn: async (): Promise<RecentSale[]> => {
       if (!companyId) return [];
-      const { data } = await supabase
+      let query = supabase
         .from("sales")
         .select("id, customer_name, total, status, created_at, payment_method")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(10);
+
+      if (filters?.dateFrom) query = query.gte("created_at", format(startOfDay(filters.dateFrom), "yyyy-MM-dd'T'HH:mm:ss"));
+      if (filters?.dateTo) query = query.lte("created_at", format(endOfDay(filters.dateTo), "yyyy-MM-dd'T'HH:mm:ss"));
+      if (filters?.sellerId) query = query.eq("seller_id", filters.sellerId);
+
+      const { data } = await query;
       return (data as RecentSale[]) ?? [];
     },
     enabled: !!companyId,
@@ -279,15 +349,17 @@ export function useDashboardData() {
 
   // Recent contacts
   const { data: recentContacts = [], isLoading: contactsLoading } = useQuery({
-    queryKey: ["dashboard-recent-contacts", companyId],
+    queryKey: ["dashboard-recent-contacts", companyId, filterKey],
     queryFn: async (): Promise<RecentContact[]> => {
       if (!companyId) return [];
-      const { data } = await supabase
+      let query = supabase
         .from("leads")
         .select("id, name, phone, email, source, created_at")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(10);
+      query = applyLeadFilters(query);
+      const { data } = await query;
       return (data as RecentContact[]) ?? [];
     },
     enabled: !!companyId,

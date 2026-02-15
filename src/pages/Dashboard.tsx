@@ -1,18 +1,10 @@
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  DollarSign,
-  ShoppingCart,
-  Users,
-  Package,
-  TrendingUp,
-  BarChart3,
-  Inbox,
-  PackageCheck,
-  Target,
-  Award,
-  Filter,
+  DollarSign, ShoppingCart, Users, Package, TrendingUp,
+  BarChart3, Inbox, PackageCheck, Target, Award, Filter,
 } from "lucide-react";
 import {
   AreaChart,
@@ -31,7 +23,7 @@ import {
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-
+import { DashboardFilterBar, type DashboardFilters } from "@/components/dashboard/DashboardFilters";
 const formatCurrency = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -107,6 +99,14 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ElementTyp
 }
 
 export default function Dashboard() {
+  const [filters, setFilters] = useState<DashboardFilters>({
+    source: null,
+    dateFrom: null,
+    dateTo: null,
+    productId: null,
+    sellerId: null,
+  });
+
   const {
     kpis,
     kpisLoading,
@@ -124,7 +124,7 @@ export default function Dashboard() {
     contactsLoading,
     lowStockProducts,
     stockLoading,
-  } = useDashboardData();
+  } = useDashboardData(filters);
 
   const kpiCards = [
     { title: "Receita do Mês", value: formatCurrency(kpis.monthRevenue), icon: DollarSign, accent: true },
@@ -146,6 +146,9 @@ export default function Dashboard() {
 
   return (
     <AppLayout title="Dashboard">
+      {/* Filters */}
+      <DashboardFilterBar filters={filters} onChange={setFilters} />
+
       {/* KPIs */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
         {kpiCards.map((kpi, index) => {
