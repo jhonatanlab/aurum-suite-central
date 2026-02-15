@@ -19,7 +19,16 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const action = url.searchParams.get("action");
+    let action = url.searchParams.get("action");
+
+    // Clone request to read body for action if not in query params
+    let bodyCache: any = null;
+    if (!action && req.method === "POST") {
+      try {
+        bodyCache = await req.json();
+        action = bodyCache?.action || null;
+      } catch { /* no body */ }
+    }
 
     if (!action) {
       return new Response(
@@ -57,11 +66,17 @@ serve(async (req) => {
       console.log(`[STRIPE-SERVICE][${action}] ${step}${d}`);
     };
 
+    // Helper to get body (uses cache if already read for action detection)
+    const getBody = async () => {
+      if (bodyCache) return bodyCache;
+      try { bodyCache = await req.json(); return bodyCache; } catch { return {}; }
+    };
+
     let result: unknown;
 
     if (action === "create-customer") {
       const { user, supabase } = await getAuthUser();
-      const body = await req.json();
+      const body = await getBody();
       const { company_id, name, email, metadata } = body;
       if (!company_id) throw new Error("company_id is required");
       await verifyCompany(supabase, company_id);
@@ -86,7 +101,7 @@ serve(async (req) => {
 
     } else if (action === "create-checkout-session") {
       const { user, supabase } = await getAuthUser();
-      const body = await req.json();
+      const body = await getBody();
       const { company_id, plan, success_url, cancel_url } = body;
       if (!company_id) throw new Error("company_id is required");
       if (!plan) throw new Error("plan is required");
@@ -151,7 +166,7 @@ serve(async (req) => {
 
     } else if (action === "create-checkout") {
       const { user, supabase } = await getAuthUser();
-      const body = await req.json();
+      const body = await getBody();
       const { company_id, price_id, mode, success_url, cancel_url, customer_id } = body;
       if (!company_id) throw new Error("company_id is required");
       if (!price_id) throw new Error("price_id is required");
@@ -179,7 +194,7 @@ serve(async (req) => {
 
     } else if (action === "check-subscription") {
       const { user, supabase } = await getAuthUser();
-      const body = await req.json().catch(() => ({}));
+      const body = await getBody();
       const { company_id } = body;
       if (!company_id) throw new Error("company_id is required");
       await verifyCompany(supabase, company_id);
@@ -213,7 +228,7 @@ serve(async (req) => {
 
     } else if (action === "customer-portal") {
       const { user, supabase } = await getAuthUser();
-      const body = await req.json().catch(() => ({}));
+      const body = await getBody();
       const { company_id } = body;
       if (!company_id) throw new Error("company_id is required");
       await verifyCompany(supabase, company_id);
