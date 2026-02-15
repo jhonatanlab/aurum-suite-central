@@ -31,6 +31,7 @@ import MeuNegocio from "./pages/MeuNegocio";
 import NotFound from "./pages/NotFound";
 import Pricing from "./pages/Pricing";
 import ResetPassword from "./pages/ResetPassword";
+import Billing from "./pages/Billing";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -77,6 +78,11 @@ function App() {
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/billing" element={
+                  <ProtectedRoute requireCompany={true} skipSubscriptionCheck={true}>
+                    <Billing />
+                  </ProtectedRoute>
+                } />
                 
                 {/* Create company route (requires auth but not company) */}
                 <Route path="/criar-empresa" element={
