@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Crown } from 'lucide-react';
+import { Loader2, Crown, Mail, CheckCircle2 } from 'lucide-react';
 
 const authSchema = z.object({
   email: z.string().email('Email inválido').max(255, 'Email muito longo'),
@@ -24,6 +24,8 @@ export default function Auth() {
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const isCheckoutSuccess = searchParams.get('checkout') === 'success';
 
   const {
     register,
@@ -110,6 +112,22 @@ export default function Auth() {
           </div>
           <p className="text-muted-foreground">Sistema de gestão empresarial</p>
         </div>
+
+        {isCheckoutSuccess && (
+          <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3 animate-fade-in">
+            <CheckCircle2 className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-foreground">Pagamento confirmado! 🎉</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Enviamos um e-mail com instruções para definir sua senha. Verifique sua caixa de entrada e spam.
+              </p>
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                <Mail className="h-3.5 w-3.5" />
+                <span>Cheque seu e-mail para acessar sua conta</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Card className="card-premium">
           <CardHeader className="text-center">

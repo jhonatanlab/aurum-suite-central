@@ -166,11 +166,10 @@ async function handleCheckoutCompleted(session: any, stripe: any) {
     }
   }
 
-  // 5️⃣ Generate password reset link
-  const siteUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "").includes("vxjhggnoifgfnhsmdgbp")
-    ? "https://id-preview--32b2eeba-480a-4994-bf2f-9b35c703f805.lovable.app"
-    : "https://id-preview--32b2eeba-480a-4994-bf2f-9b35c703f805.lovable.app";
+  // 5️⃣ Generate and send password recovery email
+  const siteUrl = Deno.env.get("SITE_URL") || "https://id-preview--32b2eeba-480a-4994-bf2f-9b35c703f805.lovable.app";
 
+  // Generate recovery link (server-side only)
   const { data: linkData, error: linkError } = await db.auth.admin.generateLink({
     type: "recovery",
     email,
@@ -182,7 +181,42 @@ async function handleCheckoutCompleted(session: any, stripe: any) {
   if (linkError) {
     console.error("[stripe-webhook] Failed to generate recovery link", linkError);
   } else {
-    console.log("[stripe-webhook] Recovery link generated for", email, linkData?.properties?.action_link ? "OK" : "NO_LINK");
+    const actionLink = linkData?.properties?.action_link;
+    console.log("[stripe-webhook] Recovery link generated for", email, actionLink ? "OK" : "NO_LINK");
+
+    // Send welcome email with recovery link using Supabase Auth's built-in email
+    // We use the SMTP configured in Supabase to send the recovery email
+    if (actionLink) {
+      try {
+        // Trigger the actual recovery email via Supabase Auth (this sends the email)
+        const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+        
+        const resetResponse = await fetch(`${supabaseUrl}/auth/v1/recover`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": serviceKey,
+            "Authorization": `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            email,
+            gotrue_meta_security: {},
+            code_challenge: "",
+            code_challenge_method: "",
+          }),
+        });
+        
+        if (resetResponse.ok) {
+          console.log("[stripe-webhook] Recovery email sent successfully to", email);
+        } else {
+          const errBody = await resetResponse.text();
+          console.error("[stripe-webhook] Failed to send recovery email", errBody);
+        }
+      } catch (emailErr) {
+        console.error("[stripe-webhook] Error sending recovery email", emailErr);
+      }
+    }
   }
 
   // 6️⃣ Upsert subscription if present

@@ -202,8 +202,8 @@ serve(async (req) => {
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/payment-canceled`,
+      success_url: `${origin}/auth?checkout=success`,
+      cancel_url: `${origin}/pricing`,
       metadata: sessionMetadata,
       subscription_data: { metadata: sessionMetadata },
     });
