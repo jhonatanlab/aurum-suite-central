@@ -213,6 +213,30 @@ serve(async (req) => {
       });
     }
 
+    // Resource: usage — returns plan info + current counts
+    if (resource === "usage") {
+      const [productsRes, usersRes, resellersRes] = await Promise.all([
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", company_id),
+        supabase.from("company_users").select("id", { count: "exact", head: true }).eq("company_id", company_id),
+        supabase.from("resellers").select("id", { count: "exact", head: true }).eq("company_id", company_id),
+      ]);
+
+      logStep("Returning usage info", { currentPlan });
+      return new Response(JSON.stringify({
+        allowed: true,
+        current_plan: currentPlan,
+        limits,
+        usage: {
+          products: productsRes.count || 0,
+          users: usersRes.count || 0,
+          resellers: resellersRes.count || 0,
+        },
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     logStep("Access allowed", { resource, operation, plan: currentPlan });
     return new Response(JSON.stringify({
       allowed: true,
