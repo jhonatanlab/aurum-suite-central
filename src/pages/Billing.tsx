@@ -1,5 +1,6 @@
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
+import { useCompany } from '@/hooks/useCompany';
 import {
   AlertTriangle,
   CreditCard,
@@ -102,6 +103,7 @@ const isBlocked = (status: string) =>
 export default function Billing() {
   const { status, plan, loading, currentPeriodEnd } = useSubscription();
   const { signOut } = useAuth();
+  const { company } = useCompany();
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
 
@@ -115,7 +117,7 @@ export default function Billing() {
     setLoadingPortal(true);
     try {
       const { data, error } = await supabase.functions.invoke('stripe-service', {
-        body: { action: 'customer-portal' },
+        body: { action: 'customer-portal', company_id: company?.id },
       });
       if (error) throw error;
       if (data?.url) {
@@ -133,7 +135,7 @@ export default function Billing() {
     setLoadingCheckout(true);
     try {
       const { data, error } = await supabase.functions.invoke('stripe-service', {
-        body: { action: 'create-checkout', plan: 'starter' },
+        body: { action: 'create-checkout-session', plan: 'starter', company_id: company?.id },
       });
       if (error) throw error;
       if (data?.url) {
