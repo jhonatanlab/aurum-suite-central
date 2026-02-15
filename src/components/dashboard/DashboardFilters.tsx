@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, Filter, X, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,13 +33,13 @@ const SOURCE_OPTIONS = [
   { value: "other", label: "Outro" },
 ];
 
-const emptyFilters: DashboardFilters = {
+const getDefaultFilters = (): DashboardFilters => ({
   source: null,
-  dateFrom: null,
-  dateTo: null,
+  dateFrom: startOfMonth(new Date()),
+  dateTo: new Date(),
   productId: null,
   sellerId: null,
-};
+});
 
 interface Props {
   filters: DashboardFilters;
@@ -85,13 +85,11 @@ export function DashboardFilterBar({ filters, onChange }: Props) {
 
   const activeCount = [
     filters.source,
-    filters.dateFrom,
-    filters.dateTo,
     filters.productId,
     filters.sellerId,
   ].filter(Boolean).length;
 
-  const clearAll = () => onChange(emptyFilters);
+  const clearAll = () => onChange(getDefaultFilters());
 
   return (
     <div className="mb-6 animate-fade-in">

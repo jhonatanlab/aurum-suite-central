@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { startOfMonth } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,13 +100,13 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ElementTyp
 }
 
 export default function Dashboard() {
-  const [filters, setFilters] = useState<DashboardFilters>({
+  const [filters, setFilters] = useState<DashboardFilters>(() => ({
     source: null,
-    dateFrom: null,
-    dateTo: null,
+    dateFrom: startOfMonth(new Date()),
+    dateTo: new Date(),
     productId: null,
     sellerId: null,
-  });
+  }));
 
   const {
     kpis,
