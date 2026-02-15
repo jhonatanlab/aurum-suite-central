@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, useRef, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -69,22 +69,24 @@ interface CompanyContextType {
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [company, setCompany] = useState<Company | null>(null);
   const [companyUser, setCompanyUser] = useState<CompanyUser | null>(null);
   const [loading, setLoading] = useState(true);
+  // Track which user ID the current company data belongs to
+  const [fetchedForUserId, setFetchedForUserId] = useState<string | null>(null);
 
   const fetchCompany = async () => {
     if (!user) {
       setCompany(null);
       setCompanyUser(null);
+      setFetchedForUserId(null);
       setLoading(false);
       return;
     }
 
     setLoading(true);
     try {
-      // Buscar vínculo do usuário com empresa
       const { data: companyUserData, error: cuError } = await supabase
         .from('company_users')
         .select('*')
@@ -96,13 +98,13 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       if (!companyUserData) {
         setCompanyUser(null);
         setCompany(null);
+        setFetchedForUserId(user.id);
         setLoading(false);
         return;
       }
 
       setCompanyUser(companyUserData);
 
-      // Buscar dados da empresa
       const { data: companyData, error: cError } = await supabase
         .from('companies')
         .select('*')
@@ -116,23 +118,25 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         crm_settings: companyData.crm_settings as unknown as CrmSettings | null,
         whatsapp_settings: companyData.whatsapp_settings as unknown as WhatsAppSettings | null,
       });
+      setFetchedForUserId(user.id);
     } catch (error) {
       console.error('Erro ao buscar empresa:', error);
       setCompany(null);
       setCompanyUser(null);
+      setFetchedForUserId(user.id);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Synchronously set loading=true when user changes to prevent race condition
-    // where ProtectedRoute sees hasCompany=false before fetchCompany runs
-    if (user) {
-      setLoading(true);
-    }
     fetchCompany();
   }, [user]);
+
+  // CRITICAL: Consider loading if user exists but we haven't fetched data for this user yet
+  // This prevents the race condition where ProtectedRoute sees hasCompany=false 
+  // before fetchCompany runs for the new user
+  const effectiveLoading = authLoading || loading || (!!user && fetchedForUserId !== user.id);
 
   const createCompany = async (name: string, cnpj?: string) => {
     try {
@@ -188,7 +192,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       value={{ 
         company, 
         companyUser, 
-        loading, 
+        loading: effectiveLoading, 
         hasCompany: !!company,
         refetch: fetchCompany,
         createCompany,
