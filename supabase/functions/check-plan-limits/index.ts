@@ -57,7 +57,12 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "No authorization header" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -67,7 +72,12 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !userData.user) throw new Error("User not authenticated");
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({ error: "User not authenticated" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
     const user = userData.user;
     logStep("User authenticated", { userId: user.id });
 
