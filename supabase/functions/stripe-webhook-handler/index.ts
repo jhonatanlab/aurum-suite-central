@@ -173,6 +173,9 @@ async function handleCheckoutCompleted(session: any, stripe: any) {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     
+    const redirectTo = `${siteUrl}/reset-password`;
+    console.log("[stripe-webhook] Recovery redirect URL:", redirectTo);
+    
     const resetResponse = await fetch(`${supabaseUrl}/auth/v1/recover`, {
       method: "POST",
       headers: {
@@ -180,7 +183,11 @@ async function handleCheckoutCompleted(session: any, stripe: any) {
         "apikey": serviceKey,
         "Authorization": `Bearer ${serviceKey}`,
       },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ 
+        email,
+        gotrue_meta_security: {},
+        redirect_to: redirectTo
+      }),
     });
     
     if (resetResponse.ok) {
