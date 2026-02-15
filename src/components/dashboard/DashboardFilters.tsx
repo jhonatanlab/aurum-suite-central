@@ -83,10 +83,16 @@ export function DashboardFilterBar({ filters, onChange }: Props) {
       });
   }, [company?.id]);
 
+  const defaults = getDefaultFilters();
+  const hasNonDefaultDates =
+    filters.dateFrom?.getTime() !== defaults.dateFrom?.getTime() ||
+    filters.dateTo?.getTime() !== defaults.dateTo?.getTime();
+
   const activeCount = [
     filters.source,
     filters.productId,
     filters.sellerId,
+    hasNonDefaultDates ? true : null,
   ].filter(Boolean).length;
 
   const clearAll = () => onChange(getDefaultFilters());
