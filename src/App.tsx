@@ -79,7 +79,7 @@ function App() {
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/billing" element={
-                  <ProtectedRoute requireCompany={true} skipSubscriptionCheck={true}>
+                  <ProtectedRoute requireCompany={false} skipSubscriptionCheck={true}>
                     <Billing />
                   </ProtectedRoute>
                 } />
