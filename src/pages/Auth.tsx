@@ -37,6 +37,12 @@ export default function Auth() {
   });
 
   useEffect(() => {
+    // Don't redirect if this is a password recovery flow
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      navigate('/reset-password' + hash, { replace: true });
+      return;
+    }
     if (user) {
       navigate('/');
     }
