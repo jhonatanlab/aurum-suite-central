@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { CompanyProvider } from "@/hooks/useCompany";
 import { systemSettings } from "@/config/systemSettings";
@@ -38,6 +38,18 @@ import AdminEmpresas from "./pages/admin/AdminEmpresas";
 import AdminWhatsApp from "./pages/admin/AdminWhatsApp";
 import AdminPlanos from "./pages/admin/AdminPlanos";
 
+function RecoveryRedirect() {
+  // Global handler: if the URL hash contains type=recovery, redirect to /reset-password
+  const navigate = useNavigate();
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      navigate('/reset-password' + hash, { replace: true });
+    }
+  }, [navigate]);
+  return null;
+}
+
 function App() {
   const [queryClient] = useState(
     () =>
@@ -58,7 +70,8 @@ function App() {
           <CompanyProvider>
             <Toaster />
             <Sonner />
-            <BrowserRouter>
+             <BrowserRouter>
+              <RecoveryRedirect />
               <Routes>
                 {/* Public routes */}
                 <Route path="/auth" element={<Auth />} />
