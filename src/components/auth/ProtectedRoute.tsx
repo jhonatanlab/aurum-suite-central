@@ -21,8 +21,8 @@ export default function ProtectedRoute({
   const { isAllowed, loading: subLoading } = useSubscription();
   const location = useLocation();
 
-  // Show loading state
-  if (authLoading || (user && companyLoading) || (user && hasCompany && !skipSubscriptionCheck && subLoading)) {
+  // Show loading while auth is resolving
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -38,6 +38,19 @@ export default function ProtectedRoute({
     return <Navigate to="/auth" replace />;
   }
 
+  // Show loading while company or subscription is resolving
+  // This prevents premature redirects to /billing during loading
+  if (companyLoading || (requireCompany && hasCompany && !skipSubscriptionCheck && subLoading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-gold mx-auto" />
+          <p className="mt-4 text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Redirect to billing if no company (company is created via payment flow)
   if (requireCompany && !hasCompany) {
     return <Navigate to="/billing" replace />;
@@ -45,7 +58,6 @@ export default function ProtectedRoute({
 
   // Check subscription status - redirect to billing if blocked
   if (requireCompany && hasCompany && !skipSubscriptionCheck && !isAllowed) {
-    // Avoid redirect loop if already on /billing
     if (location.pathname !== '/billing') {
       return <Navigate to="/billing" replace />;
     }
