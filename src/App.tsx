@@ -11,7 +11,7 @@ import { Navigate } from "react-router-dom";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AdminProtectedRoute from "@/components/admin/AdminProtectedRoute";
 import Auth from "./pages/Auth";
-import CriarEmpresa from "./pages/CriarEmpresa";
+
 import Dashboard from "./pages/Dashboard";
 import CRM from "./pages/CRM";
 import Vendas from "./pages/Vendas";
@@ -84,12 +84,8 @@ function App() {
                   </ProtectedRoute>
                 } />
                 
-                {/* Create company route (requires auth but not company) */}
-                <Route path="/criar-empresa" element={
-                  <ProtectedRoute requireCompany={false}>
-                    <CriarEmpresa />
-                  </ProtectedRoute>
-                } />
+
+
                 
                 {/* Protected routes (require auth and company) */}
                 <Route path="/" element={

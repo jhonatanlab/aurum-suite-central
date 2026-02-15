@@ -38,9 +38,9 @@ export default function ProtectedRoute({
     return <Navigate to="/auth" replace />;
   }
 
-  // Redirect to create company if no company and company is required
+  // Redirect to billing if no company (company is created via payment flow)
   if (requireCompany && !hasCompany) {
-    return <Navigate to="/criar-empresa" replace />;
+    return <Navigate to="/billing" replace />;
   }
 
   // Check subscription status - redirect to billing if blocked
