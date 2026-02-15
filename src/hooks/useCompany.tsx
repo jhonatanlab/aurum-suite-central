@@ -126,6 +126,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Synchronously set loading=true when user changes to prevent race condition
+    // where ProtectedRoute sees hasCompany=false before fetchCompany runs
+    if (user) {
+      setLoading(true);
+    }
     fetchCompany();
   }, [user]);
 
