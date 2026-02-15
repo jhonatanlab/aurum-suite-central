@@ -85,7 +85,33 @@ serve(async (req) => {
       );
     }
 
-    // Use admin client to create user
+    // ── Plan limit check ──
+    const planCheckResp = await fetch(
+      `${supabaseUrl}/functions/v1/check-plan-limits`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+          apikey: anonKey,
+        },
+        body: JSON.stringify({ company_id, resource: "users", operation: "create" }),
+      }
+    );
+
+    if (planCheckResp.status === 403) {
+      const planData = await planCheckResp.json();
+      return new Response(JSON.stringify({
+        error: planData.message || "Limite de usuários atingido",
+        code: planData.error || "PLAN_USER_LIMIT",
+        current_plan: planData.current_plan,
+        current_count: planData.current_count,
+        max_allowed: planData.max_allowed,
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     // Create auth user
