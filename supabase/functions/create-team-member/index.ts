@@ -105,7 +105,7 @@ serve(async (req) => {
     // Create auth user
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email, password, email_confirm: true,
-      user_metadata: { full_name: name },
+      user_metadata: { full_name: name, is_team_member: true },
     });
 
     if (createError) {
