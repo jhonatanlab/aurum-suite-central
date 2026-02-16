@@ -14,7 +14,7 @@ import aurumLogo from '@/assets/aurum-logo.png';
 
 const authSchema = z.object({
   email: z.string().email('Email inválido').max(255, 'Email muito longo'),
-  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres').max(72, 'Senha muito longa'),
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres').max(72, 'Senha muito longa')
 });
 
 type AuthFormData = z.infer<typeof authSchema>;
@@ -60,19 +60,19 @@ export default function Auth() {
             toast({
               title: 'Credenciais inválidas',
               description: 'Email ou senha incorretos.',
-              variant: 'destructive',
+              variant: 'destructive'
             });
           } else {
             toast({
               title: 'Erro ao entrar',
               description: error.message,
-              variant: 'destructive',
+              variant: 'destructive'
             });
           }
         } else {
           toast({
             title: 'Bem-vindo!',
-            description: 'Login realizado com sucesso.',
+            description: 'Login realizado com sucesso.'
           });
         }
       } else {
@@ -82,19 +82,19 @@ export default function Auth() {
             toast({
               title: 'Email já cadastrado',
               description: 'Este email já está em uso. Tente fazer login.',
-              variant: 'destructive',
+              variant: 'destructive'
             });
           } else {
             toast({
               title: 'Erro ao cadastrar',
               description: error.message,
-              variant: 'destructive',
+              variant: 'destructive'
             });
           }
         } else {
           toast({
             title: 'Conta criada!',
-            description: 'Sua conta foi criada com sucesso.',
+            description: 'Sua conta foi criada com sucesso.'
           });
         }
       }
@@ -113,12 +113,12 @@ export default function Auth() {
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src={aurumLogo} alt="Aurum Suite" className="h-16 mx-auto mb-3" />
+          <img src={aurumLogo} alt="Aurum Suite" className="h-40 mx-auto mb-3" />
           <p className="text-muted-foreground">Sistema de gestão empresarial</p>
         </div>
 
-        {isCheckoutSuccess && (
-          <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3 animate-fade-in">
+        {isCheckoutSuccess &&
+        <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3 animate-fade-in">
             <CheckCircle2 className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-foreground">Pagamento confirmado! 🎉</p>
@@ -131,7 +131,7 @@ export default function Auth() {
               </div>
             </div>
           </div>
-        )}
+        }
 
         <Card className="card-premium">
           <CardHeader className="text-center">
@@ -139,9 +139,9 @@ export default function Auth() {
               {isLogin ? 'Entrar' : 'Criar conta'}
             </CardTitle>
             <CardDescription>
-              {isLogin 
-                ? 'Acesse sua conta para continuar' 
-                : 'Preencha os dados para criar sua conta'
+              {isLogin ?
+              'Acesse sua conta para continuar' :
+              'Preencha os dados para criar sua conta'
               }
             </CardDescription>
           </CardHeader>
@@ -154,11 +154,11 @@ export default function Auth() {
                   type="email"
                   placeholder="seu@email.com"
                   {...register('email')}
-                  className="bg-secondary border-border"
-                />
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email.message}</p>
-                )}
+                  className="bg-secondary border-border" />
+
+                {errors.email &&
+                <p className="text-sm text-destructive">{errors.email.message}</p>
+                }
               </div>
 
               <div className="space-y-2">
@@ -168,26 +168,26 @@ export default function Auth() {
                   type="password"
                   placeholder="••••••••"
                   {...register('password')}
-                  className="bg-secondary border-border"
-                />
-                {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password.message}</p>
-                )}
+                  className="bg-secondary border-border" />
+
+                {errors.password &&
+                <p className="text-sm text-destructive">{errors.password.message}</p>
+                }
               </div>
 
               <Button
                 type="submit"
                 className="w-full gold-gradient text-primary-foreground font-semibold"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
+                disabled={isLoading}>
+
+                {isLoading ?
+                <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Aguarde...
-                  </>
-                ) : (
-                  isLogin ? 'Entrar' : 'Cadastrar'
-                )}
+                  </> :
+
+                isLogin ? 'Entrar' : 'Cadastrar'
+                }
               </Button>
             </form>
 
@@ -197,8 +197,8 @@ export default function Auth() {
                 <button
                   type="button"
                   onClick={toggleMode}
-                  className="ml-1 text-gold hover:underline font-medium"
-                >
+                  className="ml-1 text-gold hover:underline font-medium">
+
                   {isLogin ? 'Cadastre-se' : 'Entre'}
                 </button>
               </p>
@@ -206,6 +206,6 @@ export default function Auth() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    </div>);
+
 }
