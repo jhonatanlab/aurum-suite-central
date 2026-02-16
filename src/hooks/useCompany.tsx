@@ -87,21 +87,27 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
     setLoading(true);
     try {
-      const { data: companyUserData, error: cuError } = await supabase
+      // Use select without maybeSingle to handle users with multiple entries
+      const { data: companyUsersData, error: cuError } = await supabase
         .from('company_users')
         .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .eq('user_id', user.id);
 
       if (cuError) throw cuError;
 
-      if (!companyUserData) {
+      if (!companyUsersData || companyUsersData.length === 0) {
         setCompanyUser(null);
         setCompany(null);
         setFetchedForUserId(user.id);
         setLoading(false);
         return;
       }
+
+      // If user has multiple entries, prefer the non-owner one (team member role)
+      // as the owner entry may be from the auto-created spurious company
+      const companyUserData = companyUsersData.length > 1
+        ? companyUsersData.find(cu => cu.role !== 'owner') || companyUsersData[0]
+        : companyUsersData[0];
 
       setCompanyUser(companyUserData);
 
