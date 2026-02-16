@@ -36,6 +36,18 @@ const GROWTH_LIMITS: PlanLimits = {
   blocked_modules: [],
 };
 
+// Maps module names from backend to route paths
+const MODULE_TO_PATH: Record<string, string> = {
+  revendedores: "/revendedores",
+  produtos: "/produtos",
+  vendas: "/vendas",
+  crm: "/crm",
+  financeiro: "/financeiro",
+  whatsapp: "/whatsapp",
+  campanhas: "/campanhas",
+  garantias: "/garantias",
+};
+
 export function usePlanUsage() {
   const { company } = useCompany();
   const [state, setState] = useState<PlanUsageState>({
@@ -94,5 +106,10 @@ export function usePlanUsage() {
     fetchUsage();
   }, [company?.id]);
 
-  return { ...state, planLabel: PLAN_LABELS[state.plan] || state.plan };
+  // Convert blocked module names to blocked paths
+  const blockedPaths = state.limits.blocked_modules
+    .map((mod) => MODULE_TO_PATH[mod])
+    .filter(Boolean);
+
+  return { ...state, planLabel: PLAN_LABELS[state.plan] || state.plan, blockedPaths };
 }
