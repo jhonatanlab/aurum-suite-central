@@ -12,6 +12,7 @@ interface SubscriptionState {
   loading: boolean;
   isAllowed: boolean;
   currentPeriodEnd: string | null;
+  pendingPlanChange: string | null;
 }
 
 export function useSubscription(): SubscriptionState {
@@ -19,6 +20,7 @@ export function useSubscription(): SubscriptionState {
   const [status, setStatus] = useState<SubscriptionStatus>('loading');
   const [plan, setPlan] = useState('free');
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
+  const [pendingPlanChange, setPendingPlanChange] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
@@ -56,7 +58,7 @@ export function useSubscription(): SubscriptionState {
 
         const { data, error } = await supabase
           .from('subscriptions')
-          .select('status, plan, current_period_end')
+          .select('status, plan, current_period_end, pending_plan_change')
           .eq('company_id', company.id)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -80,6 +82,7 @@ export function useSubscription(): SubscriptionState {
         setStatus(data.status as SubscriptionStatus);
         setPlan(data.plan || 'free');
         setCurrentPeriodEnd(data.current_period_end);
+        setPendingPlanChange(data.pending_plan_change as string | null);
       } catch (err) {
         console.error('[useSubscription] Exception:', err);
         setStatus('active');
@@ -94,5 +97,5 @@ export function useSubscription(): SubscriptionState {
 
   const isAllowed = loading || isSuperAdmin || ALLOWED_STATUSES.includes(status) || status === 'inactive';
 
-  return { status, plan, loading, isAllowed, currentPeriodEnd };
+  return { status, plan, loading, isAllowed, currentPeriodEnd, pendingPlanChange };
 }

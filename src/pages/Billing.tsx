@@ -13,6 +13,8 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  ArrowUpCircle,
+  ArrowDownCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -106,13 +108,19 @@ const VARIANT_STYLES = {
 const isBlocked = (status: string) =>
   ['canceled', 'unpaid', 'incomplete', 'past_due'].includes(status);
 
+const AVAILABLE_PLANS = [
+  { key: 'starter', label: 'Starter', order: 1 },
+  { key: 'profissional', label: 'Profissional', order: 2 },
+];
+
 export default function Billing() {
-  const { status, plan, loading, currentPeriodEnd } = useSubscription();
+  const { status, plan, loading, currentPeriodEnd, pendingPlanChange } = useSubscription();
   const { signOut } = useAuth();
   const { company } = useCompany();
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [loadingCancel, setLoadingCancel] = useState(false);
+  const [loadingPlanChange, setLoadingPlanChange] = useState<string | null>(null);
 
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.canceled!;
   const styles = VARIANT_STYLES[config.variant];
@@ -171,6 +179,34 @@ export default function Billing() {
       toast.error('Erro ao cancelar assinatura');
     } finally {
       setLoadingCancel(false);
+    }
+  };
+
+  const handleChangePlan = async (newPlan: string) => {
+    const PLAN_ORDER: Record<string, number> = { starter: 1, profissional: 2, growth: 3 };
+    const isUpgrade = (PLAN_ORDER[newPlan] || 0) > (PLAN_ORDER[plan] || 0);
+    const confirmMsg = isUpgrade
+      ? `Upgrade para ${PLAN_LABELS[newPlan] || newPlan}? A diferença será cobrada proporcionalmente.`
+      : `Downgrade para ${PLAN_LABELS[newPlan] || newPlan}? A mudança será aplicada no próximo ciclo.`;
+    if (!confirm(confirmMsg)) return;
+
+    setLoadingPlanChange(newPlan);
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-service', {
+        body: { action: 'change-plan', company_id: company?.id, new_plan: newPlan },
+      });
+      if (error) throw error;
+      if (data?.type === 'upgrade') {
+        toast.success('Plano atualizado com sucesso!');
+      } else {
+        toast.success(`Mudança para ${PLAN_LABELS[newPlan]} será aplicada no próximo ciclo.`);
+      }
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err: any) {
+      console.error('Change plan error:', err);
+      toast.error(err?.message || 'Erro ao trocar de plano');
+    } finally {
+      setLoadingPlanChange(null);
     }
   };
 
@@ -249,6 +285,49 @@ export default function Billing() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Plan Change */}
+        {(status === 'active' || status === 'trialing') && !blocked && (
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+            <CardContent className="p-5 space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Trocar plano
+              </p>
+              {pendingPlanChange && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <Clock className="h-3.5 w-3.5 text-amber-400" />
+                  <span className="text-xs text-amber-400">
+                    Mudança para {PLAN_LABELS[pendingPlanChange] || pendingPlanChange} agendada para o próximo ciclo
+                  </span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                {AVAILABLE_PLANS.filter(p => p.key !== plan).map(p => {
+                  const PLAN_ORDER: Record<string, number> = { starter: 1, profissional: 2, growth: 3 };
+                  const isUpgrade = (PLAN_ORDER[p.key] || 0) > (PLAN_ORDER[plan] || 0);
+                  return (
+                    <Button
+                      key={p.key}
+                      variant="outline"
+                      onClick={() => handleChangePlan(p.key)}
+                      disabled={!!loadingPlanChange || pendingPlanChange === p.key}
+                      className="flex-1 h-10 rounded-xl border-border/50 hover:border-primary/50 hover:bg-primary/5"
+                    >
+                      {loadingPlanChange === p.key ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : isUpgrade ? (
+                        <ArrowUpCircle className="h-4 w-4 mr-2 text-emerald-400" />
+                      ) : (
+                        <ArrowDownCircle className="h-4 w-4 mr-2 text-amber-400" />
+                      )}
+                      <span className="text-sm">{p.label}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Actions */}
         <div className="space-y-3">

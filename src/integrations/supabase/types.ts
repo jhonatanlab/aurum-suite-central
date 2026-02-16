@@ -1313,6 +1313,7 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           id: string
+          pending_plan_change: string | null
           plan: string
           price_id: string | null
           status: string
@@ -1324,6 +1325,7 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           id?: string
+          pending_plan_change?: string | null
           plan?: string
           price_id?: string | null
           status?: string
@@ -1335,6 +1337,7 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           id?: string
+          pending_plan_change?: string | null
           plan?: string
           price_id?: string | null
           status?: string
