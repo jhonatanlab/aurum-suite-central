@@ -269,8 +269,19 @@ serve(async (req) => {
 
       // Find customer & active subscription
       const cs6 = await stripe.customers.list({ email: user.email!, limit: 1 });
-      if (cs6.data.length === 0) throw new Error("No Stripe customer found");
-      const subs6 = await stripe.subscriptions.list({ customer: cs6.data[0].id, status: "active", limit: 1 });
+      let customerId6: string;
+      if (cs6.data.length === 0) {
+        // Auto-create Stripe customer if not found
+        const newCust = await stripe.customers.create({
+          email: user.email!,
+          metadata: { company_id, supabase_user_id: user.id },
+        });
+        customerId6 = newCust.id;
+        logStep("Customer auto-created for change-plan", { customerId: customerId6 });
+      } else {
+        customerId6 = cs6.data[0].id;
+      }
+      const subs6 = await stripe.subscriptions.list({ customer: customerId6, status: "active", limit: 1 });
       if (subs6.data.length === 0) throw new Error("No active subscription found");
 
       const sub = subs6.data[0];
