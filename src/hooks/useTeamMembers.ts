@@ -55,36 +55,52 @@ export function useTeamMembers() {
       const result = response.data;
       const error = response.error;
 
-      // Check for plan limit in the result body (403 responses may still have data)
-      if (result?.code === 'PLAN_USER_LIMIT' || result?.code === 'PLAN_MODULE_BLOCKED') {
-        toast.error(result.error || 'Limite do plano atingido. Faça upgrade.');
+      // Check for plan limit codes in either result or error
+      const isPlanLimit = (obj: any) =>
+        obj?.code === 'PLAN_USER_LIMIT' || obj?.code === 'PLAN_MODULE_BLOCKED';
+
+      if (isPlanLimit(result)) {
         return { error: error || new Error(result.error), planLimit: true, planData: result };
       }
 
       if (error) {
-        // Try to parse the response body from error context
+        // Try to extract plan limit info from error context
+        let errorBody: any = null;
         try {
           const context = (error as any)?.context;
           if (context instanceof Response) {
-            const body = await context.json();
-            if (body?.code === 'PLAN_USER_LIMIT' || body?.code === 'PLAN_MODULE_BLOCKED') {
-              toast.error(body.error || 'Limite do plano atingido. Faça upgrade.');
-              return { error, planLimit: true, planData: body };
-            }
+            errorBody = await context.json();
           }
-        } catch { /* ignore parsing errors */ }
-        throw error;
+        } catch { /* body already consumed or not JSON */ }
+
+        // Also check the error message itself for plan limit keywords
+        const errorMsg = (error as any)?.message || String(error);
+        if (isPlanLimit(errorBody)) {
+          return { error, planLimit: true, planData: errorBody };
+        }
+        if (errorMsg.includes('PLAN_USER_LIMIT') || errorMsg.includes('Limite de')) {
+          return { error, planLimit: true, planData: { error: errorMsg } };
+        }
+
+        toast.error(errorBody?.error || errorMsg || 'Erro ao criar membro');
+        return { error, planLimit: false };
       }
 
       if (result?.error) {
-        throw new Error(result.error);
+        toast.error(result.error);
+        return { error: new Error(result.error), planLimit: false };
       }
 
       toast.success('Membro adicionado com sucesso!');
       await fetchMembers();
       return { error: null, planLimit: false };
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao criar membro');
+      // Catch-all: check if the stringified error contains plan limit info
+      const msg = err?.message || String(err);
+      if (msg.includes('PLAN_USER_LIMIT') || msg.includes('Limite de')) {
+        return { error: err, planLimit: true, planData: { error: msg } };
+      }
+      toast.error(msg || 'Erro ao criar membro');
       return { error: err, planLimit: false };
     }
   };
