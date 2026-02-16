@@ -249,6 +249,94 @@ serve(async (req) => {
       });
       result = { url: ps.url };
 
+    } else if (action === "change-plan") {
+      const { user, supabase } = await getAuthUser();
+      const body = await getBody();
+      const { company_id, new_plan } = body;
+      if (!company_id) throw new Error("company_id is required");
+      if (!new_plan) throw new Error("new_plan is required");
+      await verifyCompany(supabase, company_id);
+      logStep("Change plan requested", { company_id, new_plan });
+
+      const newPlanConfig = PLAN_MAP[new_plan];
+      if (!newPlanConfig) throw new Error(`Invalid plan: ${new_plan}`);
+      if (new_plan === "growth") {
+        return new Response(
+          JSON.stringify({ error: "PLAN_NOT_AVAILABLE", message: "O plano Growth ainda não está disponível." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+        );
+      }
+
+      // Find customer & active subscription
+      const cs6 = await stripe.customers.list({ email: user.email!, limit: 1 });
+      if (cs6.data.length === 0) throw new Error("No Stripe customer found");
+      const subs6 = await stripe.subscriptions.list({ customer: cs6.data[0].id, status: "active", limit: 1 });
+      if (subs6.data.length === 0) throw new Error("No active subscription found");
+
+      const sub = subs6.data[0];
+      const currentPriceId = sub.items.data[0]?.price?.id;
+      const currentItemId = sub.items.data[0]?.id;
+
+      if (currentPriceId === newPlanConfig.price_id) {
+        throw new Error("Already on this plan");
+      }
+
+      // Determine upgrade vs downgrade by price order
+      const PLAN_ORDER: Record<string, number> = { starter: 1, profissional: 2, growth: 3 };
+      const PRICE_TO_PLAN: Record<string, string> = {};
+      for (const [p, cfg] of Object.entries(PLAN_MAP)) PRICE_TO_PLAN[cfg.price_id] = p;
+      const currentPlan = PRICE_TO_PLAN[currentPriceId] || "starter";
+      const isUpgrade = (PLAN_ORDER[new_plan] || 0) > (PLAN_ORDER[currentPlan] || 0);
+
+      const adminDb = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } }
+      );
+
+      if (isUpgrade) {
+        // Upgrade: apply immediately with proration
+        await stripe.subscriptions.update(sub.id, {
+          items: [{ id: currentItemId, price: newPlanConfig.price_id }],
+          proration_behavior: "create_prorations",
+        });
+        logStep("Upgrade applied immediately", { from: currentPlan, to: new_plan });
+
+        await adminDb
+          .from("subscriptions")
+          .update({ plan: new_plan, pending_plan_change: null })
+          .eq("stripe_subscription_id", sub.id);
+
+        // Update company plan
+        await adminDb
+          .from("companies")
+          .update({ plan: new_plan })
+          .eq("id", company_id);
+
+        result = { success: true, type: "upgrade", applied: "immediate", new_plan };
+      } else {
+        // Downgrade: schedule for next cycle
+        await stripe.subscriptions.update(sub.id, {
+          items: [{ id: currentItemId, price: newPlanConfig.price_id }],
+          proration_behavior: "none",
+          billing_cycle_anchor: "unchanged",
+        });
+        logStep("Downgrade scheduled for next cycle", { from: currentPlan, to: new_plan });
+
+        await adminDb
+          .from("subscriptions")
+          .update({ pending_plan_change: new_plan })
+          .eq("stripe_subscription_id", sub.id);
+
+        result = {
+          success: true,
+          type: "downgrade",
+          applied: "next_cycle",
+          new_plan,
+          effective_date: new Date(sub.current_period_end * 1000).toISOString(),
+        };
+      }
+
     } else if (action === "cancel-subscription") {
       const { user, supabase } = await getAuthUser();
       const body = await getBody();
@@ -293,7 +381,7 @@ serve(async (req) => {
 
     } else {
       return new Response(
-        JSON.stringify({ error: "Invalid action. Use: create-customer, create-checkout-session, create-checkout, check-subscription, customer-portal, cancel-subscription" }),
+        JSON.stringify({ error: "Invalid action. Use: create-customer, create-checkout-session, create-checkout, check-subscription, customer-portal, change-plan, cancel-subscription" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
