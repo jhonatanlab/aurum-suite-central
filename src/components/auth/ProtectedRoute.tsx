@@ -5,6 +5,9 @@ import { useCompany } from '@/hooks/useCompany';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Loader2 } from 'lucide-react';
 
+// Modules accessible by "vendedor" role
+const VENDEDOR_ALLOWED_PATHS = ['/', '/crm', '/vendas'];
+
 interface ProtectedRouteProps {
   children: ReactNode;
   requireCompany?: boolean;
@@ -17,7 +20,7 @@ export default function ProtectedRoute({
   skipSubscriptionCheck = false 
 }: ProtectedRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const { hasCompany, loading: companyLoading } = useCompany();
+  const { hasCompany, companyUser, loading: companyLoading } = useCompany();
   const { isAllowed, loading: subLoading } = useSubscription();
   const location = useLocation();
 
@@ -61,6 +64,11 @@ export default function ProtectedRoute({
     if (location.pathname !== '/billing') {
       return <Navigate to="/billing" replace />;
     }
+  }
+
+  // Role-based access: vendedor can only access specific modules
+  if (companyUser?.role === 'vendedor' && !VENDEDOR_ALLOWED_PATHS.includes(location.pathname)) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
