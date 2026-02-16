@@ -139,19 +139,21 @@ export default function MeuNegocio() {
           {/* Plan Card */}
           <Card className="card-premium">
             <CardContent className="pt-6 pb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Crown className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Plano Atual</p>
-                  <p className="text-lg font-bold text-foreground">{planLabel}</p>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Crown className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Plano Atual</p>
+                    <p className="text-lg font-bold text-foreground">{planLabel}</p>
+                  </div>
                 </div>
                 {plan !== "growth" && (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="gap-1 text-xs border-primary/30 text-primary hover:bg-primary/10 shrink-0"
+                    className="gap-1 text-xs border-primary/30 text-primary hover:bg-primary/10 w-full"
                     onClick={() => navigate("/billing")}
                   >
                     <Zap className="h-3 w-3" />
