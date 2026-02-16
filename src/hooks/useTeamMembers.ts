@@ -42,7 +42,7 @@ export function useTeamMembers() {
     password: string;
     role: 'vendedor' | 'gerente';
   }) => {
-    if (!company) return { error: new Error('Sem empresa') };
+    if (!company) return { error: new Error('Sem empresa'), planLimit: false };
 
     try {
       const { data: result, error } = await supabase.functions.invoke(
@@ -52,15 +52,32 @@ export function useTeamMembers() {
         }
       );
 
-      if (error) throw error;
-      if (result?.error) throw new Error(result.error);
+      if (error) {
+        // Try to parse the response body for plan limit errors
+        const context = error?.context;
+        if (context instanceof Response) {
+          const body = await context.json().catch(() => null);
+          if (body?.code === 'PLAN_USER_LIMIT' || body?.code === 'PLAN_MODULE_BLOCKED') {
+            toast.error(body.error || 'Limite do plano atingido. Faça upgrade.');
+            return { error, planLimit: true, planData: body };
+          }
+        }
+        throw error;
+      }
+      if (result?.error) {
+        if (result?.code === 'PLAN_USER_LIMIT') {
+          toast.error(result.error);
+          return { error: new Error(result.error), planLimit: true, planData: result };
+        }
+        throw new Error(result.error);
+      }
 
       toast.success('Membro adicionado com sucesso!');
       await fetchMembers();
-      return { error: null };
+      return { error: null, planLimit: false };
     } catch (err: any) {
       toast.error(err.message || 'Erro ao criar membro');
-      return { error: err };
+      return { error: err, planLimit: false };
     }
   };
 
