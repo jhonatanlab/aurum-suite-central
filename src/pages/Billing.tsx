@@ -220,7 +220,22 @@ export default function Billing() {
       }
       setTimeout(() => window.location.reload(), 1500);
     } catch (err: any) {
-      const msg = String(err?.message || err || '');
+      // FunctionsHttpError: need to read the response body for the actual error
+      let msg = '';
+      try {
+        if (err?.context?.body) {
+          const reader = err.context.body.getReader?.();
+          if (reader) {
+            const { value } = await reader.read();
+            msg = new TextDecoder().decode(value);
+          }
+        }
+        if (!msg && err?.response?.json) {
+          const body = await err.response.json();
+          msg = JSON.stringify(body);
+        }
+      } catch {}
+      if (!msg) msg = String(err?.message || err || '');
       if (msg.includes('NO_ACTIVE_SUBSCRIPTION') || msg.includes('No active subscription')) {
         await redirectToCheckout();
         return;
