@@ -205,9 +205,11 @@ export default function Billing() {
         body: { action: 'change-plan', company_id: company?.id, new_plan: newPlan },
       });
 
-      // Check both data and error for NO_ACTIVE_SUBSCRIPTION
-      const errStr = JSON.stringify(error || '') + JSON.stringify(data || '');
-      if (errStr.includes('NO_ACTIVE_SUBSCRIPTION') || errStr.includes('No active subscription')) {
+      // Check for NO_ACTIVE_SUBSCRIPTION in both error and data
+      const errorMsg = error?.message || '';
+      const dataStr = JSON.stringify(data || '');
+      if (errorMsg.includes('NO_ACTIVE_SUBSCRIPTION') || dataStr.includes('NO_ACTIVE_SUBSCRIPTION') ||
+          errorMsg.includes('No active subscription') || dataStr.includes('No active subscription')) {
         await redirectToCheckout();
         return;
       }
