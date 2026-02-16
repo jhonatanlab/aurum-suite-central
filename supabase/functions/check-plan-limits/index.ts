@@ -91,24 +91,42 @@ serve(async (req) => {
     const { data: belongs } = await supabase.rpc("user_belongs_to_company", { _company_id: company_id });
     if (!belongs) throw new Error("User does not belong to this company");
 
-    // Get active plan from Stripe
-    const Stripe = (await import("https://esm.sh/stripe@14.21.0")).default;
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2023-10-16",
-      httpClient: Stripe.createFetchHttpClient(),
-    });
+    // Check if user is superadmin — gets Growth plan automatically
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+    const { data: superadminRole } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "superadmin")
+      .maybeSingle();
 
     let currentPlan = "none";
-    const customers = await stripe.customers.list({ email: user.email!, limit: 1 });
-    if (customers.data.length > 0) {
-      const subs = await stripe.subscriptions.list({
-        customer: customers.data[0].id,
-        status: "active",
-        limit: 1,
+
+    if (superadminRole) {
+      currentPlan = "growth";
+      logStep("Superadmin detected, granting growth plan");
+    } else {
+      // Get active plan from Stripe
+      const Stripe = (await import("https://esm.sh/stripe@14.21.0")).default;
+      const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+        apiVersion: "2023-10-16",
+        httpClient: Stripe.createFetchHttpClient(),
       });
-      if (subs.data.length > 0) {
-        const productId = subs.data[0].items.data[0]?.price?.product as string;
-        currentPlan = PRODUCT_TO_PLAN[productId] || "none";
+
+      const customers = await stripe.customers.list({ email: user.email!, limit: 1 });
+      if (customers.data.length > 0) {
+        const subs = await stripe.subscriptions.list({
+          customer: customers.data[0].id,
+          status: "active",
+          limit: 1,
+        });
+        if (subs.data.length > 0) {
+          const productId = subs.data[0].items.data[0]?.price?.product as string;
+          currentPlan = PRODUCT_TO_PLAN[productId] || "none";
+        }
       }
     }
     logStep("Current plan resolved", { currentPlan });
