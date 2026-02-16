@@ -20,6 +20,10 @@ import { cn } from "@/lib/utils";
 import { systemSettings } from "@/config/systemSettings";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCompany } from "@/hooks/useCompany";
+
+// Modules accessible by "vendedor" role
+const VENDEDOR_ALLOWED_PATHS = ["/", "/crm", "/vendas"];
 
 const menuItems = [
   { title: "Dashboard", icon: LayoutDashboard, path: "/" },
@@ -39,6 +43,8 @@ const menuItems = [
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { companyUser } = useCompany();
+  const userRole = companyUser?.role;
 
   return (
     <aside
@@ -69,6 +75,7 @@ export function AppSidebar() {
         <div className="space-y-1">
           {menuItems
             .filter((item) => !systemSettings.modes.mvp || !systemSettings.mvpHiddenModules.includes(item.path))
+            .filter((item) => userRole !== 'vendedor' || VENDEDOR_ALLOWED_PATHS.includes(item.path))
             .map((item, index) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
