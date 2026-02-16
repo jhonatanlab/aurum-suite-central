@@ -113,7 +113,7 @@ export default function Auth() {
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src={aurumLogo} alt="Aurum Suite" className="h-40 mx-auto mb-3" />
+          <img src={aurumLogo} alt="Aurum Suite" className="h-40 mx-auto mb-1" />
           <p className="text-muted-foreground">Sistema de gestão empresarial</p>
         </div>
 
