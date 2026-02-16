@@ -39,10 +39,20 @@ const PLAN_LIMITS: Record<string, {
   },
 };
 
-const PRODUCT_TO_PLAN: Record<string, string> = {
+function getEnvironment() {
+  return (Deno.env.get("ENVIRONMENT") || "live").toLowerCase();
+}
+
+const PRODUCT_TO_PLAN_LIVE: Record<string, string> = {
   "prod_TxloA2DvJpzDfY": "starter",
   "prod_TxlqeNUHbcFsqx": "profissional",
   "prod_TxltCMJQ2SONaC": "growth",
+};
+
+const PRODUCT_TO_PLAN_TEST: Record<string, string> = {
+  "prod_TyAj8dl5s4vBEg": "starter",
+  "prod_TyAkyKmOaIR5mN": "profissional",
+  "prod_TyAk5r4bslcggc": "growth",
 };
 
 const logStep = (step: string, details?: unknown) => {
@@ -109,12 +119,17 @@ serve(async (req) => {
       currentPlan = "growth";
       logStep("Superadmin detected, granting growth plan");
     } else {
-      // Get active plan from Stripe
+      const env = getEnvironment();
       const Stripe = (await import("https://esm.sh/stripe@14.21.0")).default;
-      const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+      const stripeKey = env === "test"
+        ? (Deno.env.get("STRIPE_SECRET_KEY_TEST") || "")
+        : (Deno.env.get("STRIPE_SECRET_KEY") || "");
+      const stripe = new Stripe(stripeKey, {
         apiVersion: "2023-10-16",
         httpClient: Stripe.createFetchHttpClient(),
       });
+
+      const PRODUCT_TO_PLAN = env === "test" ? PRODUCT_TO_PLAN_TEST : PRODUCT_TO_PLAN_LIVE;
 
       const customers = await stripe.customers.list({ email: user.email!, limit: 1 });
       if (customers.data.length > 0) {
