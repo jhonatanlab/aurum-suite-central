@@ -282,7 +282,12 @@ serve(async (req) => {
         customerId6 = cs6.data[0].id;
       }
       const subs6 = await stripe.subscriptions.list({ customer: customerId6, status: "active", limit: 1 });
-      if (subs6.data.length === 0) throw new Error("No active subscription found");
+      if (subs6.data.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "NO_ACTIVE_SUBSCRIPTION", message: "Nenhuma assinatura ativa encontrada. Assine um plano primeiro." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
 
       const sub = subs6.data[0];
       const currentPriceId = sub.items.data[0]?.price?.id;

@@ -195,8 +195,9 @@ export default function Billing() {
       const { data, error } = await supabase.functions.invoke('stripe-service', {
         body: { action: 'change-plan', company_id: company?.id, new_plan: newPlan },
       });
-      if (error) throw error;
-      if (data?.error === 'No active subscription found' || data?.error?.includes('No active subscription')) {
+      // supabase.functions.invoke doesn't throw on 4xx, it returns data with the error
+      if (error && !data) throw error;
+      if (data?.error === 'NO_ACTIVE_SUBSCRIPTION' || data?.error === 'No active subscription found' || data?.error?.includes?.('No active subscription')) {
         // No subscription yet — redirect to checkout
         toast.info('Você ainda não tem assinatura. Redirecionando para checkout...');
         const { data: checkoutData } = await supabase.functions.invoke('stripe-service', {
