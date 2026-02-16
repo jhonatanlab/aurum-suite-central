@@ -6,11 +6,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PLAN_MAP: Record<string, { product_id: string; price_id: string }> = {
+const PLAN_MAP_LIVE: Record<string, { product_id: string; price_id: string }> = {
   starter: { product_id: "prod_TxloA2DvJpzDfY", price_id: "price_1SzqGfRpBEKvV4xv6a5NoVDs" },
   profissional: { product_id: "prod_TxlqeNUHbcFsqx", price_id: "price_1SzqJIRpBEKvV4xvcgo6O71x" },
   growth: { product_id: "prod_TxltCMJQ2SONaC", price_id: "price_1SzqLkRpBEKvV4xvm5hbB3gK" },
 };
+
+const PLAN_MAP_TEST: Record<string, { product_id: string; price_id: string }> = {
+  starter: { product_id: "prod_TyAj8dl5s4vBEg", price_id: "" },
+  profissional: { product_id: "prod_TyAkyKmOaIR5mN", price_id: "" },
+  growth: { product_id: "prod_TyAk5r4bslcggc", price_id: "" },
+};
+
+function getEnvironment() {
+  return (Deno.env.get("ENVIRONMENT") || "live").toLowerCase();
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -18,6 +28,7 @@ serve(async (req) => {
   }
 
   try {
+    const env = getEnvironment();
     const url = new URL(req.url);
     let action = url.searchParams.get("action");
 
@@ -38,7 +49,30 @@ serve(async (req) => {
     }
 
     const Stripe = (await import("https://esm.sh/stripe@14.21.0")).default;
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2023-10-16", httpClient: Stripe.createFetchHttpClient() });
+    const stripeKey = env === "test"
+      ? (Deno.env.get("STRIPE_SECRET_KEY_TEST") || "")
+      : (Deno.env.get("STRIPE_SECRET_KEY") || "");
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16", httpClient: Stripe.createFetchHttpClient() });
+
+    // Resolve PLAN_MAP: for test env, dynamically resolve price_ids from Stripe
+    let PLAN_MAP = env === "test" ? { ...PLAN_MAP_TEST } : { ...PLAN_MAP_LIVE };
+    if (env === "test") {
+      // Resolve price_ids dynamically for test products
+      for (const [planName, cfg] of Object.entries(PLAN_MAP)) {
+        if (!cfg.price_id && cfg.product_id) {
+          try {
+            const prices = await stripe.prices.list({ product: cfg.product_id, active: true, limit: 1 });
+            if (prices.data.length > 0) {
+              PLAN_MAP[planName] = { ...cfg, price_id: prices.data[0].id };
+            }
+          } catch (e) {
+            console.log(`[STRIPE-SERVICE] Failed to resolve test price for ${planName}: ${e}`);
+          }
+        }
+      }
+    }
+
+    console.log(`[STRIPE-SERVICE] Environment: ${env}, action: ${action}`);
 
     function getSupabase(authHeader?: string) {
       const opts: Record<string, any> = {};
@@ -208,11 +242,10 @@ serve(async (req) => {
       await verifyCompany(supabase, company_id);
 
       const cs = await stripe.customers.list({ email: user.email!, limit: 1 });
-      const PRODUCT_TO_PLAN: Record<string, string> = {
-        "prod_TxloA2DvJpzDfY": "starter",
-        "prod_TxlqeNUHbcFsqx": "profissional",
-        "prod_TxltCMJQ2SONaC": "growth",
-      };
+      const PRODUCT_TO_PLAN: Record<string, string> = {};
+      for (const [planName, cfg] of Object.entries(PLAN_MAP)) {
+        PRODUCT_TO_PLAN[cfg.product_id] = planName;
+      }
 
       if (cs.data.length === 0) {
         result = { subscribed: false, plan: null, product_id: null, subscription_end: null };
