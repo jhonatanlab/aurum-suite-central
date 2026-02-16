@@ -196,6 +196,16 @@ export default function Billing() {
         body: { action: 'change-plan', company_id: company?.id, new_plan: newPlan },
       });
       if (error) throw error;
+      if (data?.error === 'No active subscription found' || data?.error?.includes('No active subscription')) {
+        // No subscription yet — redirect to checkout
+        toast.info('Você ainda não tem assinatura. Redirecionando para checkout...');
+        const { data: checkoutData } = await supabase.functions.invoke('stripe-service', {
+          body: { action: 'create-checkout-session', plan: newPlan, company_id: company?.id },
+        });
+        if (checkoutData?.url) window.open(checkoutData.url, '_blank');
+        return;
+      }
+      if (data?.error) throw new Error(data.error);
       if (data?.type === 'upgrade') {
         toast.success('Plano atualizado com sucesso!');
       } else {
@@ -203,8 +213,19 @@ export default function Billing() {
       }
       setTimeout(() => window.location.reload(), 1500);
     } catch (err: any) {
+      const msg = err?.message || '';
+      if (msg.includes('No active subscription')) {
+        toast.info('Você ainda não tem assinatura. Redirecionando para checkout...');
+        try {
+          const { data: checkoutData } = await supabase.functions.invoke('stripe-service', {
+            body: { action: 'create-checkout-session', plan: newPlan, company_id: company?.id },
+          });
+          if (checkoutData?.url) window.open(checkoutData.url, '_blank');
+        } catch { toast.error('Erro ao iniciar checkout'); }
+        return;
+      }
       console.error('Change plan error:', err);
-      toast.error(err?.message || 'Erro ao trocar de plano');
+      toast.error(msg || 'Erro ao trocar de plano');
     } finally {
       setLoadingPlanChange(null);
     }
