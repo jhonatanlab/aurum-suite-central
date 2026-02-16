@@ -191,21 +191,27 @@ export default function Billing() {
     if (!confirm(confirmMsg)) return;
 
     setLoadingPlanChange(newPlan);
-    try {
-      const { data, error } = await supabase.functions.invoke('stripe-service', {
-        body: { action: 'change-plan', company_id: company?.id, new_plan: newPlan },
-      });
-      // supabase.functions.invoke doesn't throw on 4xx, it returns data with the error
-      if (error && !data) throw error;
-      if (data?.error === 'NO_ACTIVE_SUBSCRIPTION' || data?.error === 'No active subscription found' || data?.error?.includes?.('No active subscription')) {
-        // No subscription yet — redirect to checkout
-        toast.info('Você ainda não tem assinatura. Redirecionando para checkout...');
+    const redirectToCheckout = async () => {
+      toast.info('Você ainda não tem assinatura. Redirecionando para checkout...');
+      try {
         const { data: checkoutData } = await supabase.functions.invoke('stripe-service', {
           body: { action: 'create-checkout-session', plan: newPlan, company_id: company?.id },
         });
         if (checkoutData?.url) window.open(checkoutData.url, '_blank');
+      } catch { toast.error('Erro ao iniciar checkout'); }
+    };
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-service', {
+        body: { action: 'change-plan', company_id: company?.id, new_plan: newPlan },
+      });
+
+      // Check both data and error for NO_ACTIVE_SUBSCRIPTION
+      const errStr = JSON.stringify(error || '') + JSON.stringify(data || '');
+      if (errStr.includes('NO_ACTIVE_SUBSCRIPTION') || errStr.includes('No active subscription')) {
+        await redirectToCheckout();
         return;
       }
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       if (data?.type === 'upgrade') {
         toast.success('Plano atualizado com sucesso!');
@@ -214,15 +220,9 @@ export default function Billing() {
       }
       setTimeout(() => window.location.reload(), 1500);
     } catch (err: any) {
-      const msg = err?.message || '';
-      if (msg.includes('No active subscription')) {
-        toast.info('Você ainda não tem assinatura. Redirecionando para checkout...');
-        try {
-          const { data: checkoutData } = await supabase.functions.invoke('stripe-service', {
-            body: { action: 'create-checkout-session', plan: newPlan, company_id: company?.id },
-          });
-          if (checkoutData?.url) window.open(checkoutData.url, '_blank');
-        } catch { toast.error('Erro ao iniciar checkout'); }
+      const msg = String(err?.message || err || '');
+      if (msg.includes('NO_ACTIVE_SUBSCRIPTION') || msg.includes('No active subscription')) {
+        await redirectToCheckout();
         return;
       }
       console.error('Change plan error:', err);
