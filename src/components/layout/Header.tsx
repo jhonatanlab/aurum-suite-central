@@ -101,24 +101,7 @@ export function Header({ title }: HeaderProps) {
 
         {/* Right Section */}
         <div className="flex items-center gap-4">
-          {/* Company Name Badge */}
-          {company && (
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border">
-              <Building2 className="h-4 w-4 text-gold" />
-              <span className="text-sm font-medium text-foreground truncate max-w-[150px]">
-                {company.name}
-              </span>
-            </div>
-          )}
 
-          {/* Search */}
-          <div className="relative hidden lg:block">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar..."
-              className="w-64 bg-secondary/50 border-border pl-9 focus:border-[hsl(var(--gold)/0.5)] focus:ring-[hsl(var(--gold)/0.2)]"
-            />
-          </div>
 
           {/* Notifications */}
           <DropdownMenu>
