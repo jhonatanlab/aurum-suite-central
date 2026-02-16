@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { PlanLimitModal } from "@/components/ui/PlanLimitModal";
 import { useCompany } from "@/hooks/useCompany";
 import {
   UserCircle, Plus, Trash2, Shield, ShoppingBag, Loader2, Users,
@@ -47,6 +48,7 @@ export function TeamManagementTab() {
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [creating, setCreating] = useState(false);
+  const [planLimitOpen, setPlanLimitOpen] = useState(false);
   const [form, setForm] = useState({
     name: "", email: "", password: "", role: "vendedor" as "vendedor" | "gerente",
   });
@@ -57,8 +59,13 @@ export function TeamManagementTab() {
     if (!form.name || !form.email || !form.password) return;
     if (form.password.length < 6) return;
     setCreating(true);
-    const { error } = await createMember(form);
+    const { error, planLimit } = await createMember(form);
     setCreating(false);
+    if (planLimit) {
+      setModalOpen(false);
+      setPlanLimitOpen(true);
+      return;
+    }
     if (!error) {
       setModalOpen(false);
       setForm({ name: "", email: "", password: "", role: "vendedor" });
@@ -223,6 +230,11 @@ export function TeamManagementTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <PlanLimitModal
+        open={planLimitOpen}
+        onOpenChange={setPlanLimitOpen}
+        message="Você atingiu o limite de usuários do seu plano atual. Faça upgrade para adicionar mais membros à sua equipe."
+      />
     </>
   );
 }
