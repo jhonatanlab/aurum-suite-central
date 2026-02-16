@@ -41,6 +41,12 @@ const STATUS_CONFIG: Record<string, {
     variant: 'info',
     icon: Clock,
   },
+  canceling: {
+    label: 'Cancelamento agendado',
+    description: 'Sua assinatura será cancelada ao final do ciclo atual. Você mantém acesso até lá.',
+    variant: 'warning',
+    icon: Clock,
+  },
   canceled: {
     label: 'Cancelada',
     description: 'Sua assinatura foi cancelada. Renove para continuar usando o sistema.',
@@ -106,6 +112,7 @@ export default function Billing() {
   const { company } = useCompany();
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const [loadingCancel, setLoadingCancel] = useState(false);
 
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.canceled!;
   const styles = VARIANT_STYLES[config.variant];
@@ -146,6 +153,24 @@ export default function Billing() {
       toast.error('Erro ao iniciar checkout');
     } finally {
       setLoadingCheckout(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!confirm('Tem certeza que deseja cancelar sua assinatura? Você manterá acesso até o final do ciclo atual.')) return;
+    setLoadingCancel(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-service', {
+        body: { action: 'cancel-subscription', company_id: company?.id },
+      });
+      if (error) throw error;
+      toast.success('Assinatura será cancelada ao final do ciclo');
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      console.error('Cancel error:', err);
+      toast.error('Erro ao cancelar assinatura');
+    } finally {
+      setLoadingCancel(false);
     }
   };
 
@@ -252,6 +277,22 @@ export default function Billing() {
                 <CreditCard className="h-4 w-4 mr-2" />
               )}
               {loadingPortal ? 'Abrindo portal...' : 'Gerenciar Pagamento'}
+            </Button>
+          )}
+
+          {(status === 'active' || status === 'trialing') && (
+            <Button
+              variant="outline"
+              onClick={handleCancelSubscription}
+              disabled={loadingCancel}
+              className="w-full h-11 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl"
+            >
+              {loadingCancel ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <XCircle className="h-4 w-4 mr-2" />
+              )}
+              {loadingCancel ? 'Cancelando...' : 'Cancelar Assinatura'}
             </Button>
           )}
 

@@ -249,9 +249,51 @@ serve(async (req) => {
       });
       result = { url: ps.url };
 
+    } else if (action === "cancel-subscription") {
+      const { user, supabase } = await getAuthUser();
+      const body = await getBody();
+      const { company_id } = body;
+      if (!company_id) throw new Error("company_id is required");
+      await verifyCompany(supabase, company_id);
+      logStep("Cancel subscription requested", { company_id });
+
+      // Find customer
+      const cs = await stripe.customers.list({ email: user.email!, limit: 1 });
+      if (cs.data.length === 0) throw new Error("No Stripe customer found");
+
+      // Find active subscription
+      const subs = await stripe.subscriptions.list({ customer: cs.data[0].id, status: "active", limit: 1 });
+      if (subs.data.length === 0) throw new Error("No active subscription found");
+
+      const sub = subs.data[0];
+
+      // Cancel at period end (keeps access until cycle ends)
+      const updated = await stripe.subscriptions.update(sub.id, {
+        cancel_at_period_end: true,
+      });
+      logStep("Subscription set to cancel at period end", { subscription_id: sub.id, cancel_at: updated.cancel_at });
+
+      // Update local status to 'canceling'
+      const adminDb = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } }
+      );
+      await adminDb
+        .from("subscriptions")
+        .update({ status: "canceling" })
+        .eq("stripe_subscription_id", sub.id);
+
+      logStep("Local status updated to canceling");
+      result = {
+        success: true,
+        cancel_at_period_end: true,
+        current_period_end: new Date(updated.current_period_end * 1000).toISOString(),
+      };
+
     } else {
       return new Response(
-        JSON.stringify({ error: "Invalid action. Use: create-customer, create-checkout-session, create-checkout, check-subscription, customer-portal" }),
+        JSON.stringify({ error: "Invalid action. Use: create-customer, create-checkout-session, create-checkout, check-subscription, customer-portal, cancel-subscription" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
