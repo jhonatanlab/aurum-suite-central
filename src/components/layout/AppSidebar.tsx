@@ -21,6 +21,7 @@ import { systemSettings } from "@/config/systemSettings";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCompany } from "@/hooks/useCompany";
+import aurumLogo from "@/assets/aurum-logo.png";
 
 // Modules accessible by "vendedor" role
 const VENDEDOR_ALLOWED_PATHS = ["/", "/crm", "/vendas"];
@@ -57,16 +58,11 @@ export function AppSidebar() {
       <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4 shrink-0">
         {!collapsed && (
           <div className="flex items-center gap-2 animate-fade-in">
-            <div className="h-8 w-8 rounded-lg gold-gradient flex items-center justify-center">
-              <span className="text-sm font-bold text-primary-foreground">A</span>
-            </div>
-            <span className="text-lg font-semibold gold-text">Aurum Suite</span>
+            <img src={aurumLogo} alt="Aurum Suite" className="h-8" />
           </div>
         )}
         {collapsed && (
-          <div className="mx-auto h-8 w-8 rounded-lg gold-gradient flex items-center justify-center">
-            <span className="text-sm font-bold text-primary-foreground">A</span>
-          </div>
+          <img src={aurumLogo} alt="Aurum Suite" className="h-8 mx-auto" />
         )}
       </div>
 
