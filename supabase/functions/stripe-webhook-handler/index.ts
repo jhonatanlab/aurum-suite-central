@@ -303,6 +303,38 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
     .update({ status: "active" })
     .eq("stripe_subscription_id", subscriptionId);
 
+  // Check for pending plan change (scheduled downgrade)
+  const { data: subData } = await db
+    .from("subscriptions")
+    .select("company_id, pending_plan_change")
+    .eq("stripe_subscription_id", subscriptionId)
+    .maybeSingle();
+
+  if (subData?.pending_plan_change) {
+    const newPlan = subData.pending_plan_change;
+    console.log("[stripe-webhook] Applying pending plan change", {
+      subscriptionId,
+      newPlan,
+      companyId: subData.company_id,
+    });
+
+    // Update subscription plan and clear the flag
+    await db
+      .from("subscriptions")
+      .update({ plan: newPlan, pending_plan_change: null })
+      .eq("stripe_subscription_id", subscriptionId);
+
+    // Update company plan
+    if (subData.company_id) {
+      await db
+        .from("companies")
+        .update({ plan: newPlan })
+        .eq("id", subData.company_id);
+    }
+
+    console.log("[stripe-webhook] Pending plan change applied", { newPlan });
+  }
+
   console.log("[stripe-webhook] invoice.payment_succeeded", { subscriptionId });
 }
 
