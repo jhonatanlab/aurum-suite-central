@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from './useCompany';
 
-export type SubscriptionStatus = 'active' | 'trialing' | 'canceled' | 'unpaid' | 'incomplete' | 'past_due' | 'inactive' | 'loading';
+export type SubscriptionStatus = 'active' | 'trialing' | 'canceled' | 'canceling' | 'unpaid' | 'incomplete' | 'past_due' | 'inactive' | 'loading';
 
-const ALLOWED_STATUSES: string[] = ['active', 'trialing'];
+const ALLOWED_STATUSES: string[] = ['active', 'trialing', 'canceling'];
 
 interface SubscriptionState {
   status: SubscriptionStatus;
