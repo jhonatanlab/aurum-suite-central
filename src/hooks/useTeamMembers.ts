@@ -45,30 +45,38 @@ export function useTeamMembers() {
     if (!company) return { error: new Error('Sem empresa'), planLimit: false };
 
     try {
-      const { data: result, error } = await supabase.functions.invoke(
+      const response = await supabase.functions.invoke(
         'create-team-member',
         {
           body: { ...data, company_id: company.id },
         }
       );
 
+      const result = response.data;
+      const error = response.error;
+
+      // Check for plan limit in the result body (403 responses may still have data)
+      if (result?.code === 'PLAN_USER_LIMIT' || result?.code === 'PLAN_MODULE_BLOCKED') {
+        toast.error(result.error || 'Limite do plano atingido. Faça upgrade.');
+        return { error: error || new Error(result.error), planLimit: true, planData: result };
+      }
+
       if (error) {
-        // Try to parse the response body for plan limit errors
-        const context = error?.context;
-        if (context instanceof Response) {
-          const body = await context.json().catch(() => null);
-          if (body?.code === 'PLAN_USER_LIMIT' || body?.code === 'PLAN_MODULE_BLOCKED') {
-            toast.error(body.error || 'Limite do plano atingido. Faça upgrade.');
-            return { error, planLimit: true, planData: body };
+        // Try to parse the response body from error context
+        try {
+          const context = (error as any)?.context;
+          if (context instanceof Response) {
+            const body = await context.json();
+            if (body?.code === 'PLAN_USER_LIMIT' || body?.code === 'PLAN_MODULE_BLOCKED') {
+              toast.error(body.error || 'Limite do plano atingido. Faça upgrade.');
+              return { error, planLimit: true, planData: body };
+            }
           }
-        }
+        } catch { /* ignore parsing errors */ }
         throw error;
       }
+
       if (result?.error) {
-        if (result?.code === 'PLAN_USER_LIMIT') {
-          toast.error(result.error);
-          return { error: new Error(result.error), planLimit: true, planData: result };
-        }
         throw new Error(result.error);
       }
 
