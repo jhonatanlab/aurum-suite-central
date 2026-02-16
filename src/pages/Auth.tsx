@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Crown, Mail, CheckCircle2 } from 'lucide-react';
+import { Loader2, Mail, CheckCircle2 } from 'lucide-react';
+import aurumLogo from '@/assets/aurum-logo.png';
 
 const authSchema = z.object({
   email: z.string().email('Email inválido').max(255, 'Email muito longo'),
@@ -112,10 +113,7 @@ export default function Auth() {
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <Crown className="h-10 w-10 text-gold" />
-            <h1 className="text-3xl font-bold gold-text">Aurum Suite</h1>
-          </div>
+          <img src={aurumLogo} alt="Aurum Suite" className="h-12 mx-auto mb-2" />
           <p className="text-muted-foreground">Sistema de gestão empresarial</p>
         </div>
 
