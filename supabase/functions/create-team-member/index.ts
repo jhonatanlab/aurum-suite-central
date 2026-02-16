@@ -102,7 +102,8 @@ serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    // Create auth user
+    // Create auth user or reuse existing
+    let userId: string;
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email, password, email_confirm: true,
       user_metadata: { full_name: name, is_team_member: true },
@@ -110,30 +111,59 @@ serve(async (req) => {
 
     if (createError) {
       if (createError.message?.includes("already been registered")) {
-        return new Response(
-          JSON.stringify({ error: "Este email já está cadastrado" }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        // User exists in auth — look them up and link to this company
+        const { data: listData, error: listError } = await adminClient.auth.admin.listUsers();
+        if (listError) throw listError;
+        const existingUser = listData.users.find((u: any) => u.email === email);
+        if (!existingUser) {
+          return new Response(
+            JSON.stringify({ error: "Usuário não encontrado" }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Check if already linked to this company
+        const { data: existingLink } = await adminClient
+          .from("company_users")
+          .select("id")
+          .eq("user_id", existingUser.id)
+          .eq("company_id", company_id)
+          .maybeSingle();
+
+        if (existingLink) {
+          return new Response(
+            JSON.stringify({ error: "Este usuário já é membro desta empresa" }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        userId = existingUser.id;
+      } else {
+        throw createError;
       }
-      throw createError;
+    } else {
+      userId = newUser.user!.id;
     }
 
     // Link user to company
     const { error: linkError } = await adminClient
       .from("company_users")
-      .insert({ user_id: newUser.user!.id, company_id, role });
+      .insert({ user_id: userId, company_id, role });
 
     if (linkError) {
-      await adminClient.auth.admin.deleteUser(newUser.user!.id);
+      // Only delete user if we just created them
+      if (newUser?.user) {
+        await adminClient.auth.admin.deleteUser(userId);
+      }
       throw linkError;
     }
 
-    log("Team member created", { newUserId: newUser.user!.id, company_id, role });
+    log("Team member created/linked", { userId, company_id, role });
 
     return new Response(
       JSON.stringify({
         success: true,
-        user: { id: newUser.user!.id, email: newUser.user!.email, name, role },
+        user: { id: userId, email, name, role },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
