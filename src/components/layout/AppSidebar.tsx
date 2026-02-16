@@ -21,6 +21,7 @@ import { systemSettings } from "@/config/systemSettings";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCompany } from "@/hooks/useCompany";
+import { usePlanUsage } from "@/hooks/usePlanUsage";
 import aurumLogo from "@/assets/aurum-logo.png";
 
 // Modules accessible by "vendedor" role
@@ -45,6 +46,7 @@ export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { companyUser } = useCompany();
+  const { blockedPaths, loading: planLoading } = usePlanUsage();
   const userRole = companyUser?.role;
 
   return (
@@ -72,6 +74,7 @@ export function AppSidebar() {
           {menuItems
             .filter((item) => !systemSettings.modes.mvp || !systemSettings.mvpHiddenModules.includes(item.path))
             .filter((item) => userRole !== 'vendedor' || VENDEDOR_ALLOWED_PATHS.includes(item.path))
+            .filter((item) => !blockedPaths.includes(item.path))
             .map((item, index) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;

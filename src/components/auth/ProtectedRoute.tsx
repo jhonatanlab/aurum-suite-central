@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompany } from '@/hooks/useCompany';
 import { useSubscription } from '@/hooks/useSubscription';
+import { usePlanUsage } from '@/hooks/usePlanUsage';
 import { Loader2 } from 'lucide-react';
 
 // Modules accessible by "vendedor" role
@@ -22,6 +23,7 @@ export default function ProtectedRoute({
   const { user, loading: authLoading } = useAuth();
   const { hasCompany, companyUser, loading: companyLoading } = useCompany();
   const { isAllowed, loading: subLoading } = useSubscription();
+  const { blockedPaths, loading: planLoading } = usePlanUsage();
   const location = useLocation();
 
   // Show loading while auth is resolving
@@ -69,6 +71,11 @@ export default function ProtectedRoute({
   // Role-based access: vendedor can only access specific modules
   if (companyUser?.role === 'vendedor' && !VENDEDOR_ALLOWED_PATHS.includes(location.pathname)) {
     return <Navigate to="/" replace />;
+  }
+
+  // Plan-based module blocking: redirect to billing if module is blocked
+  if (!planLoading && blockedPaths.some((path) => location.pathname === path || location.pathname.startsWith(path + '/'))) {
+    return <Navigate to="/billing" replace />;
   }
 
   return <>{children}</>;
