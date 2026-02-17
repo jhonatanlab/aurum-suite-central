@@ -8,15 +8,15 @@ const corsHeaders = {
 
 const PLAN_MAP: Record<string, { live: { product_id: string; price_id: string }; test: { product_id: string; price_id: string } }> = {
   starter: {
-    live: { product_id: "prod_TxloA2DvJpzDfY", price_id: "price_1SzqGfRpBEKvV4xv6a5NoVDs" },
+    live: { product_id: "prod_Tzdm7ehADnf0Oo", price_id: "" },
     test: { product_id: "prod_TyAj8dl5s4vBEg", price_id: "" },
   },
   profissional: {
-    live: { product_id: "prod_TxlqeNUHbcFsqx", price_id: "price_1SzqJIRpBEKvV4xvcgo6O71x" },
+    live: { product_id: "prod_TzdmNgSEBtAW3d", price_id: "" },
     test: { product_id: "prod_TyAkyKmOaIR5mN", price_id: "" },
   },
   growth: {
-    live: { product_id: "prod_TxltCMJQ2SONaC", price_id: "price_1SzqLkRpBEKvV4xvm5hbB3gK" },
+    live: { product_id: "prod_TxltCMJQ2SONaC", price_id: "" },
     test: { product_id: "prod_TyAk5r4bslcggc", price_id: "" },
   },
 };
