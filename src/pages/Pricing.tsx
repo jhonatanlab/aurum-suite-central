@@ -17,9 +17,10 @@ const plans = [
     features: [
       "1 usuário",
       "Até 100 produtos",
-      "CRM básico",
+      "CRM",
       "Financeiro completo",
       "Suporte por e-mail",
+      "Garantias & Lotes",
     ],
     available: true,
     popular: false,
@@ -35,9 +36,8 @@ const plans = [
       "Usuários ilimitados",
       "Produtos ilimitados",
       "CRM avançado",
-      "Módulo de Revendedores",
-      "Garantias & Lotes",
-      "WhatsApp integrado",
+      "Módulo de Revendedores"
+      "Até 50 Revendedores",
       "Suporte prioritário",
     ],
     available: true,
@@ -46,7 +46,7 @@ const plans = [
   {
     key: "growth",
     name: "Growth",
-    price: "R$ 397",
+    price: "R$ 497",
     period: "/mês",
     description: "Para operações robustas com automações e escala.",
     icon: Rocket,
