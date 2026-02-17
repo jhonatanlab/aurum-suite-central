@@ -35,7 +35,7 @@ const plans = [
     features: [
       "Usuários ilimitados",
       "Produtos ilimitados",
-      "CRM avançado",
+      "CRM",
       "Módulo de Revendedores",
       "Até 50 Revendedores",
       "Suporte prioritário",
@@ -65,17 +65,15 @@ const plans = [
 
 export default function Pricing() {
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [modalPlan, setModalPlan] = useState<typeof plans[0] | null>(null);
+  const [modalPlan, setModalPlan] = useState<(typeof plans)[0] | null>(null);
 
   useEffect(() => {
     const loadCompanyId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
-          .from("company_users")
-          .select("company_id")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const { data } = await supabase.from("company_users").select("company_id").eq("user_id", user.id).maybeSingle();
         if (data) setCompanyId(data.company_id);
       }
     };
@@ -85,15 +83,16 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center px-4 py-16">
       <div className="text-center max-w-2xl mb-14">
-        <Badge variant="outline" className="mb-4 border-primary/40 text-primary px-4 py-1 text-xs tracking-wider uppercase">
+        <Badge
+          variant="outline"
+          className="mb-4 border-primary/40 text-primary px-4 py-1 text-xs tracking-wider uppercase"
+        >
           Planos
         </Badge>
         <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
           Escolha o plano ideal para o seu negócio
         </h1>
-        <p className="text-muted-foreground text-lg">
-          Comece agora e escale conforme sua operação cresce.
-        </p>
+        <p className="text-muted-foreground text-lg">Comece agora e escale conforme sua operação cresce.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
@@ -121,9 +120,7 @@ export default function Pricing() {
                   <Icon className="h-6 w-6 text-primary" />
                 </div>
                 <CardTitle className="text-xl font-bold text-foreground">{plan.name}</CardTitle>
-                <CardDescription className="text-muted-foreground text-sm mt-1">
-                  {plan.description}
-                </CardDescription>
+                <CardDescription className="text-muted-foreground text-sm mt-1">{plan.description}</CardDescription>
               </CardHeader>
 
               <CardContent className="flex-1 space-y-6">
