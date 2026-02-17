@@ -36,7 +36,7 @@ const plans = [
       "Usuários ilimitados",
       "Produtos ilimitados",
       "CRM avançado",
-      "Módulo de Revendedores"
+      "Módulo de Revendedores",
       "Até 50 Revendedores",
       "Suporte prioritário",
     ],
