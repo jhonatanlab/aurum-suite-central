@@ -114,6 +114,12 @@ serve(async (req) => {
     const envConfig = planConfig[environment];
     const stripeKey = getStripeKey(environment);
 
+    // Detectar modo ativo baseado na chave
+    const isLiveKey = stripeKey.startsWith("sk_live_");
+    const isTestKey = stripeKey.startsWith("sk_test_");
+    const activeMode = isLiveKey ? "LIVE" : isTestKey ? "TEST" : "UNKNOWN";
+    log("Active mode", { activeMode, environment, keyPrefix: stripeKey.substring(0, 12) });
+
     if (!stripeKey) {
       return new Response(
         JSON.stringify({ error: `STRIPE_SECRET_KEY not configured for environment: ${environment}` }),
@@ -125,6 +131,18 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: `STRIPE_SECRET_KEY contains a publishable key. Please update with a secret key (sk_).` }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+
+    // Bloquear checkout se ambiente é live mas chave não é sk_live_
+    if (environment === "live" && !isLiveKey) {
+      log("BLOCKED: Live environment requires sk_live_ key", { activeMode });
+      return new Response(
+        JSON.stringify({
+          error: "ENVIRONMENT_KEY_MISMATCH",
+          message: "Ambiente de produção requer uma chave Stripe live (sk_live_). Chave atual não é válida para produção.",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
       );
     }
 
