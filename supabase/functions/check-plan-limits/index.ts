@@ -44,8 +44,8 @@ function getEnvironment() {
 }
 
 const PRODUCT_TO_PLAN_LIVE: Record<string, string> = {
-  "prod_TxloA2DvJpzDfY": "starter",
-  "prod_TxlqeNUHbcFsqx": "profissional",
+  "prod_Tzdm7ehADnf0Oo": "starter",
+  "prod_TzdmNgSEBtAW3d": "profissional",
   "prod_TxltCMJQ2SONaC": "growth",
 };
 
