@@ -168,7 +168,6 @@ serve(async (req) => {
     }
 
     // Validate price
-    const isTestKey = stripeKey.startsWith("sk_test_");
     try {
       const priceObj = await stripe.prices.retrieve(priceId);
       if (!priceObj || !priceObj.active) {
