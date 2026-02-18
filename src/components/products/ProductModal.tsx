@@ -26,6 +26,7 @@ interface Product {
   name: string;
   category: string | null;
   price: number;
+  cost_price?: number | null;
   stock: number | null;
   status: string | null;
   company_id: string;
@@ -43,6 +44,7 @@ interface ProductFormData {
   name: string;
   category: string;
   price: string;
+  cost_price: string;
   stock: string;
   status: string;
   minimum_stock: string;
@@ -63,6 +65,7 @@ const initialFormData: ProductFormData = {
   name: "",
   category: "",
   price: "",
+  cost_price: "",
   stock: "",
   status: "active",
   minimum_stock: "0",
@@ -94,6 +97,7 @@ export function ProductModal({
         name: product.name,
         category: product.category || "",
         price: product.price.toString(),
+        cost_price: product.cost_price?.toString() || "",
         stock: product.stock?.toString() || "0",
         status: product.status || "active",
         minimum_stock: product.minimum_stock?.toString() || "0",
@@ -181,24 +185,70 @@ export function ProductModal({
                 />
               </div>
 
-              {/* Price */}
-              <div className="space-y-2">
-                <Label htmlFor="price" className="text-white font-medium">
-                  Preço (R$)
-                </Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, price: e.target.value })
-                  }
-                  placeholder="0.00"
-                  className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
-                />
+              {/* Price & Cost */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price" className="text-white font-medium">
+                    Preço de Venda (R$)
+                  </Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.price}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price: e.target.value })
+                    }
+                    placeholder="0.00"
+                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cost_price" className="text-white font-medium">
+                    Preço de Compra (R$)
+                  </Label>
+                  <Input
+                    id="cost_price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.cost_price}
+                    onChange={(e) =>
+                      setFormData({ ...formData, cost_price: e.target.value })
+                    }
+                    placeholder="0.00"
+                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                  />
+                </div>
               </div>
+
+              {/* Margin Display */}
+              {(() => {
+                const sellPrice = parseFloat(formData.price);
+                const costPrice = parseFloat(formData.cost_price);
+                if (!sellPrice || !costPrice || costPrice <= 0) return null;
+                const margin = ((sellPrice - costPrice) / costPrice) * 100;
+                const profit = sellPrice - costPrice;
+                const isPositive = margin > 0;
+                return (
+                  <div className={`flex items-center justify-between p-3 rounded-lg border ${isPositive ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-[#A1A1AA]">Margem de Lucro:</span>
+                      <span className={`text-sm font-semibold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {margin.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-[#A1A1AA]">Lucro:</span>
+                      <span className={`text-sm font-semibold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                        R$ {profit.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-2 gap-4">
                 {/* Minimum Stock */}

@@ -803,6 +803,7 @@ export type Database = {
           category: string | null
           company_id: string
           consignment_available: boolean | null
+          cost_price: number | null
           created_at: string | null
           id: string
           minimum_stock: number | null
@@ -815,6 +816,7 @@ export type Database = {
           category?: string | null
           company_id: string
           consignment_available?: boolean | null
+          cost_price?: number | null
           created_at?: string | null
           id?: string
           minimum_stock?: number | null
@@ -827,6 +829,7 @@ export type Database = {
           category?: string | null
           company_id?: string
           consignment_available?: boolean | null
+          cost_price?: number | null
           created_at?: string | null
           id?: string
           minimum_stock?: number | null
