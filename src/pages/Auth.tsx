@@ -259,18 +259,7 @@ export default function Auth() {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Senha</Label>
-                      {isLogin && (
-                        <button
-                          type="button"
-                          onClick={() => setIsForgotPassword(true)}
-                          className="text-xs text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          Esqueceu a senha?
-                        </button>
-                      )}
-                    </div>
+                    <Label htmlFor="password">Senha</Label>
                     <Input
                       id="password"
                       type="password"
@@ -280,6 +269,15 @@ export default function Auth() {
                     />
                     {errors.password && (
                       <p className="text-sm text-destructive">{errors.password.message}</p>
+                    )}
+                    {isLogin && (
+                      <button
+                        type="button"
+                        onClick={() => setIsForgotPassword(true)}
+                        className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        Esqueceu a senha?
+                      </button>
                     )}
                   </div>
 
