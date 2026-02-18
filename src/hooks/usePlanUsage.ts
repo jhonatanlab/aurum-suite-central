@@ -50,9 +50,10 @@ const MODULE_TO_PATH: Record<string, string> = {
 
 export function usePlanUsage() {
   const { company } = useCompany();
+  // Default to starter restrictions so blocked modules show immediately (no flash)
   const [state, setState] = useState<PlanUsageState>({
-    plan: "none",
-    limits: { max_users: 0, max_products: 0, max_resellers: 0, blocked_modules: [] },
+    plan: "starter",
+    limits: { max_users: 1, max_products: 100, max_resellers: 0, blocked_modules: ["revendedores"] },
     usage: { products: 0, users: 0, resellers: 0 },
     loading: true,
     isSuperAdmin: false,

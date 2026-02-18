@@ -78,7 +78,7 @@ export function AppSidebar() {
             .map((item, index) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
-            const isBlocked = !planLoading && blockedPaths.includes(item.path);
+            const isBlocked = blockedPaths.includes(item.path);
 
             const linkContent = isBlocked ? (
               <div
