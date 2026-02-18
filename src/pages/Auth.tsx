@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,6 +23,10 @@ type AuthFormData = z.infer<typeof authSchema>;
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -105,7 +110,35 @@ export default function Auth() {
 
   const toggleMode = () => {
     setIsLogin(!isLogin);
+    setIsForgotPassword(false);
+    setForgotSent(false);
     reset();
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) return;
+    setForgotLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) {
+        toast({
+          title: 'Erro',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else {
+        setForgotSent(true);
+        toast({
+          title: 'Email enviado!',
+          description: 'Verifique sua caixa de entrada para redefinir sua senha.',
+        });
+      }
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   return (
@@ -136,76 +169,153 @@ export default function Auth() {
         <Card className="card-premium">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">
-              {isLogin ? 'Entrar' : 'Criar conta'}
+              {isForgotPassword ? 'Recuperar senha' : isLogin ? 'Entrar' : 'Criar conta'}
             </CardTitle>
             <CardDescription>
-              {isLogin ?
-              'Acesse sua conta para continuar' :
-              'Preencha os dados para criar sua conta'
-              }
+              {isForgotPassword
+                ? 'Informe seu email para receber o link de recuperação'
+                : isLogin
+                ? 'Acesse sua conta para continuar'
+                : 'Preencha os dados para criar sua conta'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  {...register('email')}
-                  className="bg-secondary border-border" />
+            {isForgotPassword ? (
+              forgotSent ? (
+                <div className="text-center space-y-4 py-4">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Mail className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">Email enviado!</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Verifique sua caixa de entrada e spam para o link de redefinição de senha.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => { setIsForgotPassword(false); setForgotSent(false); }}
+                  >
+                    Voltar ao login
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="bg-secondary border-border"
+                      required
+                    />
+                  </div>
 
-                {errors.email &&
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-                }
-              </div>
+                  <Button
+                    type="submit"
+                    className="w-full gold-gradient text-primary-foreground font-semibold"
+                    disabled={forgotLoading}
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      'Enviar link de recuperação'
+                    )}
+                  </Button>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  {...register('password')}
-                  className="bg-secondary border-border" />
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => { setIsForgotPassword(false); setForgotSent(false); }}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      ← Voltar ao login
+                    </button>
+                  </div>
+                </form>
+              )
+            ) : (
+              <>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      {...register('email')}
+                      className="bg-secondary border-border"
+                    />
+                    {errors.email && (
+                      <p className="text-sm text-destructive">{errors.email.message}</p>
+                    )}
+                  </div>
 
-                {errors.password &&
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-                }
-              </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Senha</Label>
+                      {isLogin && (
+                        <button
+                          type="button"
+                          onClick={() => setIsForgotPassword(true)}
+                          className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          Esqueceu a senha?
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      {...register('password')}
+                      className="bg-secondary border-border"
+                    />
+                    {errors.password && (
+                      <p className="text-sm text-destructive">{errors.password.message}</p>
+                    )}
+                  </div>
 
-              <Button
-                type="submit"
-                className="w-full gold-gradient text-primary-foreground font-semibold"
-                disabled={isLoading}>
+                  <Button
+                    type="submit"
+                    className="w-full gold-gradient text-primary-foreground font-semibold"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Aguarde...
+                      </>
+                    ) : (
+                      isLogin ? 'Entrar' : 'Cadastrar'
+                    )}
+                  </Button>
+                </form>
 
-                {isLoading ?
-                <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Aguarde...
-                  </> :
-
-                isLogin ? 'Entrar' : 'Cadastrar'
-                }
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-muted-foreground text-sm">
-                {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
-                <button
-                  type="button"
-                  onClick={toggleMode}
-                  className="ml-1 text-gold hover:underline font-medium">
-
-                  {isLogin ? 'Cadastre-se' : 'Entre'}
-                </button>
-              </p>
-            </div>
+                <div className="mt-6 text-center">
+                  <p className="text-muted-foreground text-sm">
+                    {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
+                    <button
+                      type="button"
+                      onClick={toggleMode}
+                      className="ml-1 text-gold hover:underline font-medium"
+                    >
+                      {isLogin ? 'Cadastre-se' : 'Entre'}
+                    </button>
+                  </p>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
-    </div>);
-
+    </div>
+  );
 }
