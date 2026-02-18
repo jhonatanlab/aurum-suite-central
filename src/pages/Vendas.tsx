@@ -18,16 +18,13 @@ import { Search, ShoppingCart, Plus, Minus, Trash2, Package, DollarSign, User, P
 import { toast } from "sonner";
 import { SalesHistoryTab } from "@/components/vendas/SalesHistoryTab";
 import { MultiPaymentManager, PaymentEntry } from "@/components/vendas/MultiPaymentManager";
+import { ClientSelect } from "@/components/vendas/ClientSelect";
 interface Product {
   id: string;
   name: string;
   price: number;
   stock: number | null;
   category: string | null;
-}
-interface Lead {
-  id: string;
-  name: string;
 }
 interface CartItem {
   product: Product;
@@ -93,7 +90,7 @@ export default function Vendas() {
         error
       } = await supabase.from("leads").select("id, name").eq("company_id", company.id).order("name");
       if (error) throw error;
-      return data as Lead[];
+      return data as { id: string; name: string }[];
     },
     enabled: !!company?.id
   });
@@ -501,24 +498,8 @@ export default function Vendas() {
 
                 {/* Cart Footer for Mobile */}
                 <div className="p-5 border-t border-border space-y-4 max-h-[60vh] overflow-y-auto">
-                  {/* Cliente Select */}
-                  <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Cliente
-                    </Label>
-                    <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                      <SelectTrigger className="bg-card border-border focus:border-primary">
-                        <SelectValue placeholder="Venda sem cliente" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-border">
-                        <SelectItem value="none">Venda sem cliente</SelectItem>
-                        {leads?.map(lead => <SelectItem key={lead.id} value={lead.id}>
-                            {lead.name}
-                          </SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                   {/* Cliente Select */}
+                   <ClientSelect value={selectedClientId} onChange={setSelectedClientId} />
 
                   {/* Discount Fields */}
                   <div className="grid grid-cols-2 gap-3">
@@ -658,23 +639,7 @@ export default function Vendas() {
               {/* Cart Options - Scrollable */}
               <div className="flex-1 overflow-y-auto p-4 border-t border-border space-y-3">
                 {/* Cliente Select */}
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Cliente
-                  </Label>
-                  <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                    <SelectTrigger className="bg-card border-border focus:border-primary">
-                      <SelectValue placeholder="Venda sem cliente" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      <SelectItem value="none">Venda sem cliente</SelectItem>
-                      {leads?.map(lead => <SelectItem key={lead.id} value={lead.id}>
-                          {lead.name}
-                        </SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <ClientSelect value={selectedClientId} onChange={setSelectedClientId} />
 
                 {/* Discount Fields */}
                 <div className="grid grid-cols-2 gap-3">
