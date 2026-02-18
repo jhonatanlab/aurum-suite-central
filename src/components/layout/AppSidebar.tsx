@@ -15,6 +15,7 @@ import {
   Wallet,
   ShieldCheck,
   Building2,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { systemSettings } from "@/config/systemSettings";
@@ -74,16 +75,29 @@ export function AppSidebar() {
           {menuItems
             .filter((item) => !systemSettings.modes.mvp || !systemSettings.mvpHiddenModules.includes(item.path))
             .filter((item) => userRole !== 'vendedor' || VENDEDOR_ALLOWED_PATHS.includes(item.path))
-            .filter((item) => {
-              // While plan is loading, show all modules to avoid flickering
-              if (planLoading) return true;
-              return !blockedPaths.includes(item.path);
-            })
             .map((item, index) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
+            const isBlocked = !planLoading && blockedPaths.includes(item.path);
 
-            const linkContent = (
+            const linkContent = isBlocked ? (
+              <div
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium cursor-not-allowed opacity-50",
+                  "text-muted-foreground",
+                  collapsed && "justify-center px-2"
+                )}
+                title="Módulo não disponível no seu plano"
+              >
+                <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
+                {!collapsed && (
+                  <>
+                    <span className="truncate">{item.title}</span>
+                    <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-auto" />
+                  </>
+                )}
+              </div>
+            ) : (
               <NavLink
                 to={item.path}
                 className={cn(
@@ -115,7 +129,7 @@ export function AppSidebar() {
                 <Tooltip key={item.path} delayDuration={0}>
                   <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
                   <TooltipContent side="right" className="bg-card border-border">
-                    {item.title}
+                    {item.title}{isBlocked ? " 🔒" : ""}
                   </TooltipContent>
                 </Tooltip>
               );
