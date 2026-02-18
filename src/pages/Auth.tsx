@@ -304,7 +304,7 @@ export default function Auth() {
                     {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
                     <button
                       type="button"
-                      onClick={toggleMode}
+                      onClick={() => isLogin ? navigate('/pricing') : toggleMode()}
                       className="ml-1 text-gold hover:underline font-medium"
                     >
                       {isLogin ? 'Cadastre-se' : 'Entre'}
