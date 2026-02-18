@@ -33,10 +33,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const environment = env();
+  const activeMode = environment === "live" ? "LIVE" : "TEST";
+  console.log(`[stripe-webhook] Mode: ${activeMode} | Environment: ${environment}`);
+
   try {
     const signature = req.headers.get("stripe-signature");
     const secret = webhookSecret();
     if (!signature || !secret) {
+      console.error(`[stripe-webhook] Missing signature or webhook secret (${activeMode})`);
       return json({ error: "Missing signature or secret" }, 400);
     }
 
@@ -64,15 +69,20 @@ serve(async (req) => {
       return json({ error: "Invalid signature" }, 401);
     }
 
+    console.log(`[stripe-webhook] Event received: ${event.type} | Mode: ${activeMode} | ID: ${event.id}`);
+
     switch (event.type) {
       case "checkout.session.completed":
+        console.log(`[stripe-webhook] ▶ checkout.session.completed | Customer: ${event.data.object.customer} | Subscription: ${event.data.object.subscription} | Mode: ${activeMode}`);
         await handleCheckoutCompleted(event.data.object, stripe);
         break;
       case "customer.subscription.created":
       case "customer.subscription.updated":
+        console.log(`[stripe-webhook] ▶ ${event.type} | Sub: ${event.data.object.id} | Status: ${event.data.object.status} | Mode: ${activeMode}`);
         await handleSubscriptionUpsert(event.data.object, stripe);
         break;
       case "customer.subscription.deleted":
+        console.log(`[stripe-webhook] ▶ customer.subscription.deleted | Sub: ${event.data.object.id} | Mode: ${activeMode}`);
         await handleSubscriptionDeleted(event.data.object);
         break;
       case "invoice.payment_failed":
@@ -82,6 +92,7 @@ serve(async (req) => {
         await handleInvoicePaymentSucceeded(event.data.object);
         break;
       default:
+        console.log(`[stripe-webhook] Unhandled event: ${event.type} | Mode: ${activeMode}`);
         return json({ received: true });
     }
 
@@ -381,7 +392,8 @@ async function upsertSubscription(
 ) {
   const db = supabaseAdmin();
   const priceId = sub.items?.data?.[0]?.price?.id || null;
-  const planName = resolvePlanName(priceId);
+  const productId = sub.items?.data?.[0]?.price?.product || null;
+  const planName = resolvePlanName(priceId, productId);
 
   await db.from("subscriptions").upsert(
     {
@@ -406,15 +418,33 @@ async function upsertSubscription(
   await db.from("companies").update({ plan: planName }).eq("id", companyId);
 }
 
-function resolvePlanName(priceId: string | null): string {
-  const map: Record<string, string> = {
+function resolvePlanName(priceId: string | null, productId?: string | null): string {
+  // Product IDs → plan name (works for both live and test)
+  const productMap: Record<string, string> = {
+    // Live
+    prod_Tzdm7ehADnf0Oo: "starter",
+    prod_TzdmNgSEBtAW3d: "profissional",
+    prod_TxltCMJQ2SONaC: "growth",
+    // Test
+    prod_TyAj8dl5s4vBEg: "starter",
+    prod_TyAkyKmOaIR5mN: "profissional",
+    prod_TyAk5r4bslcggc: "growth",
+  };
+
+  // Try product_id first (more reliable)
+  if (productId && productMap[productId]) {
+    return productMap[productId];
+  }
+
+  // Legacy price ID map (fallback)
+  const priceMap: Record<string, string> = {
     price_1SzqGfRpBEKvV4xv6a5NoVDs: "starter",
     price_1SzqJIRpBEKvV4xvcgo6O71x: "profissional",
     price_1SzqLkRpBEKvV4xvm5hbB3gK: "growth",
-    // Test prices
     price_1T0ENoRpBEKvV4xvmav7DE5k: "starter",
   };
-  return map[priceId || ""] || null;
+
+  return priceMap[priceId || ""] || "starter";
 }
 
 function json(data: unknown, status = 200) {
