@@ -42,6 +42,7 @@ interface Product {
   name: string;
   category: string | null;
   price: number;
+  cost_price?: number | null;
   stock: number | null;
   status: string | null;
   company_id: string;
@@ -59,6 +60,7 @@ interface ProductFormData {
   name: string;
   category: string;
   price: string;
+  cost_price: string;
   stock: string;
   status: string;
   minimum_stock: string;
@@ -89,7 +91,7 @@ export default function Produtos() {
       // Fetch products
       const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select("id, name, category, price, stock, status, company_id, minimum_stock, consignment_available")
+        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
@@ -154,7 +156,8 @@ export default function Produtos() {
           name: data.name,
           category: data.category || null,
           price: parseFloat(data.price) || 0,
-          stock: 0, // Stock will be managed by batches
+          cost_price: data.cost_price ? parseFloat(data.cost_price) : null,
+          stock: 0,
           status: data.status,
           company_id: company.id,
           minimum_stock: parseInt(data.minimum_stock) || 0,
@@ -203,6 +206,7 @@ export default function Produtos() {
           name: data.name,
           category: data.category || null,
           price: parseFloat(data.price) || 0,
+          cost_price: data.cost_price ? parseFloat(data.cost_price) : null,
           status: data.status,
           minimum_stock: parseInt(data.minimum_stock) || 0,
           consignment_available: data.consignment_available,
