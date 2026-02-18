@@ -75,9 +75,8 @@ export function AppSidebar() {
             .filter((item) => !systemSettings.modes.mvp || !systemSettings.mvpHiddenModules.includes(item.path))
             .filter((item) => userRole !== 'vendedor' || VENDEDOR_ALLOWED_PATHS.includes(item.path))
             .filter((item) => {
-              // While plan is loading, only show safe paths that are never blocked
-              const ALWAYS_VISIBLE = ['/', '/meu-negocio', '/configuracoes'];
-              if (planLoading) return ALWAYS_VISIBLE.includes(item.path);
+              // While plan is loading, show all modules to avoid flickering
+              if (planLoading) return true;
               return !blockedPaths.includes(item.path);
             })
             .map((item, index) => {
