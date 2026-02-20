@@ -246,7 +246,11 @@ export default function Produtos() {
   // Delete product mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("products").delete().eq("id", id);
+      // Soft-delete: mark as inactive instead of deleting to avoid FK constraint errors
+      const { error } = await supabase
+        .from("products")
+        .update({ status: "inactive" })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
