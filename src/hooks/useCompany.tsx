@@ -136,6 +136,8 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Skip refetch if we already have data for this user
+    if (user && fetchedForUserId === user.id && company) return;
     fetchCompany();
   }, [user]);
 

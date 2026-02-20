@@ -50,6 +50,8 @@ const MODULE_TO_PATH: Record<string, string> = {
 
 export function usePlanUsage() {
   const { company } = useCompany();
+  // Track which company we already fetched for
+  const [fetchedForCompanyId, setFetchedForCompanyId] = useState<string | null>(null);
   // Default to starter restrictions so blocked modules show immediately (no flash)
   const [state, setState] = useState<PlanUsageState>({
     plan: "starter",
@@ -61,6 +63,8 @@ export function usePlanUsage() {
 
   useEffect(() => {
     if (!company?.id) return;
+    // Skip refetch if we already have data for this company
+    if (fetchedForCompanyId === company.id) return;
 
     const fetchUsage = async () => {
       setState((s) => ({ ...s, loading: true }));
@@ -101,6 +105,8 @@ export function usePlanUsage() {
         }
       } catch {
         setState((s) => ({ ...s, loading: false }));
+      } finally {
+        setFetchedForCompanyId(company.id);
       }
     };
 

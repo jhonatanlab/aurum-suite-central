@@ -23,6 +23,8 @@ export function useSubscription(): SubscriptionState {
   const [pendingPlanChange, setPendingPlanChange] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  // Track which company we already fetched for
+  const [fetchedForCompanyId, setFetchedForCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (companyLoading || !company) {
@@ -32,6 +34,8 @@ export function useSubscription(): SubscriptionState {
       }
       return;
     }
+    // Skip refetch if we already have data for this company
+    if (fetchedForCompanyId === company.id) return;
 
     const fetchSubscription = async () => {
       setLoading(true);
@@ -88,6 +92,7 @@ export function useSubscription(): SubscriptionState {
         setStatus('active');
         setPlan('free');
       } finally {
+        setFetchedForCompanyId(company.id);
         setLoading(false);
       }
     };
