@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Search, Package, History } from "lucide-react";
+import { Plus, Trash2, Search, Package, History, Layers } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -34,39 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ProductModal } from "@/components/products/ProductModal";
+import { ProductModal, type ProductFormData, type Product, type BundleItemData } from "@/components/products/ProductModal";
 import { BatchHistoryTab } from "@/components/products/BatchHistoryTab";
-
-interface Product {
-  id: string;
-  name: string;
-  category: string | null;
-  price: number;
-  cost_price?: number | null;
-  stock: number | null;
-  status: string | null;
-  company_id: string;
-  minimum_stock?: number | null;
-  consignment_available?: boolean | null;
-}
-
-interface BatchData {
-  batch_code: string;
-  quantity: string;
-  supplier_id: string;
-}
-
-interface ProductFormData {
-  name: string;
-  category: string;
-  price: string;
-  cost_price: string;
-  stock: string;
-  status: string;
-  minimum_stock: string;
-  consignment_available: boolean;
-  batch: BatchData;
-}
 
 export default function Produtos() {
   const { company } = useCompany();
@@ -74,6 +43,7 @@ export default function Produtos() {
   const queryClient = useQueryClient();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingBundleItems, setEditingBundleItems] = useState<BundleItemData[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
@@ -82,22 +52,20 @@ export default function Produtos() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  // Fetch products with batch stock calculation
+  // Fetch products
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products", company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
-      
-      // Fetch products
+
       const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available")
+        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available, type, pricing_mode, manual_price")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
       if (productsError) throw productsError;
-      
-      // Fetch active batches to calculate real stock
+
       const { data: batchesData, error: batchesError } = await supabase
         .from("product_batches")
         .select("product_id, quantity")
@@ -106,40 +74,29 @@ export default function Produtos() {
 
       if (batchesError) throw batchesError;
 
-      // Calculate stock from batches
       const stockByProduct = batchesData?.reduce((acc, batch) => {
         acc[batch.product_id] = (acc[batch.product_id] || 0) + batch.quantity;
         return acc;
       }, {} as Record<string, number>) || {};
 
-      // Merge stock data
       return productsData.map(product => ({
         ...product,
-        stock: stockByProduct[product.id] || 0
+        stock: stockByProduct[product.id] || 0,
       })) as Product[];
     },
     enabled: !!company?.id,
   });
 
-  // Extract unique categories
   const categories = useMemo(() => {
-    const cats = products
-      .map((p) => p.category)
-      .filter((c): c is string => !!c && c.trim() !== "");
+    const cats = products.map((p) => p.category).filter((c): c is string => !!c && c.trim() !== "");
     return [...new Set(cats)].sort();
   }, [products]);
 
-  // Filtered products
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      const matchesSearch = product.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || product.status === statusFilter;
-      const matchesCategory =
-        categoryFilter === "all" || product.category === categoryFilter;
-
+      const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === "all" || product.status === statusFilter;
+      const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
       return matchesSearch && matchesStatus && matchesCategory;
     });
   }, [products, searchQuery, statusFilter, categoryFilter]);
@@ -148,40 +105,60 @@ export default function Produtos() {
   const createMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
       if (!company?.id) throw new Error("Empresa não encontrada");
-      
-      // Create product first
+
+      const isBundle = data.type === "bundle";
+      const price = isBundle
+        ? (data.pricing_mode === "manual" ? parseFloat(data.manual_price) || 0 : 0)
+        : parseFloat(data.price) || 0;
+
       const { data: newProduct, error: productError } = await supabase
         .from("products")
         .insert({
           name: data.name,
           category: data.category || null,
-          price: parseFloat(data.price) || 0,
-          cost_price: data.cost_price ? parseFloat(data.cost_price) : null,
+          price,
+          cost_price: isBundle ? null : (data.cost_price ? parseFloat(data.cost_price) : null),
           stock: 0,
           status: data.status,
           company_id: company.id,
-          minimum_stock: parseInt(data.minimum_stock) || 0,
+          minimum_stock: isBundle ? 0 : (parseInt(data.minimum_stock) || 0),
           consignment_available: data.consignment_available,
+          type: data.type,
+          pricing_mode: isBundle ? data.pricing_mode : null,
+          manual_price: isBundle && data.pricing_mode === "manual" ? parseFloat(data.manual_price) || null : null,
         })
         .select()
         .single();
-      
+
       if (productError) throw productError;
 
-      // Create batch entry
-      const { error: batchError } = await supabase
-        .from("product_batches")
-        .insert({
-          company_id: company.id,
-          product_id: newProduct.id,
-          batch_code: data.batch.batch_code,
-          quantity: parseInt(data.batch.quantity) || 0,
-          created_by: user?.email || "Sistema",
-          status: "active",
-          supplier_id: data.batch.supplier_id || null,
-        });
+      if (isBundle && data.bundle_items.length > 0) {
+        const { error: bundleError } = await supabase
+          .from("bundle_items")
+          .insert(
+            data.bundle_items.map((item) => ({
+              bundle_id: newProduct.id,
+              product_id: item.product_id,
+              quantity: item.quantity,
+            }))
+          );
+        if (bundleError) throw bundleError;
+      }
 
-      if (batchError) throw batchError;
+      if (!isBundle) {
+        const { error: batchError } = await supabase
+          .from("product_batches")
+          .insert({
+            company_id: company.id,
+            product_id: newProduct.id,
+            batch_code: data.batch.batch_code,
+            quantity: parseInt(data.batch.quantity) || 0,
+            created_by: user?.email || "Sistema",
+            status: "active",
+            supplier_id: data.batch.supplier_id || null,
+          });
+        if (batchError) throw batchError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -198,25 +175,53 @@ export default function Produtos() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ProductFormData }) => {
       if (!company?.id) throw new Error("Empresa não encontrada");
-      
-      // Update product
+
+      const isBundle = data.type === "bundle";
+      const price = isBundle
+        ? (data.pricing_mode === "manual" ? parseFloat(data.manual_price) || 0 : 0)
+        : parseFloat(data.price) || 0;
+
       const { error: productError } = await supabase
         .from("products")
         .update({
           name: data.name,
           category: data.category || null,
-          price: parseFloat(data.price) || 0,
-          cost_price: data.cost_price ? parseFloat(data.cost_price) : null,
+          price,
+          cost_price: isBundle ? null : (data.cost_price ? parseFloat(data.cost_price) : null),
           status: data.status,
-          minimum_stock: parseInt(data.minimum_stock) || 0,
+          minimum_stock: isBundle ? 0 : (parseInt(data.minimum_stock) || 0),
           consignment_available: data.consignment_available,
+          pricing_mode: isBundle ? data.pricing_mode : null,
+          manual_price: isBundle && data.pricing_mode === "manual" ? parseFloat(data.manual_price) || null : null,
         })
         .eq("id", id);
-      
+
       if (productError) throw productError;
 
-      // If batch data provided, create new batch entry (stock replenishment)
-      if (data.batch.batch_code && data.batch.quantity) {
+      // For bundles, replace all bundle_items
+      if (isBundle) {
+        const { error: deleteError } = await supabase
+          .from("bundle_items")
+          .delete()
+          .eq("bundle_id", id);
+        if (deleteError) throw deleteError;
+
+        if (data.bundle_items.length > 0) {
+          const { error: insertError } = await supabase
+            .from("bundle_items")
+            .insert(
+              data.bundle_items.map((item) => ({
+                bundle_id: id,
+                product_id: item.product_id,
+                quantity: item.quantity,
+              }))
+            );
+          if (insertError) throw insertError;
+        }
+      }
+
+      // Stock replenishment for simple products
+      if (!isBundle && data.batch.batch_code && data.batch.quantity) {
         const { error: batchError } = await supabase
           .from("product_batches")
           .insert({
@@ -228,7 +233,6 @@ export default function Produtos() {
             status: "active",
             supplier_id: data.batch.supplier_id || null,
           });
-
         if (batchError) throw batchError;
       }
     },
@@ -246,7 +250,6 @@ export default function Produtos() {
   // Delete product mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Soft-delete: mark as inactive instead of deleting to avoid FK constraint errors
       const { error } = await supabase
         .from("products")
         .update({ status: "inactive" })
@@ -266,17 +269,33 @@ export default function Produtos() {
 
   const handleOpenCreate = () => {
     setEditingProduct(null);
+    setEditingBundleItems([]);
     setIsPanelOpen(true);
   };
 
-  const handleOpenEdit = (product: Product) => {
+  const handleOpenEdit = async (product: Product) => {
     setEditingProduct(product);
+
+    // Load bundle items if product is a bundle
+    if (product.type === "bundle") {
+      const { data } = await supabase
+        .from("bundle_items")
+        .select("product_id, quantity")
+        .eq("bundle_id", product.id);
+      setEditingBundleItems(
+        (data || []).map((i) => ({ product_id: i.product_id, quantity: i.quantity }))
+      );
+    } else {
+      setEditingBundleItems([]);
+    }
+
     setIsPanelOpen(true);
   };
 
   const handleClosePanel = () => {
     setIsPanelOpen(false);
     setEditingProduct(null);
+    setEditingBundleItems([]);
   };
 
   const handleSave = (data: ProductFormData, productId?: string) => {
@@ -285,10 +304,20 @@ export default function Produtos() {
       return;
     }
 
-    // Validate batch for new products
-    if (!productId && (!data.batch.batch_code.trim() || !data.batch.quantity)) {
-      toast.error("Código do lote e quantidade são obrigatórios para novo produto");
-      return;
+    if (data.type === "bundle") {
+      if (data.bundle_items.length === 0) {
+        toast.error("Kit deve ter pelo menos um item");
+        return;
+      }
+      if (!data.pricing_mode) {
+        toast.error("Selecione o modo de precificação");
+        return;
+      }
+    } else {
+      if (!productId && (!data.batch.batch_code.trim() || !data.batch.quantity)) {
+        toast.error("Código do lote e quantidade são obrigatórios para novo produto");
+        return;
+      }
     }
 
     if (productId) {
@@ -311,38 +340,38 @@ export default function Produtos() {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
   const getStatusBadge = (status: string | null) => {
     const isActive = status === "active";
     return (
-      <span
-        className={`px-2 py-1 rounded-full text-xs font-medium ${
-          isActive
-            ? "bg-green-500/20 text-green-400"
-            : "bg-red-500/20 text-red-400"
-        }`}
-      >
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${isActive ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
         {isActive ? "Ativo" : "Inativo"}
       </span>
     );
   };
 
   const getStockStatus = (product: Product) => {
+    if (product.type === "bundle") {
+      return <span className="text-muted-foreground text-xs italic">Kit</span>;
+    }
     const stock = product.stock ?? 0;
     const minStock = product.minimum_stock ?? 0;
-    
-    if (stock === 0) {
-      return <span className="text-red-400 font-medium">{stock}</span>;
-    }
-    if (minStock > 0 && stock <= minStock) {
-      return <span className="text-yellow-400 font-medium">{stock}</span>;
-    }
+    if (stock === 0) return <span className="text-red-400 font-medium">{stock}</span>;
+    if (minStock > 0 && stock <= minStock) return <span className="text-yellow-400 font-medium">{stock}</span>;
     return <span className="text-muted-foreground">{stock}</span>;
+  };
+
+  const getTypeBadge = (product: Product) => {
+    if (product.type === "bundle") {
+      return (
+        <span className="flex items-center gap-1 text-xs text-primary">
+          <Layers className="h-3 w-3" /> Kit
+        </span>
+      );
+    }
+    return null;
   };
 
   return (
@@ -351,17 +380,10 @@ export default function Produtos() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">
-              Catálogo de Produtos
-            </h2>
-            <p className="text-muted-foreground">
-              Gerencie seus produtos e estoque
-            </p>
+            <h2 className="text-2xl font-bold text-foreground">Catálogo de Produtos</h2>
+            <p className="text-muted-foreground">Gerencie seus produtos e estoque</p>
           </div>
-          <Button
-            onClick={handleOpenCreate}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
+          <Button onClick={handleOpenCreate} className="bg-primary hover:bg-primary/90 text-primary-foreground">
             <Plus className="w-4 h-4 mr-2" />
             Novo Produto
           </Button>
@@ -370,27 +392,19 @@ export default function Produtos() {
         {/* Tabs */}
         <Tabs defaultValue="catalog" className="w-full">
           <TabsList className="bg-muted/50 border border-border">
-            <TabsTrigger 
-              value="catalog" 
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
-            >
+            <TabsTrigger value="catalog" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
               <Package className="w-4 h-4" />
               Catálogo
             </TabsTrigger>
-            <TabsTrigger 
-              value="batch-history" 
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
-            >
+            <TabsTrigger value="batch-history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
               <History className="w-4 h-4" />
               Histórico de Lotes
             </TabsTrigger>
           </TabsList>
 
-          {/* Catalog Tab */}
           <TabsContent value="catalog" className="mt-6 space-y-4">
-            {/* Search and Filters */}
+            {/* Filters */}
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center sm:justify-end">
-              {/* Search Input */}
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -400,42 +414,24 @@ export default function Produtos() {
                   className="pl-9 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
                 />
               </div>
-
-              {/* Status Filter */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-36 bg-background border-border text-foreground focus:border-primary focus:ring-primary/20">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  <SelectItem value="all" className="text-foreground focus:bg-muted focus:text-foreground">
-                    Todos
-                  </SelectItem>
-                  <SelectItem value="active" className="text-foreground focus:bg-muted focus:text-foreground">
-                    Ativo
-                  </SelectItem>
-                  <SelectItem value="inactive" className="text-foreground focus:bg-muted focus:text-foreground">
-                    Inativo
-                  </SelectItem>
+                  <SelectItem value="all" className="text-foreground focus:bg-muted focus:text-foreground">Todos</SelectItem>
+                  <SelectItem value="active" className="text-foreground focus:bg-muted focus:text-foreground">Ativo</SelectItem>
+                  <SelectItem value="inactive" className="text-foreground focus:bg-muted focus:text-foreground">Inativo</SelectItem>
                 </SelectContent>
               </Select>
-
-              {/* Category Filter */}
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-full sm:w-40 bg-background border-border text-foreground focus:border-primary focus:ring-primary/20">
                   <SelectValue placeholder="Categoria" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  <SelectItem value="all" className="text-foreground focus:bg-muted focus:text-foreground">
-                    Todas
-                  </SelectItem>
+                  <SelectItem value="all" className="text-foreground focus:bg-muted focus:text-foreground">Todas</SelectItem>
                   {categories.map((cat) => (
-                    <SelectItem
-                      key={cat}
-                      value={cat}
-                      className="text-foreground focus:bg-muted focus:text-foreground"
-                    >
-                      {cat}
-                    </SelectItem>
+                    <SelectItem key={cat} value={cat} className="text-foreground focus:bg-muted focus:text-foreground">{cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -444,35 +440,21 @@ export default function Produtos() {
             {/* Table */}
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               {isLoading ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  Carregando produtos...
-                </div>
+                <div className="p-8 text-center text-muted-foreground">Carregando produtos...</div>
               ) : products.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  Nenhum produto cadastrado. Clique em "Novo Produto" para começar.
-                </div>
+                <div className="p-8 text-center text-muted-foreground">Nenhum produto cadastrado. Clique em "Novo Produto" para começar.</div>
               ) : filteredProducts.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  Nenhum produto encontrado com os filtros aplicados.
-                </div>
+                <div className="p-8 text-center text-muted-foreground">Nenhum produto encontrado com os filtros aplicados.</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
                       <TableHead className="text-muted-foreground">Nome</TableHead>
-                      <TableHead className="text-muted-foreground">
-                        Categoria
-                      </TableHead>
+                      <TableHead className="text-muted-foreground">Categoria</TableHead>
                       <TableHead className="text-muted-foreground">Preço</TableHead>
-                      <TableHead className="text-muted-foreground">
-                        Estoque
-                      </TableHead>
-                      <TableHead className="text-muted-foreground">
-                        Status
-                      </TableHead>
-                      <TableHead className="text-muted-foreground w-16">
-                        Ações
-                      </TableHead>
+                      <TableHead className="text-muted-foreground">Estoque</TableHead>
+                      <TableHead className="text-muted-foreground">Status</TableHead>
+                      <TableHead className="text-muted-foreground w-16">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -483,17 +465,14 @@ export default function Produtos() {
                         onClick={() => handleOpenEdit(product)}
                       >
                         <TableCell className="font-medium text-foreground">
-                          {product.name}
+                          <div className="flex items-center gap-2">
+                            {product.name}
+                            {getTypeBadge(product)}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {product.category || "-"}
-                        </TableCell>
-                        <TableCell className="text-primary font-semibold">
-                          {formatCurrency(product.price)}
-                        </TableCell>
-                        <TableCell>
-                          {getStockStatus(product)}
-                        </TableCell>
+                        <TableCell className="text-muted-foreground">{product.category || "-"}</TableCell>
+                        <TableCell className="text-primary font-semibold">{formatCurrency(product.price)}</TableCell>
+                        <TableCell>{getStockStatus(product)}</TableCell>
                         <TableCell>{getStatusBadge(product.status)}</TableCell>
                         <TableCell>
                           <Button
@@ -513,7 +492,6 @@ export default function Produtos() {
             </div>
           </TabsContent>
 
-          {/* Batch History Tab */}
           <TabsContent value="batch-history" className="mt-6">
             <BatchHistoryTab />
           </TabsContent>
@@ -527,28 +505,21 @@ export default function Produtos() {
           onSave={handleSave}
           isSaving={createMutation.isPending || updateMutation.isPending}
           userEmail={user?.email}
+          existingBundleItems={editingBundleItems}
         />
 
-        {/* Delete Confirmation Dialog */}
+        {/* Delete Confirmation */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent className="bg-card border-border">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-foreground">
-                Excluir Produto
-              </AlertDialogTitle>
+              <AlertDialogTitle className="text-foreground">Excluir Produto</AlertDialogTitle>
               <AlertDialogDescription>
-                Tem certeza que deseja excluir o produto "{productToDelete?.name}
-                "? Esta ação não pode ser desfeita.
+                Tem certeza que deseja excluir o produto "{productToDelete?.name}"? Esta ação não pode ser desfeita.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel className="border-border">
-                Cancelar
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDelete}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
+              <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                 {deleteMutation.isPending ? "Excluindo..." : "Excluir"}
               </AlertDialogAction>
             </AlertDialogFooter>
