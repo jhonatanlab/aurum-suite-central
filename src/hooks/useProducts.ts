@@ -9,6 +9,12 @@ export interface Product {
   category: string | null;
   status: string | null;
   stock: number | null;
+  type: string;
+  pricing_mode: string | null;
+  manual_price: number | null;
+  cost_price: number | null;
+  minimum_stock: number | null;
+  consignment_available: boolean | null;
 }
 
 export function useProducts() {
@@ -21,7 +27,7 @@ export function useProducts() {
 
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price, category, status, stock")
+        .select("id, name, price, category, status, stock, type, pricing_mode, manual_price, cost_price, minimum_stock, consignment_available")
         .eq("company_id", company.id)
         .eq("status", "active")
         .order("name", { ascending: true });
