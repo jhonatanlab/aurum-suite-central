@@ -806,11 +806,14 @@ export type Database = {
           cost_price: number | null
           created_at: string | null
           id: string
+          manual_price: number | null
           minimum_stock: number | null
           name: string
           price: number
+          pricing_mode: string | null
           status: string | null
           stock: number | null
+          type: string
         }
         Insert: {
           category?: string | null
@@ -819,11 +822,14 @@ export type Database = {
           cost_price?: number | null
           created_at?: string | null
           id?: string
+          manual_price?: number | null
           minimum_stock?: number | null
           name: string
           price: number
+          pricing_mode?: string | null
           status?: string | null
           stock?: number | null
+          type?: string
         }
         Update: {
           category?: string | null
@@ -832,11 +838,14 @@ export type Database = {
           cost_price?: number | null
           created_at?: string | null
           id?: string
+          manual_price?: number | null
           minimum_stock?: number | null
           name?: string
           price?: number
+          pricing_mode?: string | null
           status?: string | null
           stock?: number | null
+          type?: string
         }
         Relationships: [
           {
