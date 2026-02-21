@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Search, ShoppingCart, Plus, Minus, Trash2, Package, DollarSign, User, Percent, History, Truck, AlertCircle, X } from "lucide-react";
+import { Search, ShoppingCart, Plus, Minus, Trash2, Package, DollarSign, User, Percent, History, Truck, AlertCircle, X, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { SalesHistoryTab } from "@/components/vendas/SalesHistoryTab";
 import { MultiPaymentManager, PaymentEntry } from "@/components/vendas/MultiPaymentManager";
@@ -25,6 +25,7 @@ interface Product {
   price: number;
   stock: number | null;
   category: string | null;
+  type: string;
 }
 interface CartItem {
   product: Product;
@@ -71,11 +72,37 @@ export default function Vendas() {
     queryFn: async () => {
       if (!company?.id) return [];
       const {
-        data,
-        error
-      } = await supabase.from("products").select("id, name, price, stock, category").eq("company_id", company.id).eq("status", "active").order("name");
-      if (error) throw error;
-      return data as Product[];
+        data: productsData,
+        error: productsError
+      } = await supabase.from("products").select("id, name, price, stock, category, type").eq("company_id", company.id).eq("status", "active").order("name");
+      if (productsError) throw productsError;
+
+      // Calculate stock from batches for simple products
+      const {
+        data: batchesData,
+        error: batchesError
+      } = await supabase.from("product_batches").select("product_id, quantity").eq("company_id", company.id).eq("status", "active");
+      if (batchesError) throw batchesError;
+
+      const stockByProduct = batchesData?.reduce((acc, batch) => {
+        acc[batch.product_id] = (acc[batch.product_id] || 0) + batch.quantity;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      // For bundles, get max stock via RPC
+      const bundleProducts = productsData.filter(p => p.type === "bundle");
+      const bundleStocks: Record<string, number> = {};
+      for (const bp of bundleProducts) {
+        const { data: maxStock } = await supabase.rpc("get_bundle_max_stock", { bundle_uuid: bp.id });
+        bundleStocks[bp.id] = maxStock ?? 0;
+      }
+
+      return productsData.map(product => ({
+        ...product,
+        stock: product.type === "bundle"
+          ? bundleStocks[product.id] ?? 0
+          : stockByProduct[product.id] ?? 0,
+      })) as Product[];
     },
     enabled: !!company?.id
   });
@@ -270,8 +297,16 @@ export default function Vendas() {
 
       // Update product stock
       for (const item of cart) {
-        if (item.product.stock !== null) {
-          const newStock = Math.max(0, item.product.stock - item.quantity);
+        if (item.product.type === "bundle") {
+          // Use sell_bundle RPC for bundles (reduces component stock atomically)
+          const { error: bundleError } = await supabase.rpc("sell_bundle", {
+            bundle_uuid: item.product.id,
+            qty: item.quantity,
+          });
+          if (bundleError) throw new Error(`Erro ao vender kit "${item.product.name}": ${bundleError.message}`);
+        } else {
+          // For simple products, reduce stock in product_batches and products table
+          const newStock = Math.max(0, (item.product.stock ?? 0) - item.quantity);
           await supabase.from("products").update({
             stock: newStock
           }).eq("id", item.product.id);
@@ -413,9 +448,16 @@ export default function Vendas() {
                   {filteredProducts.map(product => <Card key={product.id} className="bg-card border-border card-hover group">
                       <CardContent className="p-4 flex flex-col h-full">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-foreground mb-1 line-clamp-2">
-                            {product.name}
-                          </h3>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-foreground line-clamp-2">
+                              {product.name}
+                            </h3>
+                            {product.type === "bundle" && (
+                              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/20 text-primary shrink-0">
+                                <Layers className="h-2.5 w-2.5" /> Kit
+                              </span>
+                            )}
+                          </div>
                           <p className="text-primary font-bold text-lg mb-2">
                             {formatCurrency(product.price)}
                           </p>
