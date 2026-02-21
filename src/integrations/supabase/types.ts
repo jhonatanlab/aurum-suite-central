@@ -1863,6 +1863,8 @@ export type Database = {
         Args: { _cnpj?: string; _name: string }
         Returns: string
       }
+      get_bundle_max_stock: { Args: { bundle_uuid: string }; Returns: number }
+      get_bundle_price: { Args: { bundle_uuid: string }; Returns: number }
       get_user_company_id: { Args: never; Returns: string }
       get_user_role: { Args: { _company_id: string }; Returns: string }
       has_role: {
@@ -1875,6 +1877,10 @@ export type Database = {
       sale_belongs_to_user_company: {
         Args: { _sale_id: string }
         Returns: boolean
+      }
+      sell_bundle: {
+        Args: { bundle_uuid: string; qty: number }
+        Returns: undefined
       }
       user_belongs_to_company: {
         Args: { _company_id: string }
