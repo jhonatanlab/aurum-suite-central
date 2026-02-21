@@ -38,6 +38,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bundle_items: {
+        Row: {
+          bundle_id: string
+          id: string
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          bundle_id: string
+          id?: string
+          product_id: string
+          quantity: number
+        }
+        Update: {
+          bundle_id?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_items_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_recipients: {
         Row: {
           campaign_id: string
