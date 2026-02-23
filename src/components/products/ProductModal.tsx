@@ -564,10 +564,21 @@ export function ProductModal({
             {/* Batch Entry Section - only for simple products */}
             {!isBundle && (
               <div className="space-y-4 pt-4 border-t border-[#2A2A2A]">
+                {/* Current Stock Display when editing */}
+                {isEditing && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#121212] border border-[#2A2A2A]">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-[#A1A1AA]" />
+                      <span className="text-sm text-[#A1A1AA]">Estoque Atual</span>
+                    </div>
+                    <span className="text-lg font-bold text-[#C7A052]">{product?.stock ?? 0} un</span>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   <Package className="h-5 w-5 text-[#C7A052]" />
                   <h3 className="text-sm font-medium text-[#C7A052] uppercase tracking-wider">
-                    {isEditing ? "Reposição de Estoque (Novo Lote)" : "Lote de Entrada *"}
+                    {isEditing ? "Ajuste / Reposição de Estoque" : "Lote de Entrada *"}
                   </h3>
                 </div>
 
@@ -575,7 +586,7 @@ export function ProductModal({
                   <AlertTriangle className="h-4 w-4 text-[#C7A052] mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-[#C7A052]">
                     {isEditing
-                      ? "Preencha para adicionar novo lote ao estoque. Lote é obrigatório para análise e rastreabilidade."
+                      ? "Preencha para adicionar ou ajustar estoque. Use quantidade negativa para reduzir."
                       : "Lote é obrigatório para análise e rastreabilidade."}
                   </p>
                 </div>
@@ -601,10 +612,10 @@ export function ProductModal({
                     <Input
                       id="batch_quantity"
                       type="number"
-                      min="1"
+                      min={isEditing ? undefined : "1"}
                       value={formData.batch.quantity}
                       onChange={(e) => setFormData({ ...formData, batch: { ...formData.batch, quantity: e.target.value } })}
-                      placeholder="0"
+                      placeholder={isEditing ? "Ex: 5 ou -3" : "0"}
                       className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
                       required={!isEditing}
                     />
