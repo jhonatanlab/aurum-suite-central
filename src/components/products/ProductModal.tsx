@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Package, AlertTriangle, Plus, Trash2, Layers } from "lucide-react";
+import { Package, AlertTriangle, Plus, Trash2, Layers, RefreshCw, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +44,11 @@ interface BatchData {
   supplier_id: string;
 }
 
+interface AdjustmentData {
+  quantity: string;
+  reason: string;
+}
+
 export interface BundleItemData {
   product_id: string;
   quantity: number;
@@ -59,6 +64,7 @@ export interface ProductFormData {
   minimum_stock: string;
   consignment_available: boolean;
   batch: BatchData;
+  adjustment: AdjustmentData;
   type: "simple" | "bundle";
   pricing_mode: "auto_sum" | "manual" | "";
   manual_price: string;
@@ -88,6 +94,10 @@ const initialFormData: ProductFormData = {
     batch_code: "",
     quantity: "",
     supplier_id: "",
+  },
+  adjustment: {
+    quantity: "",
+    reason: "",
   },
   type: "simple",
   pricing_mode: "",
@@ -129,6 +139,7 @@ export function ProductModal({
         minimum_stock: product.minimum_stock?.toString() || "0",
         consignment_available: product.consignment_available || false,
         batch: { batch_code: "", quantity: "", supplier_id: "" },
+        adjustment: { quantity: "", reason: "" },
         type: (product.type as "simple" | "bundle") || "simple",
         pricing_mode: (product.pricing_mode as "auto_sum" | "manual") || "",
         manual_price: product.manual_price?.toString() || "",
@@ -561,7 +572,7 @@ export function ProductModal({
               </div>
             </div>
 
-            {/* Batch Entry Section - only for simple products */}
+            {/* Stock Section - only for simple products */}
             {!isBundle && (
               <div className="space-y-4 pt-4 border-t border-[#2A2A2A]">
                 {/* Current Stock Display when editing */}
@@ -575,91 +586,141 @@ export function ProductModal({
                   </div>
                 )}
 
-                <div className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-[#C7A052]" />
-                  <h3 className="text-sm font-medium text-[#C7A052] uppercase tracking-wider">
-                    {isEditing ? "Ajuste / Reposição de Estoque" : "Lote de Entrada *"}
-                  </h3>
-                </div>
-
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-[#C7A052]/10 border border-[#C7A052]/30">
-                  <AlertTriangle className="h-4 w-4 text-[#C7A052] mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-[#C7A052]">
-                    {isEditing
-                      ? "Preencha para adicionar ou ajustar estoque. Use quantidade negativa para reduzir."
-                      : "Lote é obrigatório para análise e rastreabilidade."}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="batch_code" className="text-white font-medium">
-                      Código do Lote {!isEditing && "*"}
-                    </Label>
-                    <Input
-                      id="batch_code"
-                      value={formData.batch.batch_code}
-                      onChange={(e) => setFormData({ ...formData, batch: { ...formData.batch, batch_code: e.target.value } })}
-                      placeholder="Ex: LT-2024-001"
-                      className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
-                      required={!isEditing}
-                    />
+                {/* SECTION 1: Replenishment (New Batch) */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-5 w-5 text-[#C7A052]" />
+                    <h3 className="text-sm font-medium text-[#C7A052] uppercase tracking-wider">
+                      {isEditing ? "Reposição de Estoque (Novo Lote)" : "Lote de Entrada *"}
+                    </h3>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="batch_quantity" className="text-white font-medium">
-                      Quantidade {!isEditing && "*"}
-                    </Label>
-                    <Input
-                      id="batch_quantity"
-                      type="number"
-                      min={isEditing ? undefined : "1"}
-                      value={formData.batch.quantity}
-                      onChange={(e) => setFormData({ ...formData, batch: { ...formData.batch, quantity: e.target.value } })}
-                      placeholder={isEditing ? "Ex: 5 ou -3" : "0"}
-                      className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
-                      required={!isEditing}
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="supplier" className="text-white font-medium">Fornecedor</Label>
-                  <Select
-                    value={formData.batch.supplier_id}
-                    onValueChange={(value) => setFormData({ ...formData, batch: { ...formData.batch, supplier_id: value } })}
-                  >
-                    <SelectTrigger className="bg-[#121212] border-[#2A2A2A] text-white focus:border-[#C7A052] focus:ring-[#C7A052]/20">
-                      <SelectValue placeholder="Selecione o fornecedor" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
-                      {activeSuppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.id} className="text-white focus:bg-[#2A2A2A] focus:text-white">
-                          {supplier.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {activeSuppliers.length === 0 && !loadingSuppliers && (
-                    <p className="text-xs text-[#A1A1AA]">
-                      Nenhum fornecedor cadastrado. Cadastre em Meu Negócio → Fornecedores.
-                    </p>
+                  {!isEditing && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-[#C7A052]/10 border border-[#C7A052]/30">
+                      <AlertTriangle className="h-4 w-4 text-[#C7A052] mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-[#C7A052]">
+                        Lote é obrigatório para análise e rastreabilidade.
+                      </p>
+                    </div>
                   )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="batch_code" className="text-white font-medium">
+                        Código do Lote {!isEditing && "*"}
+                      </Label>
+                      <Input
+                        id="batch_code"
+                        value={formData.batch.batch_code}
+                        onChange={(e) => setFormData({ ...formData, batch: { ...formData.batch, batch_code: e.target.value } })}
+                        placeholder="Ex: LT-2024-001"
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                        required={!isEditing}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="batch_quantity" className="text-white font-medium">
+                        Quantidade {!isEditing && "*"}
+                      </Label>
+                      <Input
+                        id="batch_quantity"
+                        type="number"
+                        min="1"
+                        value={formData.batch.quantity}
+                        onChange={(e) => setFormData({ ...formData, batch: { ...formData.batch, quantity: e.target.value } })}
+                        placeholder="0"
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                        required={!isEditing}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="supplier" className="text-white font-medium">Fornecedor</Label>
+                    <Select
+                      value={formData.batch.supplier_id}
+                      onValueChange={(value) => setFormData({ ...formData, batch: { ...formData.batch, supplier_id: value } })}
+                    >
+                      <SelectTrigger className="bg-[#121212] border-[#2A2A2A] text-white focus:border-[#C7A052] focus:ring-[#C7A052]/20">
+                        <SelectValue placeholder="Selecione o fornecedor" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
+                        {activeSuppliers.map((supplier) => (
+                          <SelectItem key={supplier.id} value={supplier.id} className="text-white focus:bg-[#2A2A2A] focus:text-white">
+                            {supplier.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {activeSuppliers.length === 0 && !loadingSuppliers && (
+                      <p className="text-xs text-[#A1A1AA]">
+                        Nenhum fornecedor cadastrado. Cadastre em Meu Negócio → Fornecedores.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[#A1A1AA] font-medium text-sm">Data/Hora</Label>
+                      <div className="px-3 py-2 rounded-md bg-[#121212]/50 border border-[#2A2A2A] text-[#A1A1AA] text-sm">
+                        {currentDateTime}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[#A1A1AA] font-medium text-sm">Responsável</Label>
+                      <div className="px-3 py-2 rounded-md bg-[#121212]/50 border border-[#2A2A2A] text-[#A1A1AA] text-sm truncate">
+                        {userEmail}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-[#A1A1AA] font-medium text-sm">Data/Hora</Label>
-                    <div className="px-3 py-2 rounded-md bg-[#121212]/50 border border-[#2A2A2A] text-[#A1A1AA] text-sm">
-                      {currentDateTime}
+                {/* SECTION 2: Stock Adjustment - only when editing */}
+                {isEditing && (
+                  <div className="space-y-4 pt-4 border-t border-[#2A2A2A]">
+                    <div className="flex items-center gap-2">
+                      <Wrench className="h-5 w-5 text-blue-400" />
+                      <h3 className="text-sm font-medium text-blue-400 uppercase tracking-wider">
+                        Ajuste de Estoque
+                      </h3>
+                    </div>
+
+                    <p className="text-xs text-[#A1A1AA]">
+                      Use para corrigir divergências, registrar perdas ou quebras. Valores positivos aumentam e negativos reduzem o estoque.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="adj_quantity" className="text-white font-medium">Quantidade</Label>
+                        <Input
+                          id="adj_quantity"
+                          type="number"
+                          value={formData.adjustment.quantity}
+                          onChange={(e) => setFormData({ ...formData, adjustment: { ...formData.adjustment, quantity: e.target.value } })}
+                          placeholder="Ex: 5 ou -3"
+                          className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-blue-400 focus:ring-blue-400/20"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="adj_reason" className="text-white font-medium">Motivo *</Label>
+                        <Select
+                          value={formData.adjustment.reason}
+                          onValueChange={(value) => setFormData({ ...formData, adjustment: { ...formData.adjustment, reason: value } })}
+                        >
+                          <SelectTrigger className="bg-[#121212] border-[#2A2A2A] text-white focus:border-blue-400 focus:ring-blue-400/20">
+                            <SelectValue placeholder="Selecione o motivo" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
+                            <SelectItem value="inventory" className="text-white focus:bg-[#2A2A2A] focus:text-white">Inventário</SelectItem>
+                            <SelectItem value="loss" className="text-white focus:bg-[#2A2A2A] focus:text-white">Perda</SelectItem>
+                            <SelectItem value="breakage" className="text-white focus:bg-[#2A2A2A] focus:text-white">Quebra</SelectItem>
+                            <SelectItem value="correction" className="text-white focus:bg-[#2A2A2A] focus:text-white">Correção</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-[#A1A1AA] font-medium text-sm">Responsável</Label>
-                    <div className="px-3 py-2 rounded-md bg-[#121212]/50 border border-[#2A2A2A] text-[#A1A1AA] text-sm truncate">
-                      {userEmail}
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
