@@ -220,20 +220,23 @@ export default function Produtos() {
         }
       }
 
-      // Stock replenishment for simple products
+      // Stock replenishment/adjustment for simple products
       if (!isBundle && data.batch.batch_code && data.batch.quantity) {
-        const { error: batchError } = await supabase
-          .from("product_batches")
-          .insert({
-            company_id: company.id,
-            product_id: id,
-            batch_code: data.batch.batch_code,
-            quantity: parseInt(data.batch.quantity) || 0,
-            created_by: user?.email || "Sistema",
-            status: "active",
-            supplier_id: data.batch.supplier_id || null,
-          });
-        if (batchError) throw batchError;
+        const qty = parseInt(data.batch.quantity) || 0;
+        if (qty !== 0) {
+          const { error: batchError } = await supabase
+            .from("product_batches")
+            .insert({
+              company_id: company.id,
+              product_id: id,
+              batch_code: data.batch.batch_code,
+              quantity: qty,
+              created_by: user?.email || "Sistema",
+              status: "active",
+              supplier_id: data.batch.supplier_id || null,
+            });
+          if (batchError) throw batchError;
+        }
       }
     },
     onSuccess: () => {
