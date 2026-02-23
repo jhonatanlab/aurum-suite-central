@@ -220,10 +220,10 @@ export default function Produtos() {
         }
       }
 
-      // Stock replenishment/adjustment for simple products
+      // Stock replenishment for simple products (new batch)
       if (!isBundle && data.batch.batch_code && data.batch.quantity) {
         const qty = parseInt(data.batch.quantity) || 0;
-        if (qty !== 0) {
+        if (qty > 0) {
           const { error: batchError } = await supabase
             .from("product_batches")
             .insert({
@@ -234,8 +234,30 @@ export default function Produtos() {
               created_by: user?.email || "Sistema",
               status: "active",
               supplier_id: data.batch.supplier_id || null,
+              batch_type: "replenishment",
             });
           if (batchError) throw batchError;
+        }
+      }
+
+      // Stock adjustment for simple products
+      if (!isBundle && data.adjustment.quantity && data.adjustment.reason) {
+        const adjQty = parseInt(data.adjustment.quantity) || 0;
+        if (adjQty !== 0) {
+          const adjCode = `ADJ-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+          const { error: adjError } = await supabase
+            .from("product_batches")
+            .insert({
+              company_id: company.id,
+              product_id: id,
+              batch_code: adjCode,
+              quantity: adjQty,
+              created_by: user?.email || "Sistema",
+              status: "active",
+              batch_type: "adjustment",
+              adjustment_reason: data.adjustment.reason,
+            });
+          if (adjError) throw adjError;
         }
       }
     },
@@ -319,6 +341,11 @@ export default function Produtos() {
     } else {
       if (!productId && (!data.batch.batch_code.trim() || !data.batch.quantity)) {
         toast.error("Código do lote e quantidade são obrigatórios para novo produto");
+        return;
+      }
+      // Validate adjustment: if quantity is set, reason is required
+      if (productId && data.adjustment.quantity && !data.adjustment.reason) {
+        toast.error("Selecione o motivo do ajuste de estoque");
         return;
       }
     }

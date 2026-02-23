@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { Input } from "@/components/ui/input";
-import { Search, Package, RefreshCw } from "lucide-react";
+import { Search, Package, RefreshCw, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -27,6 +27,8 @@ interface BatchRecord {
   product_id: string;
   product_name: string;
   is_first_batch: boolean;
+  batch_type: string;
+  adjustment_reason: string | null;
 }
 
 export function BatchHistoryTab() {
@@ -50,6 +52,8 @@ export function BatchHistoryTab() {
           status,
           observation,
           product_id,
+          batch_type,
+          adjustment_reason,
           products!inner(name, created_at)
         `)
         .eq("company_id", company.id)
@@ -82,6 +86,8 @@ export function BatchHistoryTab() {
         product_id: batch.product_id,
         product_name: (batch.products as { name: string })?.name || "Produto desconhecido",
         is_first_batch: productFirstBatch[batch.product_id] === batch.id,
+        batch_type: (batch as any).batch_type || "replenishment",
+        adjustment_reason: (batch as any).adjustment_reason || null,
       })) as BatchRecord[];
     },
     enabled: !!company?.id,
@@ -103,8 +109,22 @@ export function BatchHistoryTab() {
     return format(new Date(dateString), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   };
 
-  const getTypeBadge = (isFirstBatch: boolean) => {
-    if (isFirstBatch) {
+  const getTypeBadge = (batch: BatchRecord) => {
+    if (batch.batch_type === "adjustment") {
+      const reasonLabels: Record<string, string> = {
+        loss: "Perda",
+        breakage: "Quebra",
+        inventory: "Inventário",
+        correction: "Correção",
+      };
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400">
+          <Wrench className="w-3 h-3" />
+          {reasonLabels[batch.adjustment_reason || ""] || "Ajuste"}
+        </span>
+      );
+    }
+    if (batch.is_first_batch) {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary">
           <Package className="w-3 h-3" />
@@ -193,9 +213,9 @@ export function BatchHistoryTab() {
                     <TableCell className="text-foreground">
                       {batch.product_name}
                     </TableCell>
-                    <TableCell>{getTypeBadge(batch.is_first_batch)}</TableCell>
-                    <TableCell className="text-right font-semibold text-primary">
-                      +{batch.quantity}
+                    <TableCell>{getTypeBadge(batch)}</TableCell>
+                    <TableCell className={`text-right font-semibold ${batch.quantity < 0 ? 'text-red-400' : 'text-primary'}`}>
+                      {batch.quantity > 0 ? '+' : ''}{batch.quantity}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {formatDateTime(batch.created_at)}

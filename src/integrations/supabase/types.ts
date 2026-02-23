@@ -775,7 +775,9 @@ export type Database = {
       }
       product_batches: {
         Row: {
+          adjustment_reason: string | null
           batch_code: string
+          batch_type: string
           company_id: string
           created_at: string
           created_by: string
@@ -787,7 +789,9 @@ export type Database = {
           supplier_id: string | null
         }
         Insert: {
+          adjustment_reason?: string | null
           batch_code: string
+          batch_type?: string
           company_id: string
           created_at?: string
           created_by: string
@@ -799,7 +803,9 @@ export type Database = {
           supplier_id?: string | null
         }
         Update: {
+          adjustment_reason?: string | null
           batch_code?: string
+          batch_type?: string
           company_id?: string
           created_at?: string
           created_by?: string
