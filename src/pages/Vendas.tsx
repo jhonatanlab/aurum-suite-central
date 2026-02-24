@@ -375,7 +375,7 @@ export default function Vendas() {
       }
       return sale;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       const hasPending = Math.max(0, cartTotal - totalPaid) > 0;
       toast.success(hasPending ? "Venda registrada com saldo pendente!" : "Venda registrada com sucesso!");
       // Reset everything
@@ -391,19 +391,16 @@ export default function Vendas() {
       setClientFreight("");
       setStoreFreight("");
       setSaleDate(new Date());
-      // Invalidate queries
-      queryClient.invalidateQueries({
-        queryKey: ["products-pdv"]
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["leads"]
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["sales-history"]
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["financial-transactions"]
-      });
+      // Small delay to ensure DB trigger has recalculated stock
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["products-pdv"] }),
+        queryClient.invalidateQueries({ queryKey: ["products"] }),
+        queryClient.invalidateQueries({ queryKey: ["product_batches_history"] }),
+        queryClient.invalidateQueries({ queryKey: ["leads"] }),
+        queryClient.invalidateQueries({ queryKey: ["sales-history"] }),
+        queryClient.invalidateQueries({ queryKey: ["financial-transactions"] }),
+      ]);
     },
     onError: (error: Error) => {
       toast.error(error.message || "Erro ao finalizar venda");
