@@ -312,11 +312,19 @@ export default function Vendas() {
           });
           if (bundleError) throw new Error(`Erro ao vender kit "${item.product.name}": ${bundleError.message}`);
         } else {
-          // For simple products, reduce stock in product_batches and products table
-          const newStock = Math.max(0, (item.product.stock ?? 0) - item.quantity);
-          await supabase.from("products").update({
-            stock: newStock
-          }).eq("id", item.product.id);
+          // For simple products, create a negative adjustment batch so the trigger updates stock
+          const adjCode = `VENDA-${sale.id.slice(0, 8)}`;
+          const { error: batchError } = await supabase.from("product_batches").insert({
+            product_id: item.product.id,
+            company_id: company.id,
+            batch_code: adjCode,
+            batch_type: "adjustment",
+            adjustment_reason: "venda",
+            quantity: -item.quantity,
+            created_by: user?.id || "",
+            status: "active",
+          });
+          if (batchError) console.error("Error creating sale batch adjustment:", batchError);
         }
       }
 
