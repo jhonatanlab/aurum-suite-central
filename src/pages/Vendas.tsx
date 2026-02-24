@@ -180,7 +180,7 @@ export default function Vendas() {
     const percentVal = parseFloat(discountPercent) || 0;
     const valueVal = parseFloat(discountValue) || 0;
     if (percentVal > 0) {
-      return cartSubtotal * percentVal / 100;
+      return Math.round(cartSubtotal * percentVal / 100 * 100) / 100;
     }
     return valueVal;
   }, [cartSubtotal, discountPercent, discountValue]);
@@ -208,7 +208,7 @@ export default function Vendas() {
     setDiscountPercent(value);
     if (value && cartSubtotal > 0) {
       const percent = parseFloat(value) || 0;
-      const calculated = cartSubtotal * percent / 100;
+      const calculated = Math.round(cartSubtotal * percent / 100 * 100) / 100;
       setDiscountValue(calculated.toFixed(2));
     } else {
       setDiscountValue("");
