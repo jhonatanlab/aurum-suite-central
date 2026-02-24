@@ -14,7 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Search, ShoppingCart, Plus, Minus, Trash2, Package, DollarSign, User, Percent, History, Truck, AlertCircle, X, Layers } from "lucide-react";
+import { Search, ShoppingCart, Plus, Minus, Trash2, Package, DollarSign, User, Percent, History, Truck, AlertCircle, X, Layers, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SalesHistoryTab } from "@/components/vendas/SalesHistoryTab";
 import { MultiPaymentManager, PaymentEntry } from "@/components/vendas/MultiPaymentManager";
@@ -64,6 +69,7 @@ export default function Vendas() {
   const [interestToCustomer, setInterestToCustomer] = useState(0);
   const [clientFreight, setClientFreight] = useState<string>("");
   const [storeFreight, setStoreFreight] = useState<string>("");
+  const [saleDate, setSaleDate] = useState<Date>(new Date());
   const {
     data: products,
     isLoading
@@ -246,6 +252,7 @@ export default function Vendas() {
         error: saleError
       } = await supabase.from("sales").insert({
         company_id: company.id,
+        created_at: saleDate.toISOString(),
         client_id: selectedClientId && selectedClientId !== "none" ? selectedClientId : null,
         payment_method: payments.length > 1 ? "multiplo" : payments[0]?.method || "outros",
         discount_value: calculatedDiscount,
@@ -322,7 +329,7 @@ export default function Vendas() {
           type: "income",
           description: `Conta a receber - Venda #${sale.id.slice(0, 8)}`,
           value: actualPendingBalance,
-          date: new Date().toISOString().split("T")[0],
+          date: format(saleDate, "yyyy-MM-dd"),
           status: "pending",
           origin: "sale",
           method: null
@@ -375,6 +382,7 @@ export default function Vendas() {
       setInterestToCustomer(0);
       setClientFreight("");
       setStoreFreight("");
+      setSaleDate(new Date());
       // Invalidate queries
       queryClient.invalidateQueries({
         queryKey: ["products-pdv"]
@@ -543,6 +551,25 @@ export default function Vendas() {
                    {/* Cliente Select */}
                    <ClientSelect value={selectedClientId} onChange={setSelectedClientId} />
 
+                   {/* Sale Date */}
+                   <div className="space-y-2">
+                     <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                       <CalendarIcon className="h-3 w-3" />
+                       Data da Venda
+                     </Label>
+                     <Popover>
+                       <PopoverTrigger asChild>
+                         <Button variant="outline" className={cn("w-full justify-start text-left font-normal bg-card border-border", !saleDate && "text-muted-foreground")}>
+                           <CalendarIcon className="mr-2 h-4 w-4" />
+                           {saleDate ? format(saleDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
+                         </Button>
+                       </PopoverTrigger>
+                       <PopoverContent className="w-auto p-0" align="start">
+                         <Calendar mode="single" selected={saleDate} onSelect={(d) => d && setSaleDate(d)} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
+                       </PopoverContent>
+                     </Popover>
+                   </div>
+
                   {/* Discount Fields */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
@@ -682,6 +709,25 @@ export default function Vendas() {
               <div className="flex-1 overflow-y-auto p-4 border-t border-border space-y-3">
                 {/* Cliente Select */}
                 <ClientSelect value={selectedClientId} onChange={setSelectedClientId} />
+
+                {/* Sale Date */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                    <CalendarIcon className="h-3 w-3" />
+                    Data da Venda
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal bg-card border-border", !saleDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {saleDate ? format(saleDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={saleDate} onSelect={(d) => d && setSaleDate(d)} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
                 {/* Discount Fields */}
                 <div className="grid grid-cols-2 gap-3">
