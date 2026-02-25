@@ -101,7 +101,7 @@ export function useDashboardData(filters?: DashboardFilters) {
         .from("sales")
         .select("id, total")
         .eq("company_id", companyId)
-        .eq("status", "completed");
+        .in("status", ["completed", "pending"]);
       salesQuery = applySalesFilters(salesQuery);
 
       const { data: sales } = await salesQuery;
@@ -168,7 +168,7 @@ export function useDashboardData(filters?: DashboardFilters) {
         .from("sales")
         .select("id, total, created_at")
         .eq("company_id", companyId)
-        .eq("status", "completed")
+        .in("status", ["completed", "pending"])
         .gte("created_at", chartFrom)
         .lte("created_at", chartTo + "T23:59:59")
         .order("created_at", { ascending: true });
@@ -279,7 +279,7 @@ export function useDashboardData(filters?: DashboardFilters) {
         .from("sales")
         .select("id")
         .eq("company_id", companyId)
-        .eq("status", "completed");
+        .in("status", ["completed", "pending"]);
       salesQuery = applySalesFilters(salesQuery);
       const { data: sales } = await salesQuery;
 

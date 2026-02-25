@@ -80,22 +80,15 @@ export default function Vendas() {
       const {
         data: productsData,
         error: productsError
-      } = await supabase.from("products").select("id, name, price, stock, category, type").eq("company_id", company.id).eq("status", "active").order("name");
+      } = await supabase
+        .from("products")
+        .select("id, name, price, stock, category, type")
+        .eq("company_id", company.id)
+        .eq("status", "active")
+        .order("name");
       if (productsError) throw productsError;
 
-      // Calculate stock from batches for simple products
-      const {
-        data: batchesData,
-        error: batchesError
-      } = await supabase.from("product_batches").select("product_id, quantity").eq("company_id", company.id).eq("status", "active");
-      if (batchesError) throw batchesError;
-
-      const stockByProduct = batchesData?.reduce((acc, batch) => {
-        acc[batch.product_id] = (acc[batch.product_id] || 0) + batch.quantity;
-        return acc;
-      }, {} as Record<string, number>) || {};
-
-      // For bundles, get max stock via RPC
+      // For bundles, always calculate dynamic stock from components
       const bundleProducts = productsData.filter(p => p.type === "bundle");
       const bundleStocks: Record<string, number> = {};
       for (const bp of bundleProducts) {
@@ -107,7 +100,7 @@ export default function Vendas() {
         ...product,
         stock: product.type === "bundle"
           ? bundleStocks[product.id] ?? 0
-          : stockByProduct[product.id] ?? 0,
+          : product.stock ?? 0,
       })) as Product[];
     },
     enabled: !!company?.id
@@ -254,6 +247,7 @@ export default function Vendas() {
         company_id: company.id,
         created_at: saleDate.toISOString(),
         client_id: selectedClientId && selectedClientId !== "none" ? selectedClientId : null,
+        customer_name: selectedLead?.name ?? "Consumidor final",
         payment_method: payments.length > 1 ? "multiplo" : payments[0]?.method || "outros",
         discount_value: calculatedDiscount,
         subtotal: cartSubtotal,
@@ -328,22 +322,58 @@ export default function Vendas() {
         }
       }
 
-      // Create financial transaction for pending balance (accounts receivable)
-      if (actualPendingBalance > 0) {
-        const {
-          error: financialError
-        } = await supabase.from("financial_transactions").insert({
+      // Create financial transactions for sale (received + receivable)
+      const saleOrigin = `sale:${sale.id}`;
+      const saleDateStr = format(saleDate, "yyyy-MM-dd");
+      const financialEntries = [] as {
+        company_id: string;
+        type: string;
+        description: string;
+        value: number;
+        date: string;
+        status: string;
+        origin: string;
+        method: string | null;
+        reference_id: string;
+        paid_at: string | null;
+      }[];
+
+      if (totalPaid > 0) {
+        financialEntries.push({
           company_id: company.id,
-          type: "income",
+          type: "entrada",
+          description: `Venda PDV #${sale.id.slice(0, 8)}`,
+          value: totalPaid,
+          date: saleDateStr,
+          status: "pago",
+          origin: saleOrigin,
+          method: payments.length > 1 ? "multiplo" : payments[0]?.method || null,
+          reference_id: sale.id,
+          paid_at: new Date().toISOString(),
+        });
+      }
+
+      if (actualPendingBalance > 0) {
+        financialEntries.push({
+          company_id: company.id,
+          type: "entrada",
           description: `Conta a receber - Venda #${sale.id.slice(0, 8)}`,
           value: actualPendingBalance,
-          date: format(saleDate, "yyyy-MM-dd"),
-          status: "pending",
-          origin: "sale",
-          method: null
+          date: saleDateStr,
+          status: "pendente",
+          origin: saleOrigin,
+          method: null,
+          reference_id: sale.id,
+          paid_at: null,
         });
+      }
+
+      if (financialEntries.length > 0) {
+        const {
+          error: financialError
+        } = await supabase.from("financial_transactions").insert(financialEntries);
         if (financialError) {
-          console.error("Error creating accounts receivable:", financialError);
+          console.error("Error creating financial transactions:", financialError);
         }
       }
 
@@ -398,8 +428,18 @@ export default function Vendas() {
         queryClient.invalidateQueries({ queryKey: ["products"] }),
         queryClient.invalidateQueries({ queryKey: ["product_batches_history"] }),
         queryClient.invalidateQueries({ queryKey: ["leads"] }),
+        queryClient.invalidateQueries({ queryKey: ["leads-pdv"] }),
         queryClient.invalidateQueries({ queryKey: ["sales-history"] }),
+        queryClient.invalidateQueries({ queryKey: ["financial_transactions"] }),
         queryClient.invalidateQueries({ queryKey: ["financial-transactions"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-kpis"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-chart"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-lead-sources"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-lead-funnel"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-top-products"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-recent-sales"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-recent-contacts"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-low-stock"] }),
       ]);
     },
     onError: (error: Error) => {
