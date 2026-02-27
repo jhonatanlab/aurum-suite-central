@@ -376,7 +376,7 @@ export function SalesHistoryTab() {
                             e.stopPropagation();
                             setEditSaleId(sale.id);
                           }}
-                          className="h-8 w-8 text-primary hover:text-primary/80"
+                          className="h-8 w-8"
                           title="Editar venda"
                         >
                           <Pencil className="h-4 w-4" />
