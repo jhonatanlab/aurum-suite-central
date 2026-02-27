@@ -22,11 +22,12 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Receipt, User, CreditCard, Calendar, Package, XCircle, AlertTriangle, Truck, Wallet } from "lucide-react";
+import { Receipt, User, CreditCard, Calendar, Package, XCircle, AlertTriangle, Truck, Wallet, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
+import { EditSaleModal } from "./EditSaleModal";
 
 interface Sale {
   id: string;
@@ -73,6 +74,7 @@ interface SaleDetailPanelProps {
   open: boolean;
   onClose: () => void;
   companyId?: string;
+  userRole?: string | null;
 }
 
 const paymentMethodLabels: Record<string, string> = {
@@ -89,12 +91,15 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
   refunded: { label: "Estornada", variant: "secondary" },
 };
 
-export function SaleDetailPanel({ sale, items, payments, open, onClose, companyId }: SaleDetailPanelProps) {
+export function SaleDetailPanel({ sale, items, payments, open, onClose, companyId, userRole }: SaleDetailPanelProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const canEdit = userRole === "gerente" || userRole === "owner";
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -242,6 +247,7 @@ export function SaleDetailPanel({ sale, items, payments, open, onClose, companyI
   if (!sale) return null;
 
   return (
+    <>
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <SheetContent className="w-full sm:max-w-lg bg-background border-border overflow-y-auto">
         <SheetHeader className="pb-4">
@@ -430,6 +436,17 @@ export function SaleDetailPanel({ sale, items, payments, open, onClose, companyI
               Imprimir Recibo
             </Button>
             
+            {canEdit && sale.status !== "cancelled" && (
+              <Button
+                variant="outline"
+                onClick={() => setShowEditModal(true)}
+                className="flex-1 border-primary text-primary hover:bg-primary/10"
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+            )}
+
             {sale.status === "completed" && (
               <Button
                 variant="destructive"
@@ -496,5 +513,18 @@ export function SaleDetailPanel({ sale, items, payments, open, onClose, companyI
         </AlertDialogContent>
       </AlertDialog>
     </Sheet>
+
+    {/* Edit Sale Modal */}
+    {canEdit && sale && (
+      <EditSaleModal
+        sale={sale}
+        items={items}
+        payments={payments}
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        companyId={companyId}
+      />
+    )}
+    </>
   );
 }

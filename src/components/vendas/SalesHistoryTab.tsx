@@ -80,7 +80,7 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
 };
 
 export function SalesHistoryTab() {
-  const { company } = useCompany();
+  const { company, companyUser } = useCompany();
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -390,6 +390,7 @@ export function SalesHistoryTab() {
         open={!!selectedSaleId}
         onClose={() => setSelectedSaleId(null)}
         companyId={company?.id}
+        userRole={companyUser?.role}
       />
     </div>
   );
