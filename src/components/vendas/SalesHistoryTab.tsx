@@ -24,8 +24,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Calendar, Search, Eye, Receipt, FileText } from "lucide-react";
+import { Calendar, Search, Eye, Receipt, FileText, Pencil } from "lucide-react";
 import { SaleDetailPanel } from "./SaleDetailPanel";
+import { EditSaleModal } from "./EditSaleModal";
 
 interface Sale {
   id: string;
@@ -82,6 +83,7 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
 export function SalesHistoryTab() {
   const { company, companyUser } = useCompany();
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
+  const [editSaleId, setEditSaleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -121,10 +123,12 @@ export function SalesHistoryTab() {
     enabled: !!company?.id,
   });
 
+  const activeSaleId = selectedSaleId || editSaleId;
+
   const { data: saleDetails } = useQuery({
-    queryKey: ["sale-details", selectedSaleId],
+    queryKey: ["sale-details", activeSaleId],
     queryFn: async () => {
-      if (!selectedSaleId) return null;
+      if (!activeSaleId) return null;
       
       const [itemsResult, paymentsResult] = await Promise.all([
         supabase
@@ -137,7 +141,7 @@ export function SalesHistoryTab() {
             subtotal,
             products:product_id (name)
           `)
-          .eq("sale_id", selectedSaleId),
+          .eq("sale_id", activeSaleId),
         supabase
           .from("sale_payments")
           .select(`
@@ -148,7 +152,7 @@ export function SalesHistoryTab() {
             gateway_fee_amount,
             interest_amount
           `)
-          .eq("sale_id", selectedSaleId)
+          .eq("sale_id", activeSaleId)
       ]);
       
       if (itemsResult.error) throw itemsResult.error;
@@ -159,7 +163,7 @@ export function SalesHistoryTab() {
         payments: paymentsResult.data as SalePayment[]
       };
     },
-    enabled: !!selectedSaleId,
+    enabled: !!activeSaleId,
   });
 
   const filteredSales = useMemo(() => {
@@ -363,17 +367,33 @@ export function SalesHistoryTab() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedSaleId(sale.id);
-                      }}
-                      className="h-8 w-8"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      {(companyUser?.role === "gerente" || companyUser?.role === "owner") && sale.status !== "cancelled" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditSaleId(sale.id);
+                          }}
+                          className="h-8 w-8 text-primary hover:text-primary/80"
+                          title="Editar venda"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedSaleId(sale.id);
+                        }}
+                        className="h-8 w-8"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -392,6 +412,22 @@ export function SalesHistoryTab() {
         companyId={company?.id}
         userRole={companyUser?.role}
       />
+
+      {/* Edit Sale Modal (from table pencil button) */}
+      {editSaleId && (() => {
+        const editSale = sales?.find(s => s.id === editSaleId);
+        if (!editSale) return null;
+        return (
+          <EditSaleModal
+            sale={editSale}
+            items={saleDetails?.items || []}
+            payments={saleDetails?.payments || []}
+            open={true}
+            onClose={() => setEditSaleId(null)}
+            companyId={company?.id}
+          />
+        );
+      })()}
     </div>
   );
 }

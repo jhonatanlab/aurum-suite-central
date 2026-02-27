@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Pencil, Save, Loader2 } from "lucide-react";
+import { Pencil, Save, Loader2, CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -89,6 +94,7 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
   const [discountValue, setDiscountValue] = useState("");
   const [clientFreight, setClientFreight] = useState("");
   const [storeFreight, setStoreFreight] = useState("");
+  const [saleDate, setSaleDate] = useState<Date>(new Date());
   const [editableItems, setEditableItems] = useState<Array<{ id: string; price: number; quantity: number; name: string }>>([]);
 
   // Initialize form when sale changes
@@ -99,6 +105,7 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
       setDiscountValue(String(sale.discount_value || 0));
       setClientFreight(String(sale.client_freight || 0));
       setStoreFreight(String(sale.store_freight || 0));
+      setSaleDate(new Date(sale.created_at));
       setEditableItems(
         items.map((item) => ({
           id: item.id,
@@ -141,6 +148,7 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
           store_freight: parseFloat(storeFreight) || 0,
           subtotal: newSubtotal,
           total: newTotal,
+          created_at: saleDate.toISOString(),
         })
         .eq("id", sale.id);
 
@@ -177,6 +185,7 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
             .from("financial_transactions")
             .update({
               value: newTotal,
+              date: format(saleDate, "yyyy-MM-dd"),
               description: `Venda PDV #${sale.id.slice(0, 8)} (editada)`,
             })
             .eq("id", existingTx.id);
@@ -218,6 +227,34 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
         </DialogHeader>
 
         <div className="space-y-5 py-2">
+          {/* Sale Date */}
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Data da Venda</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal bg-secondary border-border",
+                    !saleDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {saleDate ? format(saleDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={saleDate}
+                  onSelect={(date) => date && setSaleDate(date)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
           {/* Customer */}
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground">Nome do Cliente</Label>
