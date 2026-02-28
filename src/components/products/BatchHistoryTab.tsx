@@ -110,12 +110,21 @@ export function BatchHistoryTab() {
   };
 
   const getTypeBadge = (batch: BatchRecord) => {
+    if (batch.batch_type === "sale") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">
+          <Package className="w-3 h-3" />
+          Venda
+        </span>
+      );
+    }
     if (batch.batch_type === "adjustment") {
       const reasonLabels: Record<string, string> = {
         loss: "Perda",
         breakage: "Quebra",
         inventory: "Inventário",
         correction: "Correção",
+        venda: "Venda",
       };
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400">
