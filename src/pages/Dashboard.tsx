@@ -260,7 +260,15 @@ export default function Dashboard() {
                         ))}
                       </Pie>
                       <Tooltip
-                        contentStyle={{ backgroundColor: "hsl(0, 0%, 10%)", border: "1px solid hsl(0, 0%, 18%)", borderRadius: "0.75rem" }}
+                        contentStyle={{
+                          backgroundColor: "hsl(0, 0%, 8%)",
+                          border: "1px solid hsl(40, 45%, 55%)",
+                          borderRadius: "0.75rem",
+                          boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                          padding: "10px 14px",
+                        }}
+                        itemStyle={{ color: "hsl(40, 20%, 90%)", fontSize: 13, fontWeight: 500 }}
+                        labelStyle={{ color: "hsl(40, 20%, 95%)", fontWeight: 600, fontSize: 13, marginBottom: 4 }}
                         formatter={(value: number, name: string) => [`${value} leads`, sourceLabels[name] || name]}
                       />
                     </PieChart>
