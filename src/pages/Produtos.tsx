@@ -44,6 +44,7 @@ export default function Produtos() {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingBundleItems, setEditingBundleItems] = useState<BundleItemData[]>([]);
+  const [editingLastBatch, setEditingLastBatch] = useState<{ id: string; batch_code: string; quantity: number; supplier_id: string | null } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
@@ -220,8 +221,18 @@ export default function Produtos() {
         }
       }
 
-      // Stock replenishment for simple products (new batch)
-      if (!isBundle && data.batch.batch_code && data.batch.quantity) {
+      // Update last batch quantity for simple products (edit existing batch)
+      if (!isBundle && data.batch.quantity && data.batch.batch_id) {
+        const qty = parseInt(data.batch.quantity) || 0;
+        const { error: batchError } = await supabase
+          .from("product_batches")
+          .update({ quantity: qty })
+          .eq("id", data.batch.batch_id);
+        if (batchError) throw batchError;
+      }
+
+      // New replenishment batch (only if no batch_id, meaning truly new batch)
+      if (!isBundle && data.batch.batch_code && data.batch.quantity && !data.batch.batch_id) {
         const qty = parseInt(data.batch.quantity) || 0;
         if (qty > 0) {
           const { error: batchError } = await supabase
@@ -310,8 +321,19 @@ export default function Produtos() {
       setEditingBundleItems(
         (data || []).map((i) => ({ product_id: i.product_id, quantity: i.quantity }))
       );
+      setEditingLastBatch(null);
     } else {
       setEditingBundleItems([]);
+      // Load last batch for this product
+      const { data: lastBatch } = await supabase
+        .from("product_batches")
+        .select("id, batch_code, quantity, supplier_id")
+        .eq("product_id", product.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      setEditingLastBatch(lastBatch || null);
     }
 
     setIsPanelOpen(true);
@@ -321,6 +343,7 @@ export default function Produtos() {
     setIsPanelOpen(false);
     setEditingProduct(null);
     setEditingBundleItems([]);
+    setEditingLastBatch(null);
   };
 
   const handleSave = (data: ProductFormData, productId?: string) => {
@@ -536,6 +559,7 @@ export default function Produtos() {
           isSaving={createMutation.isPending || updateMutation.isPending}
           userEmail={user?.email}
           existingBundleItems={editingBundleItems}
+          lastBatch={editingLastBatch}
         />
 
         {/* Delete Confirmation */}
