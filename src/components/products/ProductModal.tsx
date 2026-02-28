@@ -42,12 +42,13 @@ interface BatchData {
   batch_code: string;
   quantity: string;
   supplier_id: string;
-  batch_id?: string;
 }
 
 interface AdjustmentData {
   quantity: string;
   reason: string;
+  batch_id?: string;
+  batch_code?: string;
 }
 
 export interface BundleItemData {
@@ -141,10 +142,10 @@ export function ProductModal({
         status: product.status || "active",
         minimum_stock: product.minimum_stock?.toString() || "0",
         consignment_available: product.consignment_available || false,
-        batch: lastBatch
-          ? { batch_code: lastBatch.batch_code, quantity: lastBatch.quantity.toString(), supplier_id: lastBatch.supplier_id || "", batch_id: lastBatch.id }
-          : { batch_code: "", quantity: "", supplier_id: "" },
-        adjustment: { quantity: "", reason: "" },
+        batch: { batch_code: "", quantity: "", supplier_id: "" },
+        adjustment: lastBatch
+          ? { quantity: lastBatch.quantity.toString(), reason: "", batch_id: lastBatch.id, batch_code: lastBatch.batch_code }
+          : { quantity: "", reason: "" },
         type: (product.type as "simple" | "bundle") || "simple",
         pricing_mode: (product.pricing_mode as "auto_sum" | "manual") || "",
         manual_price: product.manual_price?.toString() || "",
@@ -197,7 +198,7 @@ export function ProductModal({
     // Validate batch for simple products
     if (!isBundle) {
       if (!isEditing && (!formData.batch.batch_code.trim() || !formData.batch.quantity)) return;
-      if (isEditing && !formData.batch.batch_id && formData.batch.quantity && !formData.batch.batch_code.trim()) return;
+      if (isEditing && formData.batch.quantity && !formData.batch.batch_code.trim()) return;
     }
 
     onSave(formData, product?.id);
@@ -591,12 +592,12 @@ export function ProductModal({
                   </div>
                 )}
 
-                {/* SECTION 1: Last Batch Edit or New Batch */}
+                {/* SECTION 1: Replenishment (New Batch) */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <RefreshCw className="h-5 w-5 text-[#C7A052]" />
                     <h3 className="text-sm font-medium text-[#C7A052] uppercase tracking-wider">
-                      {isEditing && formData.batch.batch_id ? "Último Lote" : isEditing ? "Reposição de Estoque (Novo Lote)" : "Lote de Entrada *"}
+                      {isEditing ? "Reposição de Estoque (Novo Lote)" : "Lote de Entrada *"}
                     </h3>
                   </div>
 
@@ -621,8 +622,6 @@ export function ProductModal({
                         placeholder="Ex: LT-2024-001"
                         className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
                         required={!isEditing}
-                        readOnly={isEditing && !!formData.batch.batch_id}
-                        disabled={isEditing && !!formData.batch.batch_id}
                       />
                     </div>
                     <div className="space-y-2">
@@ -632,7 +631,7 @@ export function ProductModal({
                       <Input
                         id="batch_quantity"
                         type="number"
-                        min="0"
+                        min="1"
                         value={formData.batch.quantity}
                         onChange={(e) => setFormData({ ...formData, batch: { ...formData.batch, quantity: e.target.value } })}
                         placeholder="0"
@@ -682,48 +681,40 @@ export function ProductModal({
                   </div>
                 </div>
 
-                {/* SECTION 2: Stock Adjustment - only when editing */}
-                {isEditing && (
+                {/* SECTION 2: Adjust Last Batch - only when editing */}
+                {isEditing && formData.adjustment.batch_id && (
                   <div className="space-y-4 pt-4 border-t border-[#2A2A2A]">
                     <div className="flex items-center gap-2">
                       <Wrench className="h-5 w-5 text-blue-400" />
                       <h3 className="text-sm font-medium text-blue-400 uppercase tracking-wider">
-                        Ajuste de Estoque
+                        Ajustar Último Lote
                       </h3>
                     </div>
 
                     <p className="text-xs text-[#A1A1AA]">
-                      Use para corrigir divergências, registrar perdas ou quebras. Valores positivos aumentam e negativos reduzem o estoque.
+                      Edite a quantidade do último lote adicionado. O código do lote não será alterado.
                     </p>
 
                     <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-white font-medium">Código do Lote</Label>
+                        <Input
+                          value={formData.adjustment.batch_code || ""}
+                          disabled
+                          className="bg-[#121212]/50 border-[#2A2A2A] text-[#A1A1AA] cursor-not-allowed"
+                        />
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="adj_quantity" className="text-white font-medium">Quantidade</Label>
                         <Input
                           id="adj_quantity"
                           type="number"
+                          min="0"
                           value={formData.adjustment.quantity}
                           onChange={(e) => setFormData({ ...formData, adjustment: { ...formData.adjustment, quantity: e.target.value } })}
-                          placeholder="Ex: 5 ou -3"
+                          placeholder="Nova quantidade"
                           className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-blue-400 focus:ring-blue-400/20"
                         />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="adj_reason" className="text-white font-medium">Motivo *</Label>
-                        <Select
-                          value={formData.adjustment.reason}
-                          onValueChange={(value) => setFormData({ ...formData, adjustment: { ...formData.adjustment, reason: value } })}
-                        >
-                          <SelectTrigger className="bg-[#121212] border-[#2A2A2A] text-white focus:border-blue-400 focus:ring-blue-400/20">
-                            <SelectValue placeholder="Selecione o motivo" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
-                            <SelectItem value="inventory" className="text-white focus:bg-[#2A2A2A] focus:text-white">Inventário</SelectItem>
-                            <SelectItem value="loss" className="text-white focus:bg-[#2A2A2A] focus:text-white">Perda</SelectItem>
-                            <SelectItem value="breakage" className="text-white focus:bg-[#2A2A2A] focus:text-white">Quebra</SelectItem>
-                            <SelectItem value="correction" className="text-white focus:bg-[#2A2A2A] focus:text-white">Correção</SelectItem>
-                          </SelectContent>
-                        </Select>
                       </div>
                     </div>
                   </div>
