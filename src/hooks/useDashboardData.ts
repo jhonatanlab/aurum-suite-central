@@ -234,36 +234,47 @@ export function useDashboardData(filters?: DashboardFilters) {
     refetchInterval: 60000,
   });
 
-  // Lead funnel
-  const FUNNEL_ORDER = [
-    { stage: "new", label: "Novos" },
-    { stage: "contacted", label: "Contatados" },
-    { stage: "qualified", label: "Qualificados" },
-    { stage: "proposal", label: "Proposta" },
-    { stage: "won", label: "Convertidos" },
-  ];
-
+  // Lead funnel (dynamic stages from crm_stages)
   const { data: leadFunnel = [], isLoading: funnelLoading } = useQuery({
     queryKey: ["dashboard-lead-funnel", companyId, filterKey],
     queryFn: async (): Promise<FunnelStage[]> => {
       if (!companyId) return [];
+
+      // Fetch CRM stages for this company
+      const { data: stages } = await supabase
+        .from("crm_stages")
+        .select("id, name, position")
+        .eq("company_id", companyId)
+        .order("position", { ascending: true });
+
+      if (!stages?.length) return [];
+
+      // Fetch leads
       let query = supabase
         .from("leads")
         .select("status")
         .eq("company_id", companyId);
       query = applyLeadFilters(query);
-      const { data } = await query;
+      const { data: leads } = await query;
 
+      // Count leads per stage (status = stage UUID)
       const map: Record<string, number> = {};
-      data?.forEach((l) => {
+      leads?.forEach((l) => {
         const st = l.status || "new";
         map[st] = (map[st] || 0) + 1;
       });
 
-      return FUNNEL_ORDER.map((f) => ({
-        ...f,
-        count: map[f.stage] || 0,
-      })).filter((f) => f.count > 0 || f.stage === "new");
+      // Also count legacy "new" leads into the first stage
+      const firstStageId = stages[0].id;
+      if (map["new"]) {
+        map[firstStageId] = (map[firstStageId] || 0) + map["new"];
+      }
+
+      return stages.map((s) => ({
+        stage: s.id,
+        label: s.name,
+        count: map[s.id] || 0,
+      })).filter((f) => f.count > 0);
     },
     enabled: !!companyId,
     refetchInterval: 60000,
