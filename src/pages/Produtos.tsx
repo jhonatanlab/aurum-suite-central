@@ -243,41 +243,35 @@ export default function Produtos() {
 
       // Stock adjustment - create adjustment record with the difference
       if (!isBundle && data.adjustment.quantity && data.adjustment.batch_id) {
-        const newQty = parseInt(data.adjustment.quantity) || 0;
-        // Fetch current batch quantity to calculate difference
-        const { data: currentBatch } = await supabase
+        const newTotalQty = parseInt(data.adjustment.quantity) || 0;
+        
+        // Fetch current TOTAL stock from all active batches for this product
+        const { data: allBatches } = await supabase
           .from("product_batches")
           .select("quantity")
-          .eq("id", data.adjustment.batch_id)
-          .single();
+          .eq("product_id", id)
+          .eq("status", "active");
         
-        if (currentBatch) {
-          const diff = newQty - currentBatch.quantity;
-          if (diff !== 0) {
-            // Update the existing batch quantity
-            const { error: updateErr } = await supabase
-              .from("product_batches")
-              .update({ quantity: newQty })
-              .eq("id", data.adjustment.batch_id);
-            if (updateErr) throw updateErr;
-
-            // Create an adjustment record for traceability
-            const adjCode = `ADJ-${data.adjustment.batch_code || "LOTE"}-${Date.now().toString(36).toUpperCase()}`;
-            const { error: adjErr } = await supabase
-              .from("product_batches")
-              .insert({
-                company_id: company.id,
-                product_id: id,
-                batch_code: adjCode,
-                quantity: diff,
-                batch_type: "adjustment",
-                adjustment_reason: "correction",
-                observation: `Ajuste de ${diff > 0 ? '+' : ''}${diff} un no lote ${data.adjustment.batch_code}`,
-                created_by: user?.email || "Sistema",
-                status: "active",
-              });
-            if (adjErr) throw adjErr;
-          }
+        const currentTotal = allBatches?.reduce((sum, b) => sum + b.quantity, 0) || 0;
+        const diff = newTotalQty - currentTotal;
+        
+        if (diff !== 0) {
+          // Create an adjustment record with the difference (this will update stock via trigger)
+          const adjCode = `ADJ-${data.adjustment.batch_code || "LOTE"}-${Date.now().toString(36).toUpperCase()}`;
+          const { error: adjErr } = await supabase
+            .from("product_batches")
+            .insert({
+              company_id: company.id,
+              product_id: id,
+              batch_code: adjCode,
+              quantity: diff,
+              batch_type: "adjustment",
+              adjustment_reason: "correction",
+              observation: `Ajuste de ${diff > 0 ? '+' : ''}${diff} un (estoque: ${currentTotal} → ${newTotalQty})`,
+              created_by: user?.email || "Sistema",
+              status: "active",
+            });
+          if (adjErr) throw adjErr;
         }
       }
     },
@@ -333,7 +327,7 @@ export default function Produtos() {
       setEditingLastBatch(null);
     } else {
       setEditingBundleItems([]);
-      // Load last batch for this product
+      // Load last batch for this product (for batch_code reference)
       const { data: lastBatch } = await supabase
         .from("product_batches")
         .select("id, batch_code, quantity, supplier_id")
@@ -342,7 +336,17 @@ export default function Produtos() {
         .order("created_at", { ascending: false })
         .limit(1)
         .single();
-      setEditingLastBatch(lastBatch || null);
+      
+      // Calculate total stock from all active batches
+      const { data: allBatches } = await supabase
+        .from("product_batches")
+        .select("quantity")
+        .eq("product_id", product.id)
+        .eq("status", "active");
+      
+      const totalStock = allBatches?.reduce((sum, b) => sum + b.quantity, 0) || 0;
+      
+      setEditingLastBatch(lastBatch ? { ...lastBatch, quantity: totalStock } : null);
     }
 
     setIsPanelOpen(true);
