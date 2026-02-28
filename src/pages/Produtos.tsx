@@ -269,7 +269,7 @@ export default function Produtos() {
                 company_id: company.id,
                 product_id: id,
                 batch_code: adjCode,
-                quantity: 0,
+                quantity: diff,
                 batch_type: "adjustment",
                 adjustment_reason: "correction",
                 observation: `Ajuste de ${diff > 0 ? '+' : ''}${diff} un no lote ${data.adjustment.batch_code}`,
