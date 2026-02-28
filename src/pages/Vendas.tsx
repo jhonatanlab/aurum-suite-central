@@ -318,7 +318,7 @@ export default function Vendas() {
             batch_type: "sale",
             adjustment_reason: null,
             quantity: -item.quantity,
-            created_by: user?.id || "",
+            created_by: user?.email || user?.id || "",
             status: "active",
           });
           if (batchError) console.error("Error creating sale batch adjustment:", batchError);
