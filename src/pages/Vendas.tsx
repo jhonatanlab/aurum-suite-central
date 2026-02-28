@@ -602,7 +602,8 @@ export default function Vendas() {
                    {/* Cliente Select */}
                    <ClientSelect value={selectedClientId} onChange={setSelectedClientId} onOriginChange={setSaleOriginValue} originValue={saleOriginValue} />
 
-                   {/* Origin */}
+                   {/* Origin - only show when no client selected */}
+                   {(!selectedClientId || selectedClientId === "none") && (
                    <div className="space-y-2">
                      <Label className="text-sm text-muted-foreground flex items-center gap-1">Origem</Label>
                      <Select value={saleOriginValue} onValueChange={setSaleOriginValue}>
@@ -616,6 +617,7 @@ export default function Vendas() {
                        </SelectContent>
                      </Select>
                    </div>
+                   )}
 
                    {/* Sale Date */}
                    <div className="space-y-2">
@@ -776,7 +778,8 @@ export default function Vendas() {
                 {/* Cliente Select */}
                 <ClientSelect value={selectedClientId} onChange={setSelectedClientId} onOriginChange={setSaleOriginValue} originValue={saleOriginValue} />
 
-                {/* Origin */}
+                {/* Origin - only show when no client selected */}
+                {(!selectedClientId || selectedClientId === "none") && (
                 <div className="space-y-2">
                   <Label className="text-sm text-muted-foreground flex items-center gap-1">Origem</Label>
                   <Select value={saleOriginValue} onValueChange={setSaleOriginValue}>
@@ -790,6 +793,7 @@ export default function Vendas() {
                     </SelectContent>
                   </Select>
                 </div>
+                )}
 
                 {/* Sale Date */}
                 <div className="space-y-2">
