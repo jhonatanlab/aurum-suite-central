@@ -45,6 +45,7 @@ interface Sale {
   cancelled_at: string | null;
   cancellation_reason: string | null;
   cancelled_by_email?: string | null;
+  origin?: string | null;
   leads?: { name: string } | null;
 }
 
@@ -113,6 +114,7 @@ export function SalesHistoryTab() {
           cancelled_at,
           cancellation_reason,
           cancelled_by_email,
+          origin,
           leads:client_id (name)
         `)
         .eq("company_id", company.id)

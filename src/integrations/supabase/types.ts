@@ -1261,6 +1261,7 @@ export type Database = {
           customer_name: string | null
           discount_value: number | null
           id: string
+          origin: string | null
           payment_method: string | null
           pending_balance: number | null
           sale_costs: Json | null
@@ -1283,6 +1284,7 @@ export type Database = {
           customer_name?: string | null
           discount_value?: number | null
           id?: string
+          origin?: string | null
           payment_method?: string | null
           pending_balance?: number | null
           sale_costs?: Json | null
@@ -1305,6 +1307,7 @@ export type Database = {
           customer_name?: string | null
           discount_value?: number | null
           id?: string
+          origin?: string | null
           payment_method?: string | null
           pending_balance?: number | null
           sale_costs?: Json | null

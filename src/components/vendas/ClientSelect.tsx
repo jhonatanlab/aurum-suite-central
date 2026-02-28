@@ -10,13 +10,23 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { User, Search, Plus, Check, ChevronsUpDown, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { originOptions } from "./EditSaleModal";
 
 interface ClientSelectProps {
   value: string;
   onChange: (value: string) => void;
+  onOriginChange?: (origin: string) => void;
+  originValue?: string;
 }
 
 interface Lead {
@@ -26,7 +36,7 @@ interface Lead {
   email: string | null;
 }
 
-export function ClientSelect({ value, onChange }: ClientSelectProps) {
+export function ClientSelect({ value, onChange, onOriginChange, originValue }: ClientSelectProps) {
   const { company } = useCompany();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -35,6 +45,7 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [newOrigin, setNewOrigin] = useState("");
   const [creating, setCreating] = useState(false);
 
   const { data: leads } = useQuery({
@@ -78,7 +89,7 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
           name: newName.trim(),
           phone: newPhone.trim() || null,
           email: newEmail.trim() || null,
-          source: "manual",
+          source: newOrigin || "manual",
           status: "new",
         })
         .select("id")
@@ -86,10 +97,15 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["leads-pdv"] });
       onChange(data.id);
+      // Propagate origin to parent
+      if (newOrigin && onOriginChange) {
+        onOriginChange(newOrigin);
+      }
       setShowNewForm(false);
       setNewName("");
       setNewPhone("");
       setNewEmail("");
+      setNewOrigin("");
       setOpen(false);
       toast.success("Cliente criado com sucesso!");
     } catch (error: any) {
@@ -238,6 +254,18 @@ export function ClientSelect({ value, onChange }: ClientSelectProps) {
                   onChange={(e) => setNewEmail(e.target.value)}
                   className="h-8 text-sm bg-secondary border-border"
                 />
+                <Select value={newOrigin} onValueChange={setNewOrigin}>
+                  <SelectTrigger className="h-8 text-sm bg-secondary border-border">
+                    <SelectValue placeholder="Origem do cliente" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {originOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <Button
                 size="sm"

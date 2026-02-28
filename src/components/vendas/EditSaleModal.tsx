@@ -63,6 +63,7 @@ interface Sale {
   cancelled_at: string | null;
   cancellation_reason: string | null;
   cancelled_by_email?: string | null;
+  origin?: string | null;
   leads?: { name: string } | null;
 }
 
@@ -84,6 +85,17 @@ const paymentMethodOptions = [
   { value: "multiplo", label: "Múltiplo" },
 ];
 
+export const originOptions = [
+  { value: "loja", label: "Loja Física" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "instagram", label: "Instagram" },
+  { value: "facebook", label: "Facebook" },
+  { value: "indicacao", label: "Indicação" },
+  { value: "site", label: "Site / E-commerce" },
+  { value: "marketplace", label: "Marketplace" },
+  { value: "outro", label: "Outro" },
+];
+
 export function EditSaleModal({ sale, items, payments, open, onClose, companyId }: EditSaleModalProps) {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
@@ -95,6 +107,7 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
   const [clientFreight, setClientFreight] = useState("");
   const [storeFreight, setStoreFreight] = useState("");
   const [saleDate, setSaleDate] = useState<Date>(new Date());
+  const [origin, setOrigin] = useState("");
   const [editableItems, setEditableItems] = useState<Array<{ id: string; price: number; quantity: number; name: string }>>([]);
 
   // Initialize form when sale changes
@@ -106,6 +119,7 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
       setClientFreight(String(sale.client_freight || 0));
       setStoreFreight(String(sale.store_freight || 0));
       setSaleDate(new Date(sale.created_at));
+      setOrigin(sale.origin || "");
       setEditableItems(
         items.map((item) => ({
           id: item.id,
@@ -149,12 +163,21 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
           subtotal: newSubtotal,
           total: newTotal,
           created_at: saleDate.toISOString(),
-        })
+          origin: origin || null,
+        } as any)
         .eq("id", sale.id);
 
       if (saleError) throw saleError;
 
-      // 2. Update sale items (price only - quantity changes would need stock adjustments)
+      // 2. Update lead source if sale has a client
+      if (sale.client_id && origin) {
+        await supabase
+          .from("leads")
+          .update({ source: origin })
+          .eq("id", sale.client_id);
+      }
+
+      // 3. Update sale items (price only)
       for (const item of editableItems) {
         const originalItem = items.find((i) => i.id === item.id);
         if (originalItem && (originalItem.price !== item.price)) {
@@ -170,7 +193,7 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
         }
       }
 
-      // 3. Update financial transaction value if exists
+      // 4. Update financial transaction value if exists
       if (companyId) {
         const { data: existingTx } = await supabase
           .from("financial_transactions")
@@ -201,6 +224,7 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
         queryClient.invalidateQueries({ queryKey: ["dashboard-kpis"] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard-chart"] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard-recent-sales"] }),
+        queryClient.invalidateQueries({ queryKey: ["leads"] }),
       ]);
 
       toast.success("Venda atualizada com sucesso!");
@@ -264,6 +288,23 @@ export function EditSaleModal({ sale, items, payments, open, onClose, companyId 
               placeholder="Consumidor final"
               className="bg-secondary border-border"
             />
+          </div>
+
+          {/* Origin */}
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Origem</Label>
+            <Select value={origin} onValueChange={setOrigin}>
+              <SelectTrigger className="bg-secondary border-border">
+                <SelectValue placeholder="Selecione a origem" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                {originOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Payment Method */}
