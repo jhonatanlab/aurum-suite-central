@@ -3,8 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const DEFAULT_SETTINGS: CrmSettings = {
-  enable_sales_column: false,
-  auto_move_to_sales: false,
+  enable_sales_column: true,
+  auto_move_to_sales: true,
 };
 
 export function useCrmSettings() {

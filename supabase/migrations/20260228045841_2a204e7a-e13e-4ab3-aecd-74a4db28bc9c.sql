@@ -1,0 +1,1 @@
+ALTER TABLE public.companies ALTER COLUMN crm_settings SET DEFAULT '{"enable_sales_column": true, "auto_move_to_sales": true}'::jsonb;
