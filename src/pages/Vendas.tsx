@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { SalesHistoryTab } from "@/components/vendas/SalesHistoryTab";
 import { MultiPaymentManager, PaymentEntry } from "@/components/vendas/MultiPaymentManager";
 import { ClientSelect } from "@/components/vendas/ClientSelect";
+import { originOptions } from "@/components/vendas/EditSaleModal";
 interface Product {
   id: string;
   name: string;
@@ -70,6 +71,7 @@ export default function Vendas() {
   const [clientFreight, setClientFreight] = useState<string>("");
   const [storeFreight, setStoreFreight] = useState<string>("");
   const [saleDate, setSaleDate] = useState<Date>(new Date());
+  const [saleOriginValue, setSaleOriginValue] = useState<string>("");
   const {
     data: products,
     isLoading
@@ -258,8 +260,9 @@ export default function Vendas() {
         pending_balance: actualPendingBalance,
         sale_costs: allCosts as any,
         seller_id: user?.id || null,
-        status: saleStatus
-      }).select("id").single();
+        status: saleStatus,
+        origin: saleOriginValue || null,
+      } as any).select("id").single();
       if (saleError) throw saleError;
 
       // Create sale items
@@ -389,9 +392,11 @@ export default function Vendas() {
           } else if (cart.length > 1) {
             productName = `${cart.length} produtos`;
           }
-          await supabase.from("leads").update({
-            product_value: cartTotal
-          }).eq("id", selectedLead.id);
+          const leadUpdate: Record<string, any> = { product_value: cartTotal };
+          if (saleOriginValue) {
+            leadUpdate.source = saleOriginValue;
+          }
+          await supabase.from("leads").update(leadUpdate).eq("id", selectedLead.id);
           await moveLeadToSales.mutateAsync({
             leadId: selectedLead.id,
             productName,
@@ -421,6 +426,7 @@ export default function Vendas() {
       setClientFreight("");
       setStoreFreight("");
       setSaleDate(new Date());
+      setSaleOriginValue("");
       // Small delay to ensure DB trigger has recalculated stock
       await new Promise(resolve => setTimeout(resolve, 300));
       await Promise.all([
@@ -594,7 +600,22 @@ export default function Vendas() {
                 {/* Cart Footer for Mobile */}
                 <div className="p-5 border-t border-border space-y-4 max-h-[60vh] overflow-y-auto">
                    {/* Cliente Select */}
-                   <ClientSelect value={selectedClientId} onChange={setSelectedClientId} />
+                   <ClientSelect value={selectedClientId} onChange={setSelectedClientId} onOriginChange={setSaleOriginValue} originValue={saleOriginValue} />
+
+                   {/* Origin */}
+                   <div className="space-y-2">
+                     <Label className="text-sm text-muted-foreground flex items-center gap-1">Origem</Label>
+                     <Select value={saleOriginValue} onValueChange={setSaleOriginValue}>
+                       <SelectTrigger className="bg-card border-border">
+                         <SelectValue placeholder="Selecione a origem" />
+                       </SelectTrigger>
+                       <SelectContent className="bg-card border-border">
+                         {originOptions.map((opt) => (
+                           <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                   </div>
 
                    {/* Sale Date */}
                    <div className="space-y-2">
@@ -753,7 +774,22 @@ export default function Vendas() {
               {/* Cart Options - Scrollable */}
               <div className="flex-1 overflow-y-auto p-4 border-t border-border space-y-3">
                 {/* Cliente Select */}
-                <ClientSelect value={selectedClientId} onChange={setSelectedClientId} />
+                <ClientSelect value={selectedClientId} onChange={setSelectedClientId} onOriginChange={setSaleOriginValue} originValue={saleOriginValue} />
+
+                {/* Origin */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground flex items-center gap-1">Origem</Label>
+                  <Select value={saleOriginValue} onValueChange={setSaleOriginValue}>
+                    <SelectTrigger className="bg-card border-border">
+                      <SelectValue placeholder="Selecione a origem" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      {originOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {/* Sale Date */}
                 <div className="space-y-2">

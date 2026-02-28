@@ -46,6 +46,7 @@ interface Sale {
   cancelled_at: string | null;
   cancellation_reason: string | null;
   cancelled_by_email?: string | null;
+  origin?: string | null;
   leads?: { name: string } | null;
 }
 
