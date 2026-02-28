@@ -257,13 +257,12 @@ export default function Produtos() {
         
         if (diff !== 0) {
           // Create an adjustment record with the difference (this will update stock via trigger)
-          const adjCode = `ADJ-${data.adjustment.batch_code || "LOTE"}-${Date.now().toString(36).toUpperCase()}`;
           const { error: adjErr } = await supabase
             .from("product_batches")
             .insert({
               company_id: company.id,
               product_id: id,
-              batch_code: adjCode,
+              batch_code: data.adjustment.batch_code || "LOTE",
               quantity: diff,
               batch_type: "adjustment",
               adjustment_reason: "correction",
@@ -333,6 +332,8 @@ export default function Produtos() {
         .select("id, batch_code, quantity, supplier_id")
         .eq("product_id", product.id)
         .eq("status", "active")
+        .neq("batch_type", "adjustment")
+        .neq("batch_type", "sale")
         .order("created_at", { ascending: false })
         .limit(1)
         .single();
