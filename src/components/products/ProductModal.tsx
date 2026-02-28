@@ -42,6 +42,7 @@ interface BatchData {
   batch_code: string;
   quantity: string;
   supplier_id: string;
+  batch_id?: string;
 }
 
 interface AdjustmentData {
@@ -79,6 +80,7 @@ interface ProductModalProps {
   isSaving: boolean;
   userEmail?: string;
   existingBundleItems?: BundleItemData[];
+  lastBatch?: { id: string; batch_code: string; quantity: number; supplier_id: string | null } | null;
 }
 
 const initialFormData: ProductFormData = {
@@ -113,6 +115,7 @@ export function ProductModal({
   isSaving,
   userEmail = "Sistema",
   existingBundleItems = [],
+  lastBatch,
 }: ProductModalProps) {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const { activeSuppliers, isLoading: loadingSuppliers } = useSuppliers();
@@ -138,7 +141,9 @@ export function ProductModal({
         status: product.status || "active",
         minimum_stock: product.minimum_stock?.toString() || "0",
         consignment_available: product.consignment_available || false,
-        batch: { batch_code: "", quantity: "", supplier_id: "" },
+        batch: lastBatch
+          ? { batch_code: lastBatch.batch_code, quantity: lastBatch.quantity.toString(), supplier_id: lastBatch.supplier_id || "", batch_id: lastBatch.id }
+          : { batch_code: "", quantity: "", supplier_id: "" },
         adjustment: { quantity: "", reason: "" },
         type: (product.type as "simple" | "bundle") || "simple",
         pricing_mode: (product.pricing_mode as "auto_sum" | "manual") || "",
@@ -148,7 +153,7 @@ export function ProductModal({
     } else {
       setFormData(initialFormData);
     }
-  }, [product, open, existingBundleItems]);
+  }, [product, open, existingBundleItems, lastBatch]);
 
   const handleAddBundleItem = () => {
     setFormData({
@@ -192,7 +197,7 @@ export function ProductModal({
     // Validate batch for simple products
     if (!isBundle) {
       if (!isEditing && (!formData.batch.batch_code.trim() || !formData.batch.quantity)) return;
-      if (isEditing && formData.batch.quantity && !formData.batch.batch_code.trim()) return;
+      if (isEditing && !formData.batch.batch_id && formData.batch.quantity && !formData.batch.batch_code.trim()) return;
     }
 
     onSave(formData, product?.id);
@@ -586,12 +591,12 @@ export function ProductModal({
                   </div>
                 )}
 
-                {/* SECTION 1: Replenishment (New Batch) */}
+                {/* SECTION 1: Last Batch Edit or New Batch */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <RefreshCw className="h-5 w-5 text-[#C7A052]" />
                     <h3 className="text-sm font-medium text-[#C7A052] uppercase tracking-wider">
-                      {isEditing ? "Reposição de Estoque (Novo Lote)" : "Lote de Entrada *"}
+                      {isEditing && formData.batch.batch_id ? "Último Lote" : isEditing ? "Reposição de Estoque (Novo Lote)" : "Lote de Entrada *"}
                     </h3>
                   </div>
 
@@ -616,6 +621,8 @@ export function ProductModal({
                         placeholder="Ex: LT-2024-001"
                         className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
                         required={!isEditing}
+                        readOnly={isEditing && !!formData.batch.batch_id}
+                        disabled={isEditing && !!formData.batch.batch_id}
                       />
                     </div>
                     <div className="space-y-2">
@@ -625,7 +632,7 @@ export function ProductModal({
                       <Input
                         id="batch_quantity"
                         type="number"
-                        min="1"
+                        min="0"
                         value={formData.batch.quantity}
                         onChange={(e) => setFormData({ ...formData, batch: { ...formData.batch, quantity: e.target.value } })}
                         placeholder="0"
