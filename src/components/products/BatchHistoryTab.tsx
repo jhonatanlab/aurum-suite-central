@@ -127,7 +127,7 @@ export function BatchHistoryTab() {
         venda: "Venda"
       };
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-green-400 bg-green-800">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-500 text-secondary">
           <Wrench className="w-3 h-3" />
           {reasonLabels[batch.adjustment_reason || ""] || "Ajuste"}
         </span>);
