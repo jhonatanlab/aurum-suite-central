@@ -91,6 +91,7 @@ export const originOptions = [
   { value: "instagram", label: "Instagram" },
   { value: "facebook", label: "Facebook" },
   { value: "indicacao", label: "Indicação" },
+  { value: "trafego_pago", label: "Tráfego Pago" },
   { value: "site", label: "Site / E-commerce" },
   { value: "marketplace", label: "Marketplace" },
   { value: "outro", label: "Outro" },
