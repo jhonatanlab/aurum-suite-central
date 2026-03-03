@@ -182,14 +182,55 @@ export function NewWarrantyModal({
     enabled: !!company?.id && !!selectedCustomerId && clientType === "customer",
   });
 
-  // Fetch batch info when product is selected (for customer type)
+  // Get the sale_id for the selected product
+  const selectedProductSaleId = useMemo(() => {
+    const product = purchasedProducts.find(p => p.product_id === productId);
+    return product?.sale_id || null;
+  }, [purchasedProducts, productId]);
+
+  // Fetch batch info from the sale that originated this product purchase
   const { data: batchInfo } = useQuery<ProductBatchInfo>({
-    queryKey: ["product-batch-info", productId, selectedCustomerId, company?.id],
+    queryKey: ["product-batch-info", productId, selectedProductSaleId, company?.id],
     queryFn: async () => {
       if (!company?.id || !productId) return { batch_code: null, batch_date: null };
 
-      // Get the batch info for this product from product_batches
-      const { data: batches, error } = await supabase
+      // Try to find batch from the specific sale first (VENDA-xxx pattern)
+      if (selectedProductSaleId) {
+        const { data: saleBatches } = await supabase
+          .from("product_batches")
+          .select("batch_code, created_at")
+          .eq("company_id", company.id)
+          .eq("product_id", productId)
+          .eq("batch_type", "sale")
+          .like("batch_code", `VENDA-%`)
+          .order("created_at", { ascending: false });
+
+        // Find the batch that matches the sale date
+        if (saleBatches && saleBatches.length > 0) {
+          // Get the sale to match dates
+          const { data: sale } = await supabase
+            .from("sales")
+            .select("created_at")
+            .eq("id", selectedProductSaleId)
+            .single();
+
+          if (sale) {
+            // Find batch closest to sale date
+            const saleDate = new Date(sale.created_at!).toISOString().split("T")[0];
+            const matchingBatch = saleBatches.find(b => 
+              b.created_at?.split("T")[0] === saleDate
+            ) || saleBatches[0];
+
+            return {
+              batch_code: matchingBatch.batch_code,
+              batch_date: matchingBatch.created_at ? matchingBatch.created_at.split("T")[0] : null,
+            };
+          }
+        }
+      }
+
+      // Fallback: get the latest active batch for this product
+      const { data: batches } = await supabase
         .from("product_batches")
         .select("batch_code, created_at")
         .eq("company_id", company.id)
@@ -198,14 +239,13 @@ export function NewWarrantyModal({
         .order("created_at", { ascending: false })
         .limit(1);
 
-      if (error || !batches || batches.length === 0) {
+      if (!batches || batches.length === 0) {
         return { batch_code: null, batch_date: null };
       }
 
-      const batch = batches[0];
       return {
-        batch_code: batch.batch_code,
-        batch_date: batch.created_at ? batch.created_at.split("T")[0] : null,
+        batch_code: batches[0].batch_code,
+        batch_date: batches[0].created_at ? batches[0].created_at.split("T")[0] : null,
       };
     },
     enabled: !!company?.id && !!productId && clientType === "customer",
