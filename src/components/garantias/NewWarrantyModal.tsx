@@ -196,68 +196,88 @@ export function NewWarrantyModal({
     return product?.sale_id || null;
   }, [purchasedProducts, productId]);
 
-  // Fetch batch info: get the original reposition batch (not VENDA- sale records)
+  // Fetch real lot by replaying FIFO consumption until the selected sale movement
   const { data: batchInfo } = useQuery<ProductBatchInfo>({
     queryKey: ["product-batch-info", productId, selectedProductSaleId, company?.id],
     queryFn: async () => {
-      if (!company?.id || !productId) return { batch_code: null, batch_date: null };
+      if (!company?.id || !productId || !selectedProductSaleId) {
+        return { batch_code: null, batch_date: null };
+      }
 
-      // Get the sale date to find the batch that was active at sale time
-      let saleDateFilter: string | null = null;
-      if (selectedProductSaleId) {
-        const { data: sale } = await supabase
-          .from("sales")
-          .select("created_at")
-          .eq("id", selectedProductSaleId)
-          .single();
-        if (sale?.created_at) {
-          saleDateFilter = sale.created_at;
+      const saleToken = `VENDA-${selectedProductSaleId.slice(0, 8)}`;
+
+      const { data: movements, error } = await supabase
+        .from("product_batches")
+        .select("batch_code, batch_type, quantity, created_at, observation")
+        .eq("company_id", company.id)
+        .eq("product_id", productId)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      type LotQueueItem = {
+        batch_code: string;
+        batch_date: string | null;
+        remaining: number;
+      };
+
+      const lotQueue: LotQueueItem[] = [];
+      let matchedLot: { batch_code: string; batch_date: string | null } | null = null;
+
+      for (const movement of movements || []) {
+        const movementQty = Number(movement.quantity || 0);
+
+        if (movementQty > 0) {
+          lotQueue.push({
+            batch_code: movement.batch_code,
+            batch_date: movement.created_at ? movement.created_at.split("T")[0] : null,
+            remaining: movementQty,
+          });
+          continue;
+        }
+
+        if (movementQty < 0) {
+          let qtyToConsume = Math.abs(movementQty);
+          const isSelectedSaleMovement =
+            movement.observation?.includes(`SALE_ID:${selectedProductSaleId}`) ||
+            movement.batch_code === saleToken;
+
+          while (qtyToConsume > 0 && lotQueue.length > 0) {
+            const currentLot = lotQueue[0];
+            const consumed = Math.min(currentLot.remaining, qtyToConsume);
+
+            if (isSelectedSaleMovement && consumed > 0 && !matchedLot) {
+              matchedLot = {
+                batch_code: currentLot.batch_code,
+                batch_date: currentLot.batch_date,
+              };
+            }
+
+            currentLot.remaining -= consumed;
+            qtyToConsume -= consumed;
+
+            if (currentLot.remaining <= 0) {
+              lotQueue.shift();
+            }
+          }
+
+          if (isSelectedSaleMovement && matchedLot) {
+            return matchedLot;
+          }
         }
       }
 
-      // Find the original reposition batch (not sale/adjustment) for this product
-      // that was created before or at the time of the sale
-      let query = supabase
-        .from("product_batches")
-        .select("batch_code, created_at")
-        .eq("company_id", company.id)
-        .eq("product_id", productId)
-        .eq("batch_type", "reposition")
-        .order("created_at", { ascending: false });
+      // Fallback: latest positive lot if no exact match is found
+      const latestPositiveLot = [...(movements || [])]
+        .reverse()
+        .find((movement) => Number(movement.quantity || 0) > 0);
 
-      if (saleDateFilter) {
-        query = query.lte("created_at", saleDateFilter);
-      }
-
-      const { data: batches } = await query.limit(1);
-
-      if (batches && batches.length > 0) {
-        return {
-          batch_code: batches[0].batch_code,
-          batch_date: batches[0].created_at ? batches[0].created_at.split("T")[0] : null,
-        };
-      }
-
-      // Fallback: any reposition batch for this product
-      const { data: anyBatch } = await supabase
-        .from("product_batches")
-        .select("batch_code, created_at")
-        .eq("company_id", company.id)
-        .eq("product_id", productId)
-        .eq("batch_type", "reposition")
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (anyBatch && anyBatch.length > 0) {
-        return {
-          batch_code: anyBatch[0].batch_code,
-          batch_date: anyBatch[0].created_at ? anyBatch[0].created_at.split("T")[0] : null,
-        };
-      }
-
-      return { batch_code: null, batch_date: null };
+      return {
+        batch_code: latestPositiveLot?.batch_code || null,
+        batch_date: latestPositiveLot?.created_at ? latestPositiveLot.created_at.split("T")[0] : null,
+      };
     },
-    enabled: !!company?.id && !!productId && clientType === "customer",
+    enabled: !!company?.id && !!productId && !!selectedProductSaleId && clientType === "customer",
   });
 
   // Update batch fields when batch info is fetched
