@@ -159,16 +159,19 @@ export function NewWarrantyModal({
 
       if (itemsError) throw itemsError;
 
-      // Create unique product list (keeping the first sale_id for each product)
+      // Create unique product list (keeping the most recent sale_id for each product)
       const productMap = new Map<string, ProductPurchased>();
       
       items?.forEach((item: any) => {
-        if (item.product_id && item.products && !productMap.has(item.product_id)) {
-          productMap.set(item.product_id, {
-            product_id: item.product_id,
-            product_name: item.products.name,
-            sale_id: item.sale_id,
-          });
+        if (item.product_id && item.products) {
+          // Always keep the latest sale_id (items come from most recent sales first)
+          if (!productMap.has(item.product_id)) {
+            productMap.set(item.product_id, {
+              product_id: item.product_id,
+              product_name: item.products.name,
+              sale_id: item.sale_id,
+            });
+          }
         }
       });
 
