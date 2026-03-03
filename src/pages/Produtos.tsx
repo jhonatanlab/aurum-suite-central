@@ -242,7 +242,9 @@ export default function Produtos() {
       }
 
       // Stock adjustment - create adjustment record with the difference
-      if (!isBundle && data.adjustment.quantity && data.adjustment.batch_id) {
+      // Skip if a replenishment batch was also added in this same save (to avoid double-counting)
+      const replenishmentWasAdded = !isBundle && data.batch.batch_code && data.batch.quantity && (parseInt(data.batch.quantity) || 0) > 0;
+      if (!isBundle && data.adjustment.quantity && data.adjustment.batch_id && !replenishmentWasAdded) {
         const newTotalQty = parseInt(data.adjustment.quantity) || 0;
         
         // Fetch current TOTAL stock from all active batches for this product
