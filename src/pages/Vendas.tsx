@@ -309,18 +309,104 @@ export default function Vendas() {
           });
           if (bundleError) throw new Error(`Erro ao vender kit "${item.product.name}": ${bundleError.message}`);
         } else {
-          // For simple products, create a negative adjustment batch so the trigger updates stock
-          const adjCode = `VENDA-${sale.id.slice(0, 8)}`;
-          const { error: batchError } = await supabase.from("product_batches").insert({
-            product_id: item.product.id,
-            company_id: company.id,
-            batch_code: adjCode,
-            batch_type: "sale",
-            adjustment_reason: null,
-            quantity: -item.quantity,
-            created_by: user?.email || user?.id || "",
-            status: "active",
-          });
+          // For simple products, consume lots in FIFO and persist real lot codes used in this sale
+          const { data: movements, error: movementsError } = await supabase
+            .from("product_batches")
+            .select("batch_code, quantity, created_at")
+            .eq("company_id", company.id)
+            .eq("product_id", item.product.id)
+            .order("created_at", { ascending: true });
+
+          if (movementsError) {
+            throw new Error(`Erro ao carregar lotes de "${item.product.name}": ${movementsError.message}`);
+          }
+
+          type LotQueueItem = {
+            batch_code: string;
+            remaining: number;
+          };
+
+          const lotQueue: LotQueueItem[] = [];
+
+          for (const movement of movements || []) {
+            const movementQty = Number(movement.quantity || 0);
+
+            if (movementQty > 0) {
+              lotQueue.push({
+                batch_code: movement.batch_code,
+                remaining: movementQty,
+              });
+              continue;
+            }
+
+            if (movementQty < 0) {
+              let qtyToConsume = Math.abs(movementQty);
+              while (qtyToConsume > 0 && lotQueue.length > 0) {
+                const currentLot = lotQueue[0];
+                const consumed = Math.min(currentLot.remaining, qtyToConsume);
+                currentLot.remaining -= consumed;
+                qtyToConsume -= consumed;
+
+                if (currentLot.remaining <= 0) {
+                  lotQueue.shift();
+                }
+              }
+            }
+          }
+
+          let qtyRemaining = item.quantity;
+          const saleLotMovements: Array<{
+            product_id: string;
+            company_id: string;
+            batch_code: string;
+            batch_type: string;
+            adjustment_reason: null;
+            quantity: number;
+            created_by: string;
+            status: string;
+            observation: string;
+          }> = [];
+
+          while (qtyRemaining > 0 && lotQueue.length > 0) {
+            const currentLot = lotQueue[0];
+            const consumed = Math.min(currentLot.remaining, qtyRemaining);
+
+            saleLotMovements.push({
+              product_id: item.product.id,
+              company_id: company.id,
+              batch_code: currentLot.batch_code,
+              batch_type: "sale",
+              adjustment_reason: null,
+              quantity: -consumed,
+              created_by: user?.email || user?.id || "",
+              status: "active",
+              observation: `SALE_ID:${sale.id};PRODUCT_ID:${item.product.id}`,
+            });
+
+            currentLot.remaining -= consumed;
+            qtyRemaining -= consumed;
+
+            if (currentLot.remaining <= 0) {
+              lotQueue.shift();
+            }
+          }
+
+          // Fallback for legacy data inconsistencies: keep stock movement even if source lot can't be fully mapped
+          if (qtyRemaining > 0) {
+            saleLotMovements.push({
+              product_id: item.product.id,
+              company_id: company.id,
+              batch_code: `VENDA-${sale.id.slice(0, 8)}`,
+              batch_type: "sale",
+              adjustment_reason: null,
+              quantity: -qtyRemaining,
+              created_by: user?.email || user?.id || "",
+              status: "active",
+              observation: `SALE_ID:${sale.id};PRODUCT_ID:${item.product.id};FALLBACK=true`,
+            });
+          }
+
+          const { error: batchError } = await supabase.from("product_batches").insert(saleLotMovements);
           if (batchError) console.error("Error creating sale batch adjustment:", batchError);
         }
       }
