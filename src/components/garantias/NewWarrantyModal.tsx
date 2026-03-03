@@ -134,18 +134,22 @@ export function NewWarrantyModal({
     queryFn: async () => {
       if (!company?.id || !selectedCustomerId) return [];
 
-      // Get all sales for this customer
+      // Get all sales for this customer (newest first)
       const { data: sales, error: salesError } = await supabase
         .from("sales")
-        .select("id")
+        .select("id, created_at")
         .eq("company_id", company.id)
         .eq("client_id", selectedCustomerId)
-        .neq("status", "cancelled");
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false });
 
       if (salesError) throw salesError;
       if (!sales || sales.length === 0) return [];
 
       const saleIds = sales.map(s => s.id);
+      const saleRankMap = new Map<string, number>(
+        sales.map((sale, index) => [sale.id, index])
+      );
 
       // Get all products from those sales with sale_id
       const { data: items, error: itemsError } = await supabase
@@ -159,18 +163,22 @@ export function NewWarrantyModal({
 
       if (itemsError) throw itemsError;
 
-      // Create unique product list (keeping the most recent sale_id for each product)
+      // Create unique product list (always keep product linked to newest sale)
       const productMap = new Map<string, ProductPurchased>();
+      const productRankMap = new Map<string, number>();
       
       items?.forEach((item: any) => {
         if (item.product_id && item.products) {
-          // Always keep the latest sale_id (items come from most recent sales first)
-          if (!productMap.has(item.product_id)) {
+          const saleRank = saleRankMap.get(item.sale_id) ?? Number.MAX_SAFE_INTEGER;
+          const currentProductRank = productRankMap.get(item.product_id) ?? Number.MAX_SAFE_INTEGER;
+
+          if (saleRank < currentProductRank) {
             productMap.set(item.product_id, {
               product_id: item.product_id,
               product_name: item.products.name,
               sale_id: item.sale_id,
             });
+            productRankMap.set(item.product_id, saleRank);
           }
         }
       });
