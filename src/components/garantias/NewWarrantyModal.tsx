@@ -41,6 +41,11 @@ export interface WarrantySubmitData {
   original_sale_id?: string;
   custom_value?: number;
   payment_method?: string;
+  installments?: number;
+  gateway_id?: string;
+  interest_amount?: number;
+  gateway_fee_amount?: number;
+  gateway_fee_percent?: number;
 }
 
 interface NewWarrantyModalProps {
