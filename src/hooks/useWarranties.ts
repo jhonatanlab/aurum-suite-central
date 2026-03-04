@@ -125,6 +125,7 @@ export function useWarranties(filters?: WarrantyFilters) {
           status,
           request_type,
           product_id,
+          batch_code,
           product:products(name)
         `)
         .eq("company_id", company.id);
@@ -148,18 +149,23 @@ export function useWarranties(filters?: WarrantyFilters) {
         product: { name: string } | null;
       }>;
 
-      // Calculate stats
-      const totalInWarranty = typedData.filter(
+      // Exclude "AA - NÃO RASTREÁVEL" from defect stats
+      const trackableData = typedData.filter(
+        (w) => !(w as any).batch_code?.includes("AA - NÃO RASTREÁVEL")
+      );
+
+      // Calculate stats (only trackable warranties count as defects)
+      const totalInWarranty = trackableData.filter(
         (w) => w.status === "analyzing" || w.status === "approved"
       ).length;
 
-      const exchangesInPeriod = typedData.filter(
+      const exchangesInPeriod = trackableData.filter(
         (w) => w.request_type === "exchange" && w.status === "completed"
       ).length;
 
       // Recurrences: products with more than 1 warranty request
       const productCounts: Record<string, { count: number; name: string }> = {};
-      typedData.forEach((w) => {
+      trackableData.forEach((w) => {
         if (!productCounts[w.product_id]) {
           productCounts[w.product_id] = {
             count: 0,

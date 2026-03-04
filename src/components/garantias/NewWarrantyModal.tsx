@@ -56,12 +56,15 @@ interface ProductPurchased {
   product_id: string;
   product_name: string;
   sale_id: string;
+  is_bundle: boolean;
 }
 
 interface ProductBatchInfo {
   batch_code: string | null;
   batch_date: string | null;
 }
+
+type ClientType = "customer" | "reseller" | "unregistered";
 
 export function NewWarrantyModal({
   open,
@@ -71,7 +74,7 @@ export function NewWarrantyModal({
 }: NewWarrantyModalProps) {
   const { company } = useCompany();
   const { resellers } = useResellers();
-  const [clientType, setClientType] = useState<"customer" | "reseller">("customer");
+  const [clientType, setClientType] = useState<ClientType>("customer");
   const [productId, setProductId] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [resellerId, setResellerId] = useState("");
@@ -80,6 +83,7 @@ export function NewWarrantyModal({
   const [batchDate, setBatchDate] = useState("");
   const [reason, setReason] = useState("");
   const [observation, setObservation] = useState("");
+  const [unregisteredName, setUnregisteredName] = useState("");
 
   // Fetch customers with sales (using leads as clients)
   const { data: customersWithSales = [], isLoading: loadingCustomers } = useQuery({
@@ -87,7 +91,6 @@ export function NewWarrantyModal({
     queryFn: async () => {
       if (!company?.id) return [];
       
-      // Get all sales with client_id (linked to leads)
       const { data: sales, error } = await supabase
         .from("sales")
         .select(`
@@ -102,7 +105,6 @@ export function NewWarrantyModal({
 
       if (error) throw error;
 
-      // Create unique customer list
       const customerMap = new Map<string, CustomerWithSales>();
       
       sales?.forEach((sale: any) => {
@@ -122,19 +124,17 @@ export function NewWarrantyModal({
     enabled: !!company?.id && open,
   });
 
-  // Get selected customer name for display
   const selectedCustomerName = useMemo(() => {
     const customer = customersWithSales.find(c => c.id === selectedCustomerId);
     return customer?.name || "";
   }, [customersWithSales, selectedCustomerId]);
 
-  // Fetch products purchased by selected customer
+  // Fetch products purchased by selected customer - expand bundles into components
   const { data: purchasedProducts = [], isLoading: loadingProducts } = useQuery({
     queryKey: ["customer-products", selectedCustomerId, company?.id],
     queryFn: async () => {
       if (!company?.id || !selectedCustomerId) return [];
 
-      // Get all sales for this customer (newest first)
       const { data: sales, error: salesError } = await supabase
         .from("sales")
         .select("id, created_at")
@@ -151,32 +151,85 @@ export function NewWarrantyModal({
         sales.map((sale, index) => [sale.id, index])
       );
 
-      // Get all products from those sales with sale_id
       const { data: items, error: itemsError } = await supabase
         .from("sale_items")
         .select(`
           product_id,
           sale_id,
-          products:product_id (id, name)
+          products:product_id (id, name, type)
         `)
         .in("sale_id", saleIds);
 
       if (itemsError) throw itemsError;
 
-      // Create unique product list (always keep product linked to newest sale)
+      // Collect bundle IDs to fetch their components
+      const bundleIds: string[] = [];
+      items?.forEach((item: any) => {
+        if (item.products?.type === "bundle") {
+          bundleIds.push(item.product_id);
+        }
+      });
+
+      // Fetch bundle components if any bundles exist
+      let bundleComponentsMap = new Map<string, Array<{ id: string; name: string }>>();
+      if (bundleIds.length > 0) {
+        const { data: bundleItems, error: bundleError } = await supabase
+          .from("bundle_items")
+          .select(`
+            bundle_id,
+            product_id,
+            products:product_id (id, name)
+          `)
+          .in("bundle_id", bundleIds);
+
+        if (!bundleError && bundleItems) {
+          bundleItems.forEach((bi: any) => {
+            if (!bundleComponentsMap.has(bi.bundle_id)) {
+              bundleComponentsMap.set(bi.bundle_id, []);
+            }
+            if (bi.products) {
+              bundleComponentsMap.get(bi.bundle_id)!.push({
+                id: bi.products.id,
+                name: bi.products.name,
+              });
+            }
+          });
+        }
+      }
+
+      // Build product list: expand bundles into their components
       const productMap = new Map<string, ProductPurchased>();
       const productRankMap = new Map<string, number>();
       
       items?.forEach((item: any) => {
-        if (item.product_id && item.products) {
-          const saleRank = saleRankMap.get(item.sale_id) ?? Number.MAX_SAFE_INTEGER;
-          const currentProductRank = productRankMap.get(item.product_id) ?? Number.MAX_SAFE_INTEGER;
+        if (!item.product_id || !item.products) return;
+        
+        const saleRank = saleRankMap.get(item.sale_id) ?? Number.MAX_SAFE_INTEGER;
 
-          if (saleRank < currentProductRank) {
+        if (item.products.type === "bundle") {
+          // Expand bundle: add each component product
+          const components = bundleComponentsMap.get(item.product_id) || [];
+          components.forEach((comp) => {
+            const currentRank = productRankMap.get(comp.id) ?? Number.MAX_SAFE_INTEGER;
+            if (saleRank < currentRank) {
+              productMap.set(comp.id, {
+                product_id: comp.id,
+                product_name: `${comp.name} (Kit: ${item.products.name})`,
+                sale_id: item.sale_id,
+                is_bundle: false,
+              });
+              productRankMap.set(comp.id, saleRank);
+            }
+          });
+        } else {
+          // Simple product
+          const currentRank = productRankMap.get(item.product_id) ?? Number.MAX_SAFE_INTEGER;
+          if (saleRank < currentRank) {
             productMap.set(item.product_id, {
               product_id: item.product_id,
               product_name: item.products.name,
               sale_id: item.sale_id,
+              is_bundle: false,
             });
             productRankMap.set(item.product_id, saleRank);
           }
@@ -190,7 +243,26 @@ export function NewWarrantyModal({
     enabled: !!company?.id && !!selectedCustomerId && clientType === "customer",
   });
 
-  // Get the sale_id for the selected product
+  // Fetch all products for unregistered client
+  const { data: allProducts = [], isLoading: loadingAllProducts } = useQuery({
+    queryKey: ["all-simple-products", company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name")
+        .eq("company_id", company.id)
+        .eq("status", "active")
+        .eq("type", "simple")
+        .order("name");
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!company?.id && clientType === "unregistered" && open,
+  });
+
   const selectedProductSaleId = useMemo(() => {
     const product = purchasedProducts.find(p => p.product_id === productId);
     return product?.sale_id || null;
@@ -267,7 +339,6 @@ export function NewWarrantyModal({
         }
       }
 
-      // Fallback: latest positive lot if no exact match is found
       const latestPositiveLot = [...(movements || [])]
         .reverse()
         .find((movement) => Number(movement.quantity || 0) > 0);
@@ -288,23 +359,44 @@ export function NewWarrantyModal({
     }
   }, [batchInfo, clientType]);
 
+  // For unregistered clients, set batch code to "AA - NÃO RASTREÁVEL"
+  useEffect(() => {
+    if (clientType === "unregistered" && productId) {
+      setBatchCode("AA - NÃO RASTREÁVEL");
+      setBatchDate("");
+    }
+  }, [clientType, productId]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!productId || !requestType) return;
 
+    const isUnregistered = clientType === "unregistered";
+
     onSubmit({
       product_id: productId,
-      customer_name: clientType === "customer" ? selectedCustomerName : undefined,
+      customer_name: clientType === "customer" 
+        ? selectedCustomerName 
+        : isUnregistered 
+          ? unregisteredName || "Cliente não cadastrado"
+          : undefined,
       reseller_id: clientType === "reseller" ? resellerId : undefined,
       request_type: requestType,
       batch_code: batchCode || undefined,
       batch_date: batchDate || undefined,
       reason: reason || undefined,
-      observation: observation || undefined,
+      observation: isUnregistered 
+        ? `[AA - NÃO RASTREÁVEL] ${observation || ""}`.trim()
+        : observation || undefined,
     });
 
     // Reset form
+    resetForm();
+    onOpenChange(false);
+  };
+
+  const resetForm = () => {
     setProductId("");
     setSelectedCustomerId("");
     setResellerId("");
@@ -313,30 +405,29 @@ export function NewWarrantyModal({
     setBatchDate("");
     setReason("");
     setObservation("");
-    onOpenChange(false);
+    setUnregisteredName("");
   };
 
-  // Reset product when customer changes
   const handleCustomerChange = (customerId: string) => {
     setSelectedCustomerId(customerId);
-    setProductId(""); // Reset product selection
+    setProductId("");
     setBatchCode("");
     setBatchDate("");
   };
 
-  // Reset selections when client type changes
-  const handleClientTypeChange = (type: "customer" | "reseller") => {
+  const handleClientTypeChange = (type: ClientType) => {
     setClientType(type);
     setSelectedCustomerId("");
     setResellerId("");
     setProductId("");
     setBatchCode("");
     setBatchDate("");
+    setUnregisteredName("");
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nova Solicitação de Garantia</DialogTitle>
         </DialogHeader>
@@ -346,8 +437,8 @@ export function NewWarrantyModal({
             <Label>Tipo de Cliente</Label>
             <RadioGroup
               value={clientType}
-              onValueChange={(v) => handleClientTypeChange(v as "customer" | "reseller")}
-              className="flex gap-4"
+              onValueChange={(v) => handleClientTypeChange(v as ClientType)}
+              className="flex flex-wrap gap-4"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="customer" id="customer" />
@@ -359,6 +450,12 @@ export function NewWarrantyModal({
                 <RadioGroupItem value="reseller" id="reseller" />
                 <Label htmlFor="reseller" className="font-normal cursor-pointer">
                   Revendedor
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="unregistered" id="unregistered" />
+                <Label htmlFor="unregistered" className="font-normal cursor-pointer">
+                  Cliente não cadastrado
                 </Label>
               </div>
             </RadioGroup>
@@ -422,7 +519,7 @@ export function NewWarrantyModal({
                 </Select>
               </div>
             </>
-          ) : (
+          ) : clientType === "reseller" ? (
             <>
               <div className="space-y-2">
                 <Label>Revendedor</Label>
@@ -456,6 +553,52 @@ export function NewWarrantyModal({
                 </Select>
               </div>
             </>
+          ) : (
+            /* Cliente não cadastrado */
+            <>
+              <div className="space-y-2">
+                <Label>Nome do Cliente</Label>
+                <Input
+                  value={unregisteredName}
+                  onChange={(e) => setUnregisteredName(e.target.value)}
+                  placeholder="Nome do cliente (opcional)"
+                  className="bg-card"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Produto *</Label>
+                <Select value={productId} onValueChange={setProductId}>
+                  <SelectTrigger className="bg-card">
+                    <SelectValue placeholder={loadingAllProducts ? "Carregando..." : "Selecione o produto"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allProducts.length === 0 && !loadingAllProducts ? (
+                      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                        Nenhum produto encontrado
+                      </div>
+                    ) : (
+                      allProducts.map((product) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {productId && (
+                <div className="rounded-lg border border-primary/30 bg-primary/10 p-3">
+                  <p className="text-sm text-primary font-medium">
+                    ⚠️ AA - NÃO RASTREÁVEL
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Este registro não contabiliza como peça com defeito e não possui rastreabilidade de lote.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           <div className="space-y-2">
@@ -482,7 +625,10 @@ export function NewWarrantyModal({
                 onChange={(e) => setBatchCode(e.target.value)}
                 placeholder="Ex: LOT-2024-001"
                 className="bg-card"
-                readOnly={clientType === "customer" && !!batchInfo?.batch_code}
+                readOnly={
+                  (clientType === "customer" && !!batchInfo?.batch_code) ||
+                  clientType === "unregistered"
+                }
               />
             </div>
             <div className="space-y-2">
@@ -492,7 +638,10 @@ export function NewWarrantyModal({
                 value={batchDate}
                 onChange={(e) => setBatchDate(e.target.value)}
                 className="bg-card"
-                readOnly={clientType === "customer" && !!batchInfo?.batch_date}
+                readOnly={
+                  (clientType === "customer" && !!batchInfo?.batch_date) ||
+                  clientType === "unregistered"
+                }
               />
             </div>
           </div>
@@ -573,7 +722,6 @@ function ResellerProductSelect({
 
       if (error) throw error;
 
-      // Create unique product list
       const productMap = new Map<string, { id: string; name: string }>();
       
       data?.forEach((item: any) => {
