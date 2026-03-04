@@ -64,13 +64,12 @@ const REQUEST_TYPES = [
 ];
 
 const PAYMENT_METHODS = [
-  { value: "dinheiro", label: "Dinheiro" },
   { value: "pix", label: "PIX" },
-  { value: "cartao_credito", label: "Cartão de Crédito" },
-  { value: "cartao_debito", label: "Cartão de Débito" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "cartao_credito", label: "Cartão Crédito" },
+  { value: "cartao_debito", label: "Cartão Débito" },
   { value: "boleto", label: "Boleto" },
   { value: "transferencia", label: "Transferência" },
-  { value: "outros", label: "Outros" },
 ];
 
 interface CustomerWithSales {
