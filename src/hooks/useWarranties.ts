@@ -125,6 +125,7 @@ export function useWarranties(filters?: WarrantyFilters) {
           status,
           request_type,
           product_id,
+          batch_code,
           product:products(name)
         `)
         .eq("company_id", company.id);
