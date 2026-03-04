@@ -21,7 +21,9 @@ import { useResellers } from "@/hooks/useResellers";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, AlertCircle, Percent } from "lucide-react";
+import { usePaymentGateways } from "@/hooks/usePaymentGateways";
+import { usePaymentSettings } from "@/hooks/usePaymentSettings";
 
 export interface WarrantySubmitData {
   product_id: string;
