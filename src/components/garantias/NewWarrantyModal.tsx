@@ -589,8 +589,8 @@ export function NewWarrantyModal({
               </div>
 
               {productId && (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-                  <p className="text-sm text-amber-200 font-medium">
+                <div className="rounded-lg border border-primary/30 bg-primary/10 p-3">
+                  <p className="text-sm text-primary font-medium">
                     ⚠️ AA - NÃO RASTREÁVEL
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
