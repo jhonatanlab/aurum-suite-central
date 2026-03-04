@@ -541,8 +541,9 @@ export function NewWarrantyModal({
     setPaymentResponsibility("client");
     setExchangeProductId("");
     setExchangeSimpleProductId("");
-    setCustomValue("");
     setPaymentMethod("pix");
+    setGatewayId(null);
+    setInstallments(1);
   };
 
   const formatCurrency = (value: number) => {
