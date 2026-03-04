@@ -21,27 +21,36 @@ import { useResellers } from "@/hooks/useResellers";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowRight } from "lucide-react";
+
+export interface WarrantySubmitData {
+  product_id: string;
+  customer_name?: string;
+  reseller_id?: string;
+  request_type: string;
+  batch_code?: string;
+  batch_date?: string;
+  reason?: string;
+  observation?: string;
+  // New fields for type-specific logic
+  payment_responsibility?: "client" | "company";
+  exchange_product_id?: string;
+  exchange_product_value?: number;
+  original_product_value?: number;
+  original_sale_id?: string;
+}
 
 interface NewWarrantyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: {
-    product_id: string;
-    customer_name?: string;
-    reseller_id?: string;
-    request_type: string;
-    batch_code?: string;
-    batch_date?: string;
-    reason?: string;
-    observation?: string;
-  }) => void;
+  onSubmit: (data: WarrantySubmitData) => void;
   isLoading: boolean;
 }
 
 const REQUEST_TYPES = [
   { value: "exchange", label: "Troca Simples" },
   { value: "herd", label: "Rebanho" },
+  { value: "exchange_with_sale", label: "Troca com Venda" },
   { value: "repair", label: "Conserto" },
   { value: "total_loss", label: "Perda Total" },
 ];
@@ -57,6 +66,7 @@ interface ProductPurchased {
   product_name: string;
   sale_id: string;
   is_bundle: boolean;
+  price: number;
 }
 
 interface ProductBatchInfo {
@@ -84,8 +94,10 @@ export function NewWarrantyModal({
   const [reason, setReason] = useState("");
   const [observation, setObservation] = useState("");
   const [unregisteredName, setUnregisteredName] = useState("");
+  const [paymentResponsibility, setPaymentResponsibility] = useState<"client" | "company">("client");
+  const [exchangeProductId, setExchangeProductId] = useState("");
 
-  // Fetch customers with sales (using leads as clients)
+  // Fetch customers with sales
   const { data: customersWithSales = [], isLoading: loadingCustomers } = useQuery({
     queryKey: ["customers-with-sales", company?.id],
     queryFn: async () => {
@@ -156,7 +168,8 @@ export function NewWarrantyModal({
         .select(`
           product_id,
           sale_id,
-          products:product_id (id, name, type)
+          price,
+          products:product_id (id, name, type, price)
         `)
         .in("sale_id", saleIds);
 
@@ -171,14 +184,14 @@ export function NewWarrantyModal({
       });
 
       // Fetch bundle components if any bundles exist
-      let bundleComponentsMap = new Map<string, Array<{ id: string; name: string }>>();
+      let bundleComponentsMap = new Map<string, Array<{ id: string; name: string; price: number }>>();
       if (bundleIds.length > 0) {
         const { data: bundleItems, error: bundleError } = await supabase
           .from("bundle_items")
           .select(`
             bundle_id,
             product_id,
-            products:product_id (id, name)
+            products:product_id (id, name, price)
           `)
           .in("bundle_id", bundleIds);
 
@@ -191,6 +204,7 @@ export function NewWarrantyModal({
               bundleComponentsMap.get(bi.bundle_id)!.push({
                 id: bi.products.id,
                 name: bi.products.name,
+                price: Number(bi.products.price) || 0,
               });
             }
           });
@@ -207,7 +221,6 @@ export function NewWarrantyModal({
         const saleRank = saleRankMap.get(item.sale_id) ?? Number.MAX_SAFE_INTEGER;
 
         if (item.products.type === "bundle") {
-          // Expand bundle: add each component product
           const components = bundleComponentsMap.get(item.product_id) || [];
           components.forEach((comp) => {
             const currentRank = productRankMap.get(comp.id) ?? Number.MAX_SAFE_INTEGER;
@@ -217,12 +230,12 @@ export function NewWarrantyModal({
                 product_name: `${comp.name} (Kit: ${item.products.name})`,
                 sale_id: item.sale_id,
                 is_bundle: false,
+                price: comp.price,
               });
               productRankMap.set(comp.id, saleRank);
             }
           });
         } else {
-          // Simple product
           const currentRank = productRankMap.get(item.product_id) ?? Number.MAX_SAFE_INTEGER;
           if (saleRank < currentRank) {
             productMap.set(item.product_id, {
@@ -230,6 +243,7 @@ export function NewWarrantyModal({
               product_name: item.products.name,
               sale_id: item.sale_id,
               is_bundle: false,
+              price: Number(item.price) || Number(item.products.price) || 0,
             });
             productRankMap.set(item.product_id, saleRank);
           }
@@ -243,7 +257,7 @@ export function NewWarrantyModal({
     enabled: !!company?.id && !!selectedCustomerId && clientType === "customer",
   });
 
-  // Fetch all products for unregistered client
+  // Fetch all products for unregistered client or exchange_with_sale
   const { data: allProducts = [], isLoading: loadingAllProducts } = useQuery({
     queryKey: ["all-simple-products", company?.id],
     queryFn: async () => {
@@ -251,7 +265,7 @@ export function NewWarrantyModal({
 
       const { data, error } = await supabase
         .from("products")
-        .select("id, name")
+        .select("id, name, price")
         .eq("company_id", company.id)
         .eq("status", "active")
         .eq("type", "simple")
@@ -260,13 +274,28 @@ export function NewWarrantyModal({
       if (error) throw error;
       return data || [];
     },
-    enabled: !!company?.id && clientType === "unregistered" && open,
+    enabled: !!company?.id && open,
   });
 
   const selectedProductSaleId = useMemo(() => {
     const product = purchasedProducts.find(p => p.product_id === productId);
     return product?.sale_id || null;
   }, [purchasedProducts, productId]);
+
+  const selectedProductPrice = useMemo(() => {
+    const product = purchasedProducts.find(p => p.product_id === productId);
+    return product?.price || 0;
+  }, [purchasedProducts, productId]);
+
+  const exchangeProductPrice = useMemo(() => {
+    const product = allProducts.find(p => p.id === exchangeProductId);
+    return Number(product?.price) || 0;
+  }, [allProducts, exchangeProductId]);
+
+  const priceDifference = useMemo(() => {
+    if (requestType !== "exchange_with_sale" || !exchangeProductId || !productId) return 0;
+    return exchangeProductPrice - selectedProductPrice;
+  }, [requestType, exchangeProductId, productId, exchangeProductPrice, selectedProductPrice]);
 
   // Fetch real lot by replaying FIFO consumption until the selected sale movement
   const { data: batchInfo } = useQuery<ProductBatchInfo>({
@@ -374,7 +403,7 @@ export function NewWarrantyModal({
 
     const isUnregistered = clientType === "unregistered";
 
-    onSubmit({
+    const data: WarrantySubmitData = {
       product_id: productId,
       customer_name: clientType === "customer" 
         ? selectedCustomerName 
@@ -389,9 +418,27 @@ export function NewWarrantyModal({
       observation: isUnregistered 
         ? `[AA - NÃO RASTREÁVEL] ${observation || ""}`.trim()
         : observation || undefined,
-    });
+    };
 
-    // Reset form
+    // Add type-specific fields
+    if (requestType === "herd" || requestType === "repair") {
+      data.payment_responsibility = paymentResponsibility;
+      data.original_product_value = selectedProductPrice;
+    }
+
+    if (requestType === "exchange") {
+      data.original_product_value = selectedProductPrice;
+    }
+
+    if (requestType === "exchange_with_sale") {
+      data.exchange_product_id = exchangeProductId;
+      data.exchange_product_value = exchangeProductPrice;
+      data.original_product_value = selectedProductPrice;
+      data.original_sale_id = selectedProductSaleId || undefined;
+    }
+
+    onSubmit(data);
+
     resetForm();
     onOpenChange(false);
   };
@@ -406,6 +453,8 @@ export function NewWarrantyModal({
     setReason("");
     setObservation("");
     setUnregisteredName("");
+    setPaymentResponsibility("client");
+    setExchangeProductId("");
   };
 
   const handleCustomerChange = (customerId: string) => {
@@ -413,6 +462,7 @@ export function NewWarrantyModal({
     setProductId("");
     setBatchCode("");
     setBatchDate("");
+    setExchangeProductId("");
   };
 
   const handleClientTypeChange = (type: ClientType) => {
@@ -423,6 +473,20 @@ export function NewWarrantyModal({
     setBatchCode("");
     setBatchDate("");
     setUnregisteredName("");
+    setExchangeProductId("");
+  };
+
+  const handleRequestTypeChange = (type: string) => {
+    setRequestType(type);
+    setPaymentResponsibility("client");
+    setExchangeProductId("");
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
   };
 
   return (
@@ -603,7 +667,7 @@ export function NewWarrantyModal({
 
           <div className="space-y-2">
             <Label>Tipo de Solicitação *</Label>
-            <Select value={requestType} onValueChange={setRequestType}>
+            <Select value={requestType} onValueChange={handleRequestTypeChange}>
               <SelectTrigger className="bg-card">
                 <SelectValue />
               </SelectTrigger>
@@ -616,6 +680,110 @@ export function NewWarrantyModal({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Type-specific fields */}
+          {requestType === "exchange" && productId && (
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
+              <p className="text-sm font-medium text-blue-400">
+                ↻ Troca Simples
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                O produto será trocado pelo mesmo. Será registrada saída no estoque.
+              </p>
+            </div>
+          )}
+
+          {(requestType === "herd" || requestType === "repair") && productId && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+                <p className="text-sm font-medium">
+                  {requestType === "herd" ? "🐄 Rebanho" : "🔧 Conserto"} — Quem paga?
+                </p>
+                <RadioGroup
+                  value={paymentResponsibility}
+                  onValueChange={(v) => setPaymentResponsibility(v as "client" | "company")}
+                  className="flex flex-col gap-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="client" id="paid-client" />
+                    <Label htmlFor="paid-client" className="font-normal cursor-pointer">
+                      Pago pelo Cliente
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (registra como entrada no financeiro)
+                      </span>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="company" id="paid-company" />
+                    <Label htmlFor="paid-company" className="font-normal cursor-pointer">
+                      Pago pela Empresa
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (registra como saída/prejuízo no financeiro)
+                      </span>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </div>
+          )}
+
+          {requestType === "exchange_with_sale" && productId && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+                <p className="text-sm font-medium">🔄 Troca com Venda</p>
+                
+                <div className="space-y-2">
+                  <Label>Produto da Troca *</Label>
+                  <Select value={exchangeProductId} onValueChange={setExchangeProductId}>
+                    <SelectTrigger className="bg-card">
+                      <SelectValue placeholder="Selecione o novo produto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allProducts
+                        .filter(p => p.id !== productId)
+                        .map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} — {formatCurrency(Number(product.price))}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {exchangeProductId && (
+                  <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Valor compra anterior:</span>
+                      <span>{formatCurrency(selectedProductPrice)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Valor novo produto:</span>
+                      <span>{formatCurrency(exchangeProductPrice)}</span>
+                    </div>
+                    <div className="border-t border-border pt-2 flex justify-between font-medium">
+                      <span>
+                        {priceDifference >= 0 ? "Cliente deve pagar:" : "Crédito do cliente:"}
+                      </span>
+                      <span className={priceDifference >= 0 ? "text-green-400" : "text-red-400"}>
+                        {formatCurrency(Math.abs(priceDifference))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {requestType === "total_loss" && productId && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+              <p className="text-sm font-medium text-red-400">
+                ⛔ Perda Total
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Registro apenas. Cliente não tem direito a receber outra peça.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -681,7 +849,8 @@ export function NewWarrantyModal({
               disabled={
                 !productId || 
                 isLoading || 
-                (clientType === "customer" && !selectedCustomerId)
+                (clientType === "customer" && !selectedCustomerId) ||
+                (requestType === "exchange_with_sale" && !exchangeProductId)
               }
             >
               {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

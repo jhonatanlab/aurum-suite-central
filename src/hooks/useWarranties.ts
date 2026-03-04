@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
+import { useAuth } from "./useAuth";
 import { toast } from "sonner";
+import type { WarrantySubmitData } from "@/components/garantias/NewWarrantyModal";
 
 export interface WarrantyRequest {
   id: string;
@@ -51,6 +53,7 @@ interface WarrantyFilters {
 
 export function useWarranties(filters?: WarrantyFilters) {
   const { company } = useCompany();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: warranties = [], isLoading } = useQuery({
@@ -88,7 +91,6 @@ export function useWarranties(filters?: WarrantyFilters) {
 
       if (error) throw error;
 
-      // Client-side search filter
       let result = data as WarrantyRequest[];
       if (filters?.search) {
         const searchLower = filters.search.toLowerCase();
@@ -146,15 +148,14 @@ export function useWarranties(filters?: WarrantyFilters) {
         status: string;
         request_type: string;
         product_id: string;
+        batch_code?: string | null;
         product: { name: string } | null;
       }>;
 
-      // Exclude "AA - NÃO RASTREÁVEL" from defect stats
       const trackableData = typedData.filter(
-        (w) => !(w as any).batch_code?.includes("AA - NÃO RASTREÁVEL")
+        (w) => !w.batch_code?.includes("AA - NÃO RASTREÁVEL")
       );
 
-      // Calculate stats (only trackable warranties count as defects)
       const totalInWarranty = trackableData.filter(
         (w) => w.status === "analyzing" || w.status === "approved"
       ).length;
@@ -163,7 +164,6 @@ export function useWarranties(filters?: WarrantyFilters) {
         (w) => w.request_type === "exchange" && w.status === "completed"
       ).length;
 
-      // Recurrences: products with more than 1 warranty request
       const productCounts: Record<string, { count: number; name: string }> = {};
       trackableData.forEach((w) => {
         if (!productCounts[w.product_id]) {
@@ -179,7 +179,6 @@ export function useWarranties(filters?: WarrantyFilters) {
         (p) => p.count > 1
       ).length;
 
-      // Most problematic product
       const mostProblematic = Object.entries(productCounts).reduce(
         (max, [_, value]) => (value.count > (max?.count || 0) ? value : max),
         null as { count: number; name: string } | null
@@ -196,28 +195,187 @@ export function useWarranties(filters?: WarrantyFilters) {
   });
 
   const createWarranty = useMutation({
-    mutationFn: async (data: {
-      product_id: string;
-      customer_name?: string;
-      reseller_id?: string;
-      request_type: string;
-      batch_code?: string;
-      batch_date?: string;
-      reason?: string;
-      observation?: string;
-    }) => {
+    mutationFn: async (data: WarrantySubmitData) => {
       if (!company?.id) throw new Error("Empresa não encontrada");
 
-      const { error } = await supabase.from("warranty_requests").insert({
+      const userEmail = user?.email || "sistema";
+      const today = new Date().toISOString().split("T")[0];
+
+      // 1. Create the warranty request record
+      const { error: warrantyError } = await supabase.from("warranty_requests").insert({
         company_id: company.id,
-        ...data,
+        product_id: data.product_id,
+        customer_name: data.customer_name,
+        reseller_id: data.reseller_id,
+        request_type: data.request_type,
+        batch_code: data.batch_code,
+        batch_date: data.batch_date,
+        reason: data.reason,
+        observation: data.observation,
       });
 
-      if (error) throw error;
+      if (warrantyError) throw warrantyError;
+
+      // 2. Type-specific side effects
+      const productValue = data.original_product_value || 0;
+
+      // --- TROCA SIMPLES: Stock out (same product leaves inventory for replacement) ---
+      if (data.request_type === "exchange") {
+        await supabase.from("product_batches").insert({
+          company_id: company.id,
+          product_id: data.product_id,
+          batch_code: `GARANTIA-TROCA-${Date.now().toString(36).toUpperCase()}`,
+          batch_type: "adjustment",
+          quantity: -1,
+          status: "active",
+          created_by: userEmail,
+          observation: `Saída por garantia - Troca Simples`,
+        });
+      }
+
+      // --- REBANHO: Financial entry based on who pays ---
+      if (data.request_type === "herd" && productValue > 0) {
+        if (data.payment_responsibility === "client") {
+          // Client pays → income
+          await supabase.from("financial_transactions").insert({
+            company_id: company.id,
+            description: `Garantia Rebanho - Pago pelo Cliente${data.customer_name ? ` (${data.customer_name})` : ""}`,
+            type: "entrada",
+            value: productValue,
+            date: today,
+            status: "pago",
+            paid_at: new Date().toISOString(),
+            method: "dinheiro",
+            origin: "warranty",
+          });
+        } else {
+          // Company pays → expense/loss
+          await supabase.from("financial_transactions").insert({
+            company_id: company.id,
+            description: `Garantia Rebanho - Prejuízo da Empresa${data.customer_name ? ` (${data.customer_name})` : ""}`,
+            type: "saida",
+            value: productValue,
+            date: today,
+            status: "pago",
+            paid_at: new Date().toISOString(),
+            method: "outros",
+            origin: "warranty",
+          });
+        }
+      }
+
+      // --- TROCA COM VENDA: New sale + financial + stock reduction ---
+      if (data.request_type === "exchange_with_sale" && data.exchange_product_id) {
+        const exchangeValue = data.exchange_product_value || 0;
+        const diff = exchangeValue - productValue;
+
+        // Create a new sale record
+        const { data: saleData, error: saleError } = await supabase
+          .from("sales")
+          .insert({
+            company_id: company.id,
+            client_id: data.customer_name ? undefined : undefined,
+            customer_name: data.customer_name || "Garantia - Troca com Venda",
+            total: exchangeValue,
+            subtotal: exchangeValue,
+            status: "completed",
+            payment_method: "garantia",
+            origin: "warranty",
+          })
+          .select("id")
+          .single();
+
+        if (saleError) throw saleError;
+
+        // Create sale item
+        await supabase.from("sale_items").insert({
+          sale_id: saleData.id,
+          product_id: data.exchange_product_id,
+          quantity: 1,
+          price: exchangeValue,
+          subtotal: exchangeValue,
+        });
+
+        // Stock reduction for the new product sold
+        await supabase.from("product_batches").insert({
+          company_id: company.id,
+          product_id: data.exchange_product_id,
+          batch_code: `VENDA-${saleData.id.slice(0, 8)}`,
+          batch_type: "sale",
+          quantity: -1,
+          status: "active",
+          created_by: userEmail,
+          observation: `Garantia Troca com Venda - SALE_ID:${saleData.id}`,
+        });
+
+        // Financial: if client needs to pay difference
+        if (diff > 0) {
+          await supabase.from("financial_transactions").insert({
+            company_id: company.id,
+            description: `Garantia Troca com Venda - Diferença${data.customer_name ? ` (${data.customer_name})` : ""}`,
+            type: "entrada",
+            value: diff,
+            date: today,
+            status: "pago",
+            paid_at: new Date().toISOString(),
+            method: "dinheiro",
+            origin: `sale:${saleData.id}`,
+            reference_id: saleData.id,
+          });
+        } else if (diff < 0) {
+          // Company owes the client (credit)
+          await supabase.from("financial_transactions").insert({
+            company_id: company.id,
+            description: `Garantia Troca com Venda - Crédito ao Cliente${data.customer_name ? ` (${data.customer_name})` : ""}`,
+            type: "saida",
+            value: Math.abs(diff),
+            date: today,
+            status: "pago",
+            paid_at: new Date().toISOString(),
+            method: "dinheiro",
+            origin: `sale:${saleData.id}`,
+            reference_id: saleData.id,
+          });
+        }
+      }
+
+      // --- CONSERTO: Financial based on who pays ---
+      if (data.request_type === "repair" && productValue > 0) {
+        if (data.payment_responsibility === "client") {
+          await supabase.from("financial_transactions").insert({
+            company_id: company.id,
+            description: `Garantia Conserto - Pago pelo Cliente${data.customer_name ? ` (${data.customer_name})` : ""}`,
+            type: "entrada",
+            value: productValue,
+            date: today,
+            status: "pago",
+            paid_at: new Date().toISOString(),
+            method: "dinheiro",
+            origin: "warranty",
+          });
+        } else {
+          await supabase.from("financial_transactions").insert({
+            company_id: company.id,
+            description: `Garantia Conserto - Custo da Empresa${data.customer_name ? ` (${data.customer_name})` : ""}`,
+            type: "saida",
+            value: productValue,
+            date: today,
+            status: "pago",
+            paid_at: new Date().toISOString(),
+            method: "outros",
+            origin: "warranty",
+          });
+        }
+      }
+
+      // --- PERDA TOTAL: No side effects, just the warranty record ---
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["warranties"] });
       queryClient.invalidateQueries({ queryKey: ["warranty-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Garantia registrada com sucesso!");
     },
     onError: (error) => {
