@@ -901,8 +901,8 @@ export function NewWarrantyModal({
                   <>
                     <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Valor compra anterior:</span>
-                        <span>{formatCurrency(selectedProductPrice)}</span>
+                        <span className="text-muted-foreground">Valor compra anterior (desconto):</span>
+                        <span className="text-destructive">-{formatCurrency(selectedProductPrice)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Valor novo produto:</span>
@@ -910,7 +910,7 @@ export function NewWarrantyModal({
                       </div>
                       <div className="border-t border-border pt-2 flex justify-between font-medium">
                         <span>Cliente deve pagar:</span>
-                        <span className="text-green-400">
+                        <span className="text-primary">
                           {formatCurrency(priceDifference)}
                         </span>
                       </div>
@@ -918,7 +918,16 @@ export function NewWarrantyModal({
 
                     <div className="space-y-2">
                       <Label>Forma de Pagamento *</Label>
-                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <Select 
+                        value={paymentMethod} 
+                        onValueChange={(v) => {
+                          setPaymentMethod(v);
+                          if (v !== "cartao_credito") {
+                            setGatewayId(null);
+                            setInstallments(1);
+                          }
+                        }}
+                      >
                         <SelectTrigger className="bg-card">
                           <SelectValue />
                         </SelectTrigger>
@@ -931,6 +940,81 @@ export function NewWarrantyModal({
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {paymentMethod === "cartao_credito" && activeGateways.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Gateway / Maquininha</Label>
+                          <Select
+                            value={gatewayId || "none"}
+                            onValueChange={(value) => {
+                              setGatewayId(value === "none" ? null : value);
+                              setInstallments(1);
+                            }}
+                          >
+                            <SelectTrigger className="bg-card">
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Selecione um gateway</SelectItem>
+                              {activeGateways.map((gw) => (
+                                <SelectItem key={gw.id} value={gw.id}>
+                                  {gw.name} (taxa: {gw.service_fee_percent}%)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {gatewayId && (() => {
+                          const gateway = activeGateways.find(g => g.id === gatewayId);
+                          if (!gateway || gateway.installment_rules.length === 0) return null;
+                          
+                          const installmentOptions = gateway.installment_rules
+                            .sort((a: any, b: any) => a.installments - b.installments)
+                            .map((rule: any) => {
+                              const { interestAmount, passToCustomer } = calculateGatewayInterest(
+                                gateway,
+                                priceDifference,
+                                rule.installments,
+                                paymentSettings.interest_starts_at
+                              );
+                              const label = interestAmount > 0
+                                ? `${rule.installments}x (+${formatCurrency(interestAmount)}${passToCustomer ? "" : " custo"})`
+                                : `${rule.installments}x (sem juros)`;
+                              return { value: rule.installments, label };
+                            });
+
+                          return (
+                            <div className="space-y-1">
+                              <Label className="text-xs">Parcelas</Label>
+                              <Select
+                                value={installments.toString()}
+                                onValueChange={(v) => setInstallments(parseInt(v))}
+                              >
+                                <SelectTrigger className="bg-card">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {installmentOptions.map((opt: any) => (
+                                    <SelectItem key={opt.value} value={opt.value.toString()}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {paymentMethod === "cartao_credito" && activeGateways.length === 0 && (
+                      <div className="text-xs text-amber-500 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Configure gateways em Meu Negócio → Pagamentos
+                      </div>
+                    )}
                   </>
                 )}
               </div>
