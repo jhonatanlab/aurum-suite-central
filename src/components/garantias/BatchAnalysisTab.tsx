@@ -82,7 +82,7 @@ export function BatchAnalysisTab() {
         `)
         .eq("company_id", company!.id)
         .eq("status", "active")
-        .eq("batch_type", "reposition")
+        .eq("batch_type", "replenishment")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
