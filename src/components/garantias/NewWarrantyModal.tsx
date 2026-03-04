@@ -683,8 +683,8 @@ export function NewWarrantyModal({
 
           {/* Type-specific fields */}
           {requestType === "exchange" && productId && (
-            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
-              <p className="text-sm font-medium text-blue-400">
+            <div className="rounded-lg border border-accent/30 bg-accent/10 p-3">
+              <p className="text-sm font-medium text-accent-foreground">
                 ↻ Troca Simples
               </p>
               <p className="text-xs text-muted-foreground mt-1">
