@@ -124,11 +124,12 @@ export function BatchAnalysisTab() {
 
     const analysisMap = new Map<string, BatchAnalysis>();
 
-    // Initialize with batch data
+    // Initialize with batch data - key by batch_code + product_id for uniqueness
     batches.forEach((batch) => {
       const product = batch.products as { name: string; category: string | null } | null;
+      const key = `${batch.batch_code}__${batch.product_id}`;
       
-      analysisMap.set(batch.batch_code, {
+      analysisMap.set(key, {
         batch_code: batch.batch_code,
         product_id: batch.product_id,
         product_name: product?.name || "Produto não encontrado",
