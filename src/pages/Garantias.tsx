@@ -154,7 +154,7 @@ export default function Garantias() {
       <NewWarrantyModal
         open={newModalOpen}
         onOpenChange={setNewModalOpen}
-        onSubmit={(data) => createWarranty.mutate(data)}
+        onSubmit={(data) => createWarranty.mutate(data as any)}
         isLoading={createWarranty.isPending}
       />
 
