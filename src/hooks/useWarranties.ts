@@ -217,13 +217,13 @@ export function useWarranties(filters?: WarrantyFilters) {
       if (warrantyError) throw warrantyError;
 
       // 2. Type-specific side effects
-      const productValue = data.original_product_value || 0;
+      const customValue = data.custom_value || data.original_product_value || 0;
 
-      // --- TROCA SIMPLES: Stock out (same product leaves inventory for replacement) ---
-      if (data.request_type === "exchange") {
+      // --- TROCA SIMPLES: Stock out for the selected exchange product ---
+      if (data.request_type === "exchange" && data.exchange_product_id) {
         await supabase.from("product_batches").insert({
           company_id: company.id,
-          product_id: data.product_id,
+          product_id: data.exchange_product_id,
           batch_code: `GARANTIA-TROCA-${Date.now().toString(36).toUpperCase()}`,
           batch_type: "adjustment",
           quantity: -1,
@@ -233,15 +233,14 @@ export function useWarranties(filters?: WarrantyFilters) {
         });
       }
 
-      // --- REBANHO: Financial entry based on who pays ---
-      if (data.request_type === "herd" && productValue > 0) {
+      // --- REBANHO: Financial entry based on who pays (using custom value) ---
+      if (data.request_type === "herd" && customValue > 0) {
         if (data.payment_responsibility === "client") {
-          // Client pays → income
           await supabase.from("financial_transactions").insert({
             company_id: company.id,
             description: `Garantia Rebanho - Pago pelo Cliente${data.customer_name ? ` (${data.customer_name})` : ""}`,
             type: "entrada",
-            value: productValue,
+            value: customValue,
             date: today,
             status: "pago",
             paid_at: new Date().toISOString(),
@@ -249,12 +248,11 @@ export function useWarranties(filters?: WarrantyFilters) {
             origin: "warranty",
           });
         } else {
-          // Company pays → expense/loss
           await supabase.from("financial_transactions").insert({
             company_id: company.id,
             description: `Garantia Rebanho - Prejuízo da Empresa${data.customer_name ? ` (${data.customer_name})` : ""}`,
             type: "saida",
-            value: productValue,
+            value: customValue,
             date: today,
             status: "pago",
             paid_at: new Date().toISOString(),
@@ -267,19 +265,20 @@ export function useWarranties(filters?: WarrantyFilters) {
       // --- TROCA COM VENDA: New sale + financial + stock reduction ---
       if (data.request_type === "exchange_with_sale" && data.exchange_product_id) {
         const exchangeValue = data.exchange_product_value || 0;
-        const diff = exchangeValue - productValue;
+        const originalValue = data.original_product_value || 0;
+        const diff = exchangeValue - originalValue;
+        const payMethod = data.payment_method || "pix";
 
         // Create a new sale record
         const { data: saleData, error: saleError } = await supabase
           .from("sales")
           .insert({
             company_id: company.id,
-            client_id: data.customer_name ? undefined : undefined,
             customer_name: data.customer_name || "Garantia - Troca com Venda",
             total: exchangeValue,
             subtotal: exchangeValue,
             status: "completed",
-            payment_method: "garantia",
+            payment_method: payMethod,
             origin: "warranty",
           })
           .select("id")
@@ -308,7 +307,7 @@ export function useWarranties(filters?: WarrantyFilters) {
           observation: `Garantia Troca com Venda - SALE_ID:${saleData.id}`,
         });
 
-        // Financial: if client needs to pay difference
+        // Financial: client pays the difference
         if (diff > 0) {
           await supabase.from("financial_transactions").insert({
             company_id: company.id,
@@ -318,35 +317,21 @@ export function useWarranties(filters?: WarrantyFilters) {
             date: today,
             status: "pago",
             paid_at: new Date().toISOString(),
-            method: "dinheiro",
-            origin: `sale:${saleData.id}`,
-            reference_id: saleData.id,
-          });
-        } else if (diff < 0) {
-          // Company owes the client (credit)
-          await supabase.from("financial_transactions").insert({
-            company_id: company.id,
-            description: `Garantia Troca com Venda - Crédito ao Cliente${data.customer_name ? ` (${data.customer_name})` : ""}`,
-            type: "saida",
-            value: Math.abs(diff),
-            date: today,
-            status: "pago",
-            paid_at: new Date().toISOString(),
-            method: "dinheiro",
+            method: payMethod,
             origin: `sale:${saleData.id}`,
             reference_id: saleData.id,
           });
         }
       }
 
-      // --- CONSERTO: Financial based on who pays ---
-      if (data.request_type === "repair" && productValue > 0) {
+      // --- CONSERTO: Financial based on who pays (using custom value) ---
+      if (data.request_type === "repair" && customValue > 0) {
         if (data.payment_responsibility === "client") {
           await supabase.from("financial_transactions").insert({
             company_id: company.id,
             description: `Garantia Conserto - Pago pelo Cliente${data.customer_name ? ` (${data.customer_name})` : ""}`,
             type: "entrada",
-            value: productValue,
+            value: customValue,
             date: today,
             status: "pago",
             paid_at: new Date().toISOString(),
@@ -358,7 +343,7 @@ export function useWarranties(filters?: WarrantyFilters) {
             company_id: company.id,
             description: `Garantia Conserto - Custo da Empresa${data.customer_name ? ` (${data.customer_name})` : ""}`,
             type: "saida",
-            value: productValue,
+            value: customValue,
             date: today,
             status: "pago",
             paid_at: new Date().toISOString(),
@@ -368,7 +353,7 @@ export function useWarranties(filters?: WarrantyFilters) {
         }
       }
 
-      // --- PERDA TOTAL: No side effects, just the warranty record ---
+      // --- PERDA TOTAL: No side effects ---
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["warranties"] });
