@@ -775,8 +775,8 @@ export function NewWarrantyModal({
           )}
 
           {requestType === "total_loss" && productId && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-              <p className="text-sm font-medium text-red-400">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+              <p className="text-sm font-medium text-destructive">
                 ⛔ Perda Total
               </p>
               <p className="text-xs text-muted-foreground mt-1">
