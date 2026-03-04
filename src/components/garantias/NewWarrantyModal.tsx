@@ -32,12 +32,13 @@ export interface WarrantySubmitData {
   batch_date?: string;
   reason?: string;
   observation?: string;
-  // New fields for type-specific logic
   payment_responsibility?: "client" | "company";
   exchange_product_id?: string;
   exchange_product_value?: number;
   original_product_value?: number;
   original_sale_id?: string;
+  custom_value?: number;
+  payment_method?: string;
 }
 
 interface NewWarrantyModalProps {
@@ -53,6 +54,16 @@ const REQUEST_TYPES = [
   { value: "exchange_with_sale", label: "Troca com Venda" },
   { value: "repair", label: "Conserto" },
   { value: "total_loss", label: "Perda Total" },
+];
+
+const PAYMENT_METHODS = [
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "pix", label: "PIX" },
+  { value: "cartao_credito", label: "Cartão de Crédito" },
+  { value: "cartao_debito", label: "Cartão de Débito" },
+  { value: "boleto", label: "Boleto" },
+  { value: "transferencia", label: "Transferência" },
+  { value: "outros", label: "Outros" },
 ];
 
 interface CustomerWithSales {
@@ -96,6 +107,9 @@ export function NewWarrantyModal({
   const [unregisteredName, setUnregisteredName] = useState("");
   const [paymentResponsibility, setPaymentResponsibility] = useState<"client" | "company">("client");
   const [exchangeProductId, setExchangeProductId] = useState("");
+  const [customValue, setCustomValue] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("pix");
+  const [exchangeSimpleProductId, setExchangeSimpleProductId] = useState("");
 
   // Fetch customers with sales
   const { data: customersWithSales = [], isLoading: loadingCustomers } = useQuery({
@@ -175,7 +189,6 @@ export function NewWarrantyModal({
 
       if (itemsError) throw itemsError;
 
-      // Collect bundle IDs to fetch their components
       const bundleIds: string[] = [];
       items?.forEach((item: any) => {
         if (item.products?.type === "bundle") {
@@ -183,7 +196,6 @@ export function NewWarrantyModal({
         }
       });
 
-      // Fetch bundle components if any bundles exist
       let bundleComponentsMap = new Map<string, Array<{ id: string; name: string; price: number }>>();
       if (bundleIds.length > 0) {
         const { data: bundleItems, error: bundleError } = await supabase
@@ -211,7 +223,6 @@ export function NewWarrantyModal({
         }
       }
 
-      // Build product list: expand bundles into their components
       const productMap = new Map<string, ProductPurchased>();
       const productRankMap = new Map<string, number>();
       
@@ -297,6 +308,12 @@ export function NewWarrantyModal({
     return exchangeProductPrice - selectedProductPrice;
   }, [requestType, exchangeProductId, productId, exchangeProductPrice, selectedProductPrice]);
 
+  // Products with higher price for exchange_with_sale
+  const exchangeEligibleProducts = useMemo(() => {
+    if (!productId || requestType !== "exchange_with_sale") return [];
+    return allProducts.filter(p => p.id !== productId && Number(p.price) > selectedProductPrice);
+  }, [allProducts, productId, selectedProductPrice, requestType]);
+
   // Fetch real lot by replaying FIFO consumption until the selected sale movement
   const { data: batchInfo } = useQuery<ProductBatchInfo>({
     queryKey: ["product-batch-info", productId, selectedProductSaleId, company?.id],
@@ -380,7 +397,6 @@ export function NewWarrantyModal({
     enabled: !!company?.id && !!productId && !!selectedProductSaleId && clientType === "customer",
   });
 
-  // Update batch fields when batch info is fetched
   useEffect(() => {
     if (batchInfo && clientType === "customer") {
       setBatchCode(batchInfo.batch_code || "");
@@ -388,13 +404,19 @@ export function NewWarrantyModal({
     }
   }, [batchInfo, clientType]);
 
-  // For unregistered clients, set batch code to "AA - NÃO RASTREÁVEL"
   useEffect(() => {
     if (clientType === "unregistered" && productId) {
       setBatchCode("AA - NÃO RASTREÁVEL");
       setBatchDate("");
     }
   }, [clientType, productId]);
+
+  // Set default custom value based on product price
+  useEffect(() => {
+    if ((requestType === "herd" || requestType === "repair") && productId) {
+      setCustomValue(selectedProductPrice.toString());
+    }
+  }, [requestType, productId, selectedProductPrice]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -423,11 +445,13 @@ export function NewWarrantyModal({
     // Add type-specific fields
     if (requestType === "herd" || requestType === "repair") {
       data.payment_responsibility = paymentResponsibility;
+      data.custom_value = parseFloat(customValue) || selectedProductPrice;
       data.original_product_value = selectedProductPrice;
     }
 
     if (requestType === "exchange") {
       data.original_product_value = selectedProductPrice;
+      data.exchange_product_id = exchangeSimpleProductId || productId;
     }
 
     if (requestType === "exchange_with_sale") {
@@ -435,6 +459,7 @@ export function NewWarrantyModal({
       data.exchange_product_value = exchangeProductPrice;
       data.original_product_value = selectedProductPrice;
       data.original_sale_id = selectedProductSaleId || undefined;
+      data.payment_method = paymentMethod;
     }
 
     onSubmit(data);
@@ -455,6 +480,9 @@ export function NewWarrantyModal({
     setUnregisteredName("");
     setPaymentResponsibility("client");
     setExchangeProductId("");
+    setCustomValue("");
+    setPaymentMethod("pix");
+    setExchangeSimpleProductId("");
   };
 
   const handleCustomerChange = (customerId: string) => {
@@ -463,6 +491,7 @@ export function NewWarrantyModal({
     setBatchCode("");
     setBatchDate("");
     setExchangeProductId("");
+    setExchangeSimpleProductId("");
   };
 
   const handleClientTypeChange = (type: ClientType) => {
@@ -474,12 +503,16 @@ export function NewWarrantyModal({
     setBatchDate("");
     setUnregisteredName("");
     setExchangeProductId("");
+    setExchangeSimpleProductId("");
   };
 
   const handleRequestTypeChange = (type: string) => {
     setRequestType(type);
     setPaymentResponsibility("client");
     setExchangeProductId("");
+    setExchangeSimpleProductId("");
+    setCustomValue("");
+    setPaymentMethod("pix");
   };
 
   const formatCurrency = (value: number) => {
@@ -618,7 +651,6 @@ export function NewWarrantyModal({
               </div>
             </>
           ) : (
-            /* Cliente não cadastrado */
             <>
               <div className="space-y-2">
                 <Label>Nome do Cliente</Label>
@@ -681,23 +713,41 @@ export function NewWarrantyModal({
             </Select>
           </div>
 
-          {/* Type-specific fields */}
+          {/* TROCA SIMPLES: Select product to send + stock out */}
           {requestType === "exchange" && productId && (
-            <div className="rounded-lg border border-accent/30 bg-accent/10 p-3">
-              <p className="text-sm font-medium text-accent-foreground">
-                ↻ Troca Simples
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                O produto será trocado pelo mesmo. Será registrada saída no estoque.
-              </p>
-            </div>
-          )}
-
-          {(requestType === "herd" || requestType === "repair") && productId && (
             <div className="space-y-3">
               <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
                 <p className="text-sm font-medium">
-                  {requestType === "herd" ? "Rebanho" : "🔧 Conserto"} — Quem paga?
+                  ↻ Troca Simples — Selecione o produto de reposição
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  O produto selecionado terá saída registrada no estoque.
+                </p>
+                <div className="space-y-2">
+                  <Label>Produto para Troca *</Label>
+                  <Select value={exchangeSimpleProductId} onValueChange={setExchangeSimpleProductId}>
+                    <SelectTrigger className="bg-card">
+                      <SelectValue placeholder="Selecione o produto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allProducts.map((product) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* REBANHO: Quem paga + valor */}
+          {requestType === "herd" && productId && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+                <p className="text-sm font-medium">
+                  Rebanho — Quem paga?
                 </p>
                 <RadioGroup
                   value={paymentResponsibility}
@@ -705,8 +755,8 @@ export function NewWarrantyModal({
                   className="flex flex-col gap-2"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="client" id="paid-client" />
-                    <Label htmlFor="paid-client" className="font-normal cursor-pointer">
+                    <RadioGroupItem value="client" id="herd-paid-client" />
+                    <Label htmlFor="herd-paid-client" className="font-normal cursor-pointer">
                       Pago pelo Cliente
                       <span className="text-xs text-muted-foreground ml-2">
                         (registra como entrada no financeiro)
@@ -714,8 +764,8 @@ export function NewWarrantyModal({
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="company" id="paid-company" />
-                    <Label htmlFor="paid-company" className="font-normal cursor-pointer">
+                    <RadioGroupItem value="company" id="herd-paid-company" />
+                    <Label htmlFor="herd-paid-company" className="font-normal cursor-pointer">
                       Pago pela Empresa
                       <span className="text-xs text-muted-foreground ml-2">
                         (registra como saída/prejuízo no financeiro)
@@ -723,52 +773,134 @@ export function NewWarrantyModal({
                     </Label>
                   </div>
                 </RadioGroup>
+
+                <div className="space-y-2">
+                  <Label>Valor (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={customValue}
+                    onChange={(e) => setCustomValue(e.target.value)}
+                    placeholder="0,00"
+                    className="bg-card"
+                  />
+                </div>
               </div>
             </div>
           )}
 
+          {/* CONSERTO: Quem paga + valor */}
+          {requestType === "repair" && productId && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+                <p className="text-sm font-medium">
+                  🔧 Conserto — Quem paga?
+                </p>
+                <RadioGroup
+                  value={paymentResponsibility}
+                  onValueChange={(v) => setPaymentResponsibility(v as "client" | "company")}
+                  className="flex flex-col gap-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="client" id="repair-paid-client" />
+                    <Label htmlFor="repair-paid-client" className="font-normal cursor-pointer">
+                      Pago pelo Cliente
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (registra como entrada no financeiro)
+                      </span>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="company" id="repair-paid-company" />
+                    <Label htmlFor="repair-paid-company" className="font-normal cursor-pointer">
+                      Pago pela Empresa
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (registra como saída no financeiro)
+                      </span>
+                    </Label>
+                  </div>
+                </RadioGroup>
+
+                <div className="space-y-2">
+                  <Label>Valor do Conserto (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={customValue}
+                    onChange={(e) => setCustomValue(e.target.value)}
+                    placeholder="0,00"
+                    className="bg-card"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TROCA COM VENDA: Only higher-priced products + payment method */}
           {requestType === "exchange_with_sale" && productId && (
             <div className="space-y-3">
               <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
                 <p className="text-sm font-medium">🔄 Troca com Venda</p>
                 
                 <div className="space-y-2">
-                  <Label>Produto da Troca *</Label>
+                  <Label>Produto da Troca (valor superior) *</Label>
                   <Select value={exchangeProductId} onValueChange={setExchangeProductId}>
                     <SelectTrigger className="bg-card">
                       <SelectValue placeholder="Selecione o novo produto" />
                     </SelectTrigger>
                     <SelectContent>
-                      {allProducts
-                        .filter(p => p.id !== productId)
-                        .map((product) => (
+                      {exchangeEligibleProducts.length === 0 ? (
+                        <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                          Nenhum produto com valor superior a {formatCurrency(selectedProductPrice)}
+                        </div>
+                      ) : (
+                        exchangeEligibleProducts.map((product) => (
                           <SelectItem key={product.id} value={product.id}>
                             {product.name} — {formatCurrency(Number(product.price))}
                           </SelectItem>
-                        ))}
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
                 {exchangeProductId && (
-                  <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Valor compra anterior:</span>
-                      <span>{formatCurrency(selectedProductPrice)}</span>
+                  <>
+                    <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Valor compra anterior:</span>
+                        <span>{formatCurrency(selectedProductPrice)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Valor novo produto:</span>
+                        <span>{formatCurrency(exchangeProductPrice)}</span>
+                      </div>
+                      <div className="border-t border-border pt-2 flex justify-between font-medium">
+                        <span>Cliente deve pagar:</span>
+                        <span className="text-green-400">
+                          {formatCurrency(priceDifference)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Valor novo produto:</span>
-                      <span>{formatCurrency(exchangeProductPrice)}</span>
+
+                    <div className="space-y-2">
+                      <Label>Forma de Pagamento *</Label>
+                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                        <SelectTrigger className="bg-card">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_METHODS.map((m) => (
+                            <SelectItem key={m.value} value={m.value}>
+                              {m.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="border-t border-border pt-2 flex justify-between font-medium">
-                      <span>
-                        {priceDifference >= 0 ? "Cliente deve pagar:" : "Crédito do cliente:"}
-                      </span>
-                      <span className={priceDifference >= 0 ? "text-green-400" : "text-red-400"}>
-                        {formatCurrency(Math.abs(priceDifference))}
-                      </span>
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
@@ -850,7 +982,8 @@ export function NewWarrantyModal({
                 !productId || 
                 isLoading || 
                 (clientType === "customer" && !selectedCustomerId) ||
-                (requestType === "exchange_with_sale" && !exchangeProductId)
+                (requestType === "exchange_with_sale" && !exchangeProductId) ||
+                (requestType === "exchange" && !exchangeSimpleProductId)
               }
             >
               {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
