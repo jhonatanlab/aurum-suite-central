@@ -269,17 +269,20 @@ export function useWarranties(filters?: WarrantyFilters) {
         const diff = exchangeValue - originalValue;
         const payMethod = data.payment_method || "pix";
 
-        // Create a new sale record
+        // Create a new sale record with discount = original product value
         const { data: saleData, error: saleError } = await supabase
           .from("sales")
           .insert({
             company_id: company.id,
             customer_name: data.customer_name || "Garantia - Troca com Venda",
-            total: exchangeValue,
+            total: diff > 0 ? diff : 0,
             subtotal: exchangeValue,
+            discount_value: originalValue,
             status: "completed",
             payment_method: payMethod,
             origin: "warranty",
+            total_paid: diff > 0 ? diff : 0,
+            pending_balance: 0,
           })
           .select("id")
           .single();
@@ -293,6 +296,18 @@ export function useWarranties(filters?: WarrantyFilters) {
           quantity: 1,
           price: exchangeValue,
           subtotal: exchangeValue,
+        });
+
+        // Create sale payment record
+        await supabase.from("sale_payments").insert({
+          sale_id: saleData.id,
+          payment_method: payMethod,
+          amount: diff > 0 ? diff : 0,
+          installments: data.installments || 1,
+          gateway_id: data.gateway_id || null,
+          interest_amount: data.interest_amount || 0,
+          gateway_fee_amount: data.gateway_fee_amount || 0,
+          gateway_fee_percent: data.gateway_fee_percent || 0,
         });
 
         // Stock reduction for the new product sold
@@ -309,9 +324,19 @@ export function useWarranties(filters?: WarrantyFilters) {
 
         // Financial: client pays the difference
         if (diff > 0) {
+          const saleCosts: { type: string; description: string; amount: number }[] = [];
+          
+          if (data.gateway_fee_amount && data.gateway_fee_amount > 0) {
+            saleCosts.push({
+              type: "gateway_fee",
+              description: `Taxa Gateway (${data.gateway_fee_percent || 0}%)`,
+              amount: data.gateway_fee_amount,
+            });
+          }
+
           await supabase.from("financial_transactions").insert({
             company_id: company.id,
-            description: `Garantia Troca com Venda - Diferença${data.customer_name ? ` (${data.customer_name})` : ""}`,
+            description: `Garantia Troca com Venda${data.customer_name ? ` - ${data.customer_name}` : ""}`,
             type: "entrada",
             value: diff,
             date: today,
