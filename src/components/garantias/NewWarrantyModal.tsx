@@ -697,7 +697,7 @@ export function NewWarrantyModal({
             <div className="space-y-3">
               <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
                 <p className="text-sm font-medium">
-                  {requestType === "herd" ? "🐄 Rebanho" : "🔧 Conserto"} — Quem paga?
+                  {requestType === "herd" ? "Rebanho" : "🔧 Conserto"} — Quem paga?
                 </p>
                 <RadioGroup
                   value={paymentResponsibility}
