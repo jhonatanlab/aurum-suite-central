@@ -470,6 +470,24 @@ export function NewWarrantyModal({
       data.original_product_value = selectedProductPrice;
       data.original_sale_id = selectedProductSaleId || undefined;
       data.payment_method = paymentMethod;
+      data.installments = installments;
+      data.gateway_id = gatewayId || undefined;
+      
+      // Calculate interest/fees if gateway selected
+      if (gatewayId && paymentMethod === "cartao_credito") {
+        const gateway = activeGateways.find(g => g.id === gatewayId);
+        if (gateway) {
+          const { interestAmount, passToCustomer } = calculateGatewayInterest(
+            gateway,
+            priceDifference,
+            installments,
+            paymentSettings.interest_starts_at
+          );
+          data.interest_amount = interestAmount;
+          data.gateway_fee_percent = gateway.service_fee_percent;
+          data.gateway_fee_amount = priceDifference * (gateway.service_fee_percent / 100);
+        }
+      }
     }
 
     onSubmit(data);
