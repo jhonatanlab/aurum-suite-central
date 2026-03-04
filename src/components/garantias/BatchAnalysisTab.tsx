@@ -82,6 +82,7 @@ export function BatchAnalysisTab() {
         `)
         .eq("company_id", company!.id)
         .eq("status", "active")
+        .eq("batch_type", "reposition")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -123,11 +124,12 @@ export function BatchAnalysisTab() {
 
     const analysisMap = new Map<string, BatchAnalysis>();
 
-    // Initialize with batch data
+    // Initialize with batch data - key by batch_code + product_id for uniqueness
     batches.forEach((batch) => {
       const product = batch.products as { name: string; category: string | null } | null;
+      const key = `${batch.batch_code}__${batch.product_id}`;
       
-      analysisMap.set(batch.batch_code, {
+      analysisMap.set(key, {
         batch_code: batch.batch_code,
         product_id: batch.product_id,
         product_name: product?.name || "Produto não encontrado",
@@ -142,11 +144,12 @@ export function BatchAnalysisTab() {
       });
     });
 
-    // Add warranty data
+    // Add warranty data - match by both batch_code AND product_id
     warranties.forEach((warranty) => {
       if (!warranty.batch_code) return;
 
-      const batch = analysisMap.get(warranty.batch_code);
+      const key = `${warranty.batch_code}__${warranty.product_id}`;
+      const batch = analysisMap.get(key);
       if (batch) {
         batch.warranty_count += 1;
         if (warranty.request_type === "total_loss") {
