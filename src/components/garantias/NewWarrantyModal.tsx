@@ -511,6 +511,8 @@ export function NewWarrantyModal({
     setCustomValue("");
     setPaymentMethod("pix");
     setExchangeSimpleProductId("");
+    setGatewayId(null);
+    setInstallments(1);
   };
 
   const handleCustomerChange = (customerId: string) => {
