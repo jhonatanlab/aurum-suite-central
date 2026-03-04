@@ -101,6 +101,8 @@ export function NewWarrantyModal({
 }: NewWarrantyModalProps) {
   const { company } = useCompany();
   const { resellers } = useResellers();
+  const { activeGateways, calculateGatewayInterest } = usePaymentGateways();
+  const { settings: paymentSettings } = usePaymentSettings();
   const [clientType, setClientType] = useState<ClientType>("customer");
   const [productId, setProductId] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -116,6 +118,8 @@ export function NewWarrantyModal({
   const [customValue, setCustomValue] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("pix");
   const [exchangeSimpleProductId, setExchangeSimpleProductId] = useState("");
+  const [gatewayId, setGatewayId] = useState<string | null>(null);
+  const [installments, setInstallments] = useState(1);
 
   // Fetch customers with sales
   const { data: customersWithSales = [], isLoading: loadingCustomers } = useQuery({
