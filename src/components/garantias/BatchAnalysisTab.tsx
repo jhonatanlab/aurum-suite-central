@@ -144,11 +144,12 @@ export function BatchAnalysisTab() {
       });
     });
 
-    // Add warranty data
+    // Add warranty data - match by both batch_code AND product_id
     warranties.forEach((warranty) => {
       if (!warranty.batch_code) return;
 
-      const batch = analysisMap.get(warranty.batch_code);
+      const key = `${warranty.batch_code}__${warranty.product_id}`;
+      const batch = analysisMap.get(key);
       if (batch) {
         batch.warranty_count += 1;
         if (warranty.request_type === "total_loss") {
