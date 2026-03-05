@@ -224,8 +224,8 @@ export function useWarranties(filters?: WarrantyFilters) {
         await supabase.from("product_batches").insert({
           company_id: company.id,
           product_id: data.exchange_product_id,
-          batch_code: `GARANTIA-TROCA-${Date.now().toString(36).toUpperCase()}`,
-          batch_type: "adjustment",
+          batch_code: data.batch_code || "Código Não Preenchido",
+          batch_type: "warranty_exchange",
           quantity: -1,
           status: "active",
           created_by: userEmail,
@@ -315,8 +315,8 @@ export function useWarranties(filters?: WarrantyFilters) {
         await supabase.from("product_batches").insert({
           company_id: company.id,
           product_id: data.exchange_product_id,
-          batch_code: `VENDA-${saleData.id.slice(0, 8)}`,
-          batch_type: "sale",
+          batch_code: data.batch_code || "Código Não Preenchido",
+          batch_type: "warranty_exchange",
           quantity: -1,
           status: "active",
           created_by: userEmail,
@@ -432,6 +432,9 @@ export function useWarranties(filters?: WarrantyFilters) {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["financial-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
+      queryClient.invalidateQueries({ queryKey: ["existing-warranty-exchanges"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-products"] });
+      queryClient.invalidateQueries({ queryKey: ["product_batches_history"] });
       toast.success("Garantia registrada com sucesso!");
     },
     onError: (error) => {
