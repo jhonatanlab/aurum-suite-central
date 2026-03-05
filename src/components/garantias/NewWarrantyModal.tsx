@@ -196,11 +196,7 @@ export function NewWarrantyModal({
     return ids;
   }, [existingWarranties]);
 
-  // Products received from exchange (available for future exchange) - exchange_product_id from Troca Simples
-  const exchangeReceivedProducts = useMemo(() => {
-    const products: Array<{ product_id: string; product_name: string; sale_id: string; is_bundle: boolean; price: number }> = [];
-    return products; // These will be added from allProducts below
-  }, []);
+
 
   // Fetch products purchased by selected customer - expand bundles into components
   const { data: purchasedProducts = [], isLoading: loadingProducts } = useQuery({
