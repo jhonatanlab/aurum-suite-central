@@ -189,6 +189,8 @@ export function NewWarrantyModal({
     enabled: !!company?.id && !!selectedCustomerId && clientType === "customer",
   });
 
+  const exchangedProductIds = useMemo(() => new Set(existingWarrantyProducts), [existingWarrantyProducts]);
+
   // Fetch products purchased by selected customer - expand bundles into components
   const { data: purchasedProducts = [], isLoading: loadingProducts } = useQuery({
     queryKey: ["customer-products", selectedCustomerId, company?.id, existingWarrantyProducts],
