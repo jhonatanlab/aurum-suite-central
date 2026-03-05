@@ -670,11 +670,26 @@ export function NewWarrantyModal({
                         Nenhum produto encontrado para este cliente
                       </div>
                     ) : (
-                      purchasedProducts.map((product) => (
-                        <SelectItem key={product.product_id} value={product.product_id}>
-                          {product.product_name}
-                        </SelectItem>
-                      ))
+                      purchasedProducts.map((product) => {
+                        const isLocked = exchangedProductIds.has(product.product_id);
+                        return (
+                          <SelectItem 
+                            key={product.product_id} 
+                            value={product.product_id}
+                            disabled={isLocked}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isLocked && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                              <span className={isLocked ? "text-muted-foreground" : ""}>
+                                {product.product_name}
+                              </span>
+                              {isLocked && (
+                                <span className="text-xs text-muted-foreground">(já trocado)</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })
                     )}
                   </SelectContent>
                 </Select>
