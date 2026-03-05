@@ -308,6 +308,29 @@ export function NewWarrantyModal({
         }
       });
 
+      // Add products received from Troca Simples exchanges (exchange_product_id)
+      // These are new products the customer received and should be eligible for future exchange
+      for (const warranty of (existingWarranties || [])) {
+        if (warranty.request_type === "exchange" && warranty.exchange_product_id && !productMap.has(warranty.exchange_product_id)) {
+          // Fetch exchange product info
+          const { data: exchProd } = await supabase
+            .from("products")
+            .select("id, name, price")
+            .eq("id", warranty.exchange_product_id)
+            .single();
+
+          if (exchProd) {
+            productMap.set(exchProd.id, {
+              product_id: exchProd.id,
+              product_name: exchProd.name,
+              sale_id: "", // no sale associated
+              is_bundle: false,
+              price: Number(exchProd.price) || 0,
+            });
+          }
+        }
+      }
+
       const results = Array.from(productMap.values());
 
       return results.sort((a, b) => 
