@@ -1144,6 +1144,19 @@ export function NewWarrantyModal({
           </div>
 
           <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={warrantyStatus} onValueChange={setWarrantyStatus}>
+              <SelectTrigger className="bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="approved">Aprovada</SelectItem>
+                <SelectItem value="denied">Negada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label>Motivo / Defeito</Label>
             <Textarea
               value={reason}
