@@ -262,7 +262,7 @@ export function useWarranties(filters?: WarrantyFilters) {
         }
       }
 
-      // --- TROCA COM VENDA: New sale + financial + stock reduction ---
+      // --- TROCA COM VENDA: New sale + financial + stock reduction + CRM ---
       if (data.request_type === "exchange_with_sale" && data.exchange_product_id) {
         const exchangeValue = data.exchange_product_value || 0;
         const originalValue = data.original_product_value || 0;
@@ -275,6 +275,7 @@ export function useWarranties(filters?: WarrantyFilters) {
           .insert({
             company_id: company.id,
             customer_name: data.customer_name || "Garantia - Troca com Venda",
+            client_id: data.client_id || null,
             total: diff > 0 ? diff : 0,
             subtotal: exchangeValue,
             discount_value: originalValue,
@@ -322,18 +323,8 @@ export function useWarranties(filters?: WarrantyFilters) {
           observation: `Garantia Troca com Venda - SALE_ID:${saleData.id}`,
         });
 
-        // Financial: client pays the difference
+        // Financial: register the sale revenue
         if (diff > 0) {
-          const saleCosts: { type: string; description: string; amount: number }[] = [];
-          
-          if (data.gateway_fee_amount && data.gateway_fee_amount > 0) {
-            saleCosts.push({
-              type: "gateway_fee",
-              description: `Taxa Gateway (${data.gateway_fee_percent || 0}%)`,
-              amount: data.gateway_fee_amount,
-            });
-          }
-
           await supabase.from("financial_transactions").insert({
             company_id: company.id,
             description: `Garantia Troca com Venda${data.customer_name ? ` - ${data.customer_name}` : ""}`,
@@ -346,6 +337,61 @@ export function useWarranties(filters?: WarrantyFilters) {
             origin: `sale:${saleData.id}`,
             reference_id: saleData.id,
           });
+        }
+
+        // CRM: Update lead history and move to sales column
+        if (data.client_id) {
+          try {
+            // Fetch exchange product name
+            const { data: exchangeProduct } = await supabase
+              .from("products")
+              .select("name")
+              .eq("id", data.exchange_product_id)
+              .single();
+
+            // Fetch current lead data
+            const { data: leadData } = await supabase
+              .from("leads")
+              .select("history, status")
+              .eq("id", data.client_id)
+              .single();
+
+            const currentHistory = Array.isArray(leadData?.history) ? leadData.history : [];
+
+            const historyEntry = {
+              id: crypto.randomUUID(),
+              timestamp: new Date().toISOString(),
+              user: userEmail,
+              action: "Venda concluída",
+              details: `Garantia Troca com Venda - ${exchangeProduct?.name || "Produto"} R$ ${(diff > 0 ? diff : 0).toLocaleString("pt-BR")}`,
+            };
+
+            const updatedHistory = [historyEntry, ...currentHistory].slice(0, 200);
+
+            // Get sales column ID
+            const { data: salesColumn } = await supabase
+              .from("crm_stages")
+              .select("id")
+              .eq("company_id", company.id)
+              .eq("name", "Vendas")
+              .order("position", { ascending: false })
+              .limit(1);
+
+            const updatePayload: Record<string, unknown> = {
+              history: updatedHistory,
+            };
+
+            if (salesColumn && salesColumn.length > 0) {
+              updatePayload.status = salesColumn[0].id;
+            }
+
+            await supabase
+              .from("leads")
+              .update(updatePayload)
+              .eq("id", data.client_id);
+          } catch (crmError) {
+            console.warn("Erro ao atualizar CRM:", crmError);
+          }
         }
       }
 
