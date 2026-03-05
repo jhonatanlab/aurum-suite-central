@@ -17,11 +17,11 @@ export function WarrantyStatsCards({ stats, isLoading }: WarrantyStatsCardsProps
       bgColor: "bg-primary/10",
     },
     {
-      label: "Trocas no Período",
+      label: "Trocas Negadas",
       value: stats.exchangesInPeriod,
       icon: RefreshCw,
-      color: "text-emerald-500",
-      bgColor: "bg-emerald-500/10",
+      color: "text-rose-500",
+      bgColor: "bg-rose-500/10",
     },
     {
       label: "Reincidências",

@@ -31,6 +31,7 @@ export interface WarrantySubmitData {
   client_id?: string;
   reseller_id?: string;
   request_type: string;
+  status?: string;
   batch_code?: string;
   batch_date?: string;
   reason?: string;
@@ -109,6 +110,7 @@ export function NewWarrantyModal({
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [resellerId, setResellerId] = useState("");
   const [requestType, setRequestType] = useState("exchange");
+  const [warrantyStatus, setWarrantyStatus] = useState("approved");
   const [batchCode, setBatchCode] = useState("");
   const [batchDate, setBatchDate] = useState("");
   const [reason, setReason] = useState("");
@@ -502,6 +504,7 @@ export function NewWarrantyModal({
           : undefined,
       reseller_id: clientType === "reseller" ? resellerId : undefined,
       request_type: requestType,
+      status: warrantyStatus,
       batch_code: batchCode || undefined,
       batch_date: batchDate || undefined,
       reason: reason || undefined,
@@ -564,6 +567,7 @@ export function NewWarrantyModal({
     setSelectedCustomerId("");
     setResellerId("");
     setRequestType("exchange");
+    setWarrantyStatus("approved");
     setBatchCode("");
     setBatchDate("");
     setReason("");
@@ -1137,6 +1141,19 @@ export function NewWarrantyModal({
                 }
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={warrantyStatus} onValueChange={setWarrantyStatus}>
+              <SelectTrigger className="bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="approved">Aprovada</SelectItem>
+                <SelectItem value="denied">Negada</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

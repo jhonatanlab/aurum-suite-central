@@ -160,8 +160,9 @@ export function useWarranties(filters?: WarrantyFilters) {
       // Peças em Garantia = total de solicitações na lista (todas, independente do status)
       const totalInWarranty = trackableData.length;
 
+      // Trocas Negadas = todas com status "denied"
       const exchangesInPeriod = trackableData.filter(
-        (w) => w.request_type === "exchange" && w.status === "completed"
+        (w) => w.status === "denied"
       ).length;
 
       const productCounts: Record<string, { count: number; name: string }> = {};
@@ -208,6 +209,7 @@ export function useWarranties(filters?: WarrantyFilters) {
         customer_name: data.customer_name,
         reseller_id: data.reseller_id,
         request_type: data.request_type,
+        status: data.status || "analyzing",
         batch_code: data.batch_code,
         batch_date: data.batch_date,
         reason: data.reason,

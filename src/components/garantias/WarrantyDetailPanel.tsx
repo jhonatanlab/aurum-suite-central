@@ -174,9 +174,7 @@ export function WarrantyDetailPanel({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="analyzing">Em Análise</SelectItem>
                   <SelectItem value="approved">Aprovada</SelectItem>
-                  <SelectItem value="completed">Concluída</SelectItem>
                   <SelectItem value="denied">Negada</SelectItem>
                 </SelectContent>
               </Select>
