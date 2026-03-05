@@ -228,9 +228,17 @@ export function MultiPaymentManager({
           settings.interest_starts_at
         );
 
-        const label = interestAmount > 0
-          ? `${rule.installments}x (+${formatCurrency(interestAmount)}${passToCustomer ? "" : " custo"})`
-          : `${rule.installments}x (sem juros)`;
+        // Show rate info even when amount is 0, so user knows which installments have interest
+        const hasInterestRule = rule.installments >= settings.interest_starts_at && rule.interest_rate_percent > 0;
+        
+        let label: string;
+        if (interestAmount > 0) {
+          label = `${rule.installments}x (+${formatCurrency(interestAmount)}${passToCustomer ? "" : " custo"})`;
+        } else if (hasInterestRule && payment.amount === 0) {
+          label = `${rule.installments}x (${rule.interest_rate_percent}% juros${rule.pass_to_customer ? "" : " custo"})`;
+        } else {
+          label = `${rule.installments}x (sem juros)`;
+        }
 
         return {
           value: rule.installments,
