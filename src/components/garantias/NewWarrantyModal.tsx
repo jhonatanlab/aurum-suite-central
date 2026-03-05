@@ -28,6 +28,7 @@ import { usePaymentSettings } from "@/hooks/usePaymentSettings";
 export interface WarrantySubmitData {
   product_id: string;
   customer_name?: string;
+  client_id?: string;
   reseller_id?: string;
   request_type: string;
   batch_code?: string;
