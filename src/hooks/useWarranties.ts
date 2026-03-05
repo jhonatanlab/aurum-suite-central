@@ -212,6 +212,7 @@ export function useWarranties(filters?: WarrantyFilters) {
         batch_date: data.batch_date,
         reason: data.reason,
         observation: data.observation,
+        exchange_product_id: data.exchange_product_id || null,
       });
 
       if (warrantyError) throw warrantyError;
