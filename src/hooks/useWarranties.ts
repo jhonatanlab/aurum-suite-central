@@ -432,6 +432,9 @@ export function useWarranties(filters?: WarrantyFilters) {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["financial-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
+      queryClient.invalidateQueries({ queryKey: ["existing-warranty-exchanges"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-products"] });
+      queryClient.invalidateQueries({ queryKey: ["product_batches_history"] });
       toast.success("Garantia registrada com sucesso!");
     },
     onError: (error) => {
