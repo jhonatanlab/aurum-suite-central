@@ -315,8 +315,8 @@ export function useWarranties(filters?: WarrantyFilters) {
         await supabase.from("product_batches").insert({
           company_id: company.id,
           product_id: data.exchange_product_id,
-          batch_code: `VENDA-${saleData.id.slice(0, 8)}`,
-          batch_type: "sale",
+          batch_code: data.batch_code || "Código Não Preenchido",
+          batch_type: "warranty_exchange",
           quantity: -1,
           status: "active",
           created_by: userEmail,
