@@ -209,6 +209,7 @@ export function useWarranties(filters?: WarrantyFilters) {
         customer_name: data.customer_name,
         reseller_id: data.reseller_id,
         request_type: data.request_type,
+        status: data.status || "analyzing",
         batch_code: data.batch_code,
         batch_date: data.batch_date,
         reason: data.reason,
