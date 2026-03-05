@@ -491,6 +491,11 @@ export function NewWarrantyModal({
       }
     }
 
+    // Pass client_id for CRM integration
+    if (clientType === "customer" && selectedCustomerId) {
+      data.client_id = selectedCustomerId;
+    }
+
     onSubmit(data);
 
     resetForm();
