@@ -297,11 +297,7 @@ export function NewWarrantyModal({
         }
       });
 
-      // Filter out products that already have a warranty exchange (Troca Simples or Troca com Venda)
-      const alreadyExchanged = new Set(existingWarrantyProducts);
-      const results = Array.from(productMap.values()).filter(
-        p => !alreadyExchanged.has(p.product_id)
-      );
+      const results = Array.from(productMap.values());
 
       return results.sort((a, b) => 
         a.product_name.localeCompare(b.product_name)
