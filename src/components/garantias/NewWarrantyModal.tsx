@@ -28,6 +28,7 @@ import { usePaymentSettings } from "@/hooks/usePaymentSettings";
 export interface WarrantySubmitData {
   product_id: string;
   customer_name?: string;
+  client_id?: string;
   reseller_id?: string;
   request_type: string;
   batch_code?: string;
@@ -488,6 +489,11 @@ export function NewWarrantyModal({
           data.gateway_fee_amount = priceDifference * (gateway.service_fee_percent / 100);
         }
       }
+    }
+
+    // Pass client_id for CRM integration
+    if (clientType === "customer" && selectedCustomerId) {
+      data.client_id = selectedCustomerId;
     }
 
     onSubmit(data);
