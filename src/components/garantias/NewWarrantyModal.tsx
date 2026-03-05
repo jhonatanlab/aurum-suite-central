@@ -167,7 +167,7 @@ export function NewWarrantyModal({
   }, [customersWithSales, selectedCustomerId]);
 
   // Fetch existing warranty exchanges for this customer to prevent duplicates
-  const { data: existingWarrantyProducts = [] } = useQuery({
+  const { data: existingWarranties = [] } = useQuery({
     queryKey: ["existing-warranty-exchanges", selectedCustomerId, company?.id],
     queryFn: async () => {
       if (!company?.id || !selectedCustomerId) return [];
@@ -177,19 +177,30 @@ export function NewWarrantyModal({
 
       const { data, error } = await supabase
         .from("warranty_requests")
-        .select("product_id, request_type, status")
+        .select("product_id, exchange_product_id, request_type, status")
         .eq("company_id", company.id)
         .eq("customer_name", customer.name)
         .in("request_type", ["exchange", "exchange_with_sale"])
         .neq("status", "denied");
 
       if (error) throw error;
-      return (data || []).map(w => w.product_id);
+      return data || [];
     },
     enabled: !!company?.id && !!selectedCustomerId && clientType === "customer",
   });
 
-  const exchangedProductIds = useMemo(() => new Set(existingWarrantyProducts), [existingWarrantyProducts]);
+  // Products that were exchanged (locked) - original products from warranty
+  const exchangedProductIds = useMemo(() => {
+    const ids = new Set<string>();
+    existingWarranties.forEach(w => ids.add(w.product_id));
+    return ids;
+  }, [existingWarranties]);
+
+  // Products received from exchange (available for future exchange) - exchange_product_id from Troca Simples
+  const exchangeReceivedProducts = useMemo(() => {
+    const products: Array<{ product_id: string; product_name: string; sale_id: string; is_bundle: boolean; price: number }> = [];
+    return products; // These will be added from allProducts below
+  }, []);
 
   // Fetch products purchased by selected customer - expand bundles into components
   const { data: purchasedProducts = [], isLoading: loadingProducts } = useQuery({
