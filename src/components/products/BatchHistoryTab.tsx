@@ -118,6 +118,13 @@ export function BatchHistoryTab() {
         </span>);
 
     }
+    if (batch.batch_type === "warranty_exchange") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400">
+          <RefreshCw className="w-3 h-3" />
+          Troca
+        </span>);
+    }
     if (batch.batch_type === "adjustment") {
       const reasonLabels: Record<string, string> = {
         loss: "Perda",

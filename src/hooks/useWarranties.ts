@@ -224,8 +224,8 @@ export function useWarranties(filters?: WarrantyFilters) {
         await supabase.from("product_batches").insert({
           company_id: company.id,
           product_id: data.exchange_product_id,
-          batch_code: `GARANTIA-TROCA-${Date.now().toString(36).toUpperCase()}`,
-          batch_type: "adjustment",
+          batch_code: data.batch_code || "Código Não Preenchido",
+          batch_type: "warranty_exchange",
           quantity: -1,
           status: "active",
           created_by: userEmail,
