@@ -21,7 +21,7 @@ import { useResellers } from "@/hooks/useResellers";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, ArrowRight, AlertCircle, Percent } from "lucide-react";
+import { Loader2, ArrowRight, AlertCircle, Percent, Lock } from "lucide-react";
 import { usePaymentGateways } from "@/hooks/usePaymentGateways";
 import { usePaymentSettings } from "@/hooks/usePaymentSettings";
 
@@ -167,7 +167,7 @@ export function NewWarrantyModal({
   }, [customersWithSales, selectedCustomerId]);
 
   // Fetch existing warranty exchanges for this customer to prevent duplicates
-  const { data: existingWarrantyProducts = [] } = useQuery({
+  const { data: existingWarranties = [] } = useQuery({
     queryKey: ["existing-warranty-exchanges", selectedCustomerId, company?.id],
     queryFn: async () => {
       if (!company?.id || !selectedCustomerId) return [];
@@ -177,21 +177,30 @@ export function NewWarrantyModal({
 
       const { data, error } = await supabase
         .from("warranty_requests")
-        .select("product_id, request_type, status")
+        .select("product_id, exchange_product_id, request_type, status")
         .eq("company_id", company.id)
         .eq("customer_name", customer.name)
         .in("request_type", ["exchange", "exchange_with_sale"])
         .neq("status", "denied");
 
       if (error) throw error;
-      return (data || []).map(w => w.product_id);
+      return data || [];
     },
     enabled: !!company?.id && !!selectedCustomerId && clientType === "customer",
   });
 
+  // Products that were exchanged (locked) - original products from warranty
+  const exchangedProductIds = useMemo(() => {
+    const ids = new Set<string>();
+    existingWarranties.forEach(w => ids.add(w.product_id));
+    return ids;
+  }, [existingWarranties]);
+
+
+
   // Fetch products purchased by selected customer - expand bundles into components
   const { data: purchasedProducts = [], isLoading: loadingProducts } = useQuery({
-    queryKey: ["customer-products", selectedCustomerId, company?.id, existingWarrantyProducts],
+    queryKey: ["customer-products", selectedCustomerId, company?.id, existingWarranties],
     queryFn: async () => {
       if (!company?.id || !selectedCustomerId) return [];
 
@@ -295,11 +304,30 @@ export function NewWarrantyModal({
         }
       });
 
-      // Filter out products that already have a warranty exchange (Troca Simples or Troca com Venda)
-      const alreadyExchanged = new Set(existingWarrantyProducts);
-      const results = Array.from(productMap.values()).filter(
-        p => !alreadyExchanged.has(p.product_id)
-      );
+      // Add products received from Troca Simples exchanges (exchange_product_id)
+      // These are new products the customer received and should be eligible for future exchange
+      for (const warranty of (existingWarranties || [])) {
+        if (warranty.request_type === "exchange" && warranty.exchange_product_id && !productMap.has(warranty.exchange_product_id)) {
+          // Fetch exchange product info
+          const { data: exchProd } = await supabase
+            .from("products")
+            .select("id, name, price")
+            .eq("id", warranty.exchange_product_id)
+            .single();
+
+          if (exchProd) {
+            productMap.set(exchProd.id, {
+              product_id: exchProd.id,
+              product_name: exchProd.name,
+              sale_id: "", // no sale associated
+              is_bundle: false,
+              price: Number(exchProd.price) || 0,
+            });
+          }
+        }
+      }
+
+      const results = Array.from(productMap.values());
 
       return results.sort((a, b) => 
         a.product_name.localeCompare(b.product_name)
@@ -672,11 +700,26 @@ export function NewWarrantyModal({
                         Nenhum produto encontrado para este cliente
                       </div>
                     ) : (
-                      purchasedProducts.map((product) => (
-                        <SelectItem key={product.product_id} value={product.product_id}>
-                          {product.product_name}
-                        </SelectItem>
-                      ))
+                      purchasedProducts.map((product) => {
+                        const isLocked = exchangedProductIds.has(product.product_id);
+                        return (
+                          <SelectItem 
+                            key={product.product_id} 
+                            value={product.product_id}
+                            disabled={isLocked}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isLocked && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                              <span className={isLocked ? "text-muted-foreground" : ""}>
+                                {product.product_name}
+                              </span>
+                              {isLocked && (
+                                <span className="text-xs text-muted-foreground">(já trocado)</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })
                     )}
                   </SelectContent>
                 </Select>

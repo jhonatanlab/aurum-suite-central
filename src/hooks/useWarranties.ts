@@ -9,6 +9,7 @@ export interface WarrantyRequest {
   id: string;
   company_id: string;
   product_id: string;
+  exchange_product_id: string | null;
   customer_name: string | null;
   reseller_id: string | null;
   request_type: string;
@@ -65,7 +66,7 @@ export function useWarranties(filters?: WarrantyFilters) {
         .from("warranty_requests")
         .select(`
           *,
-          product:products(id, name, category),
+          product:products!warranty_requests_product_id_fkey(id, name, category),
           reseller:resellers(id, name)
         `)
         .eq("company_id", company.id)
@@ -128,7 +129,7 @@ export function useWarranties(filters?: WarrantyFilters) {
           request_type,
           product_id,
           batch_code,
-          product:products(name)
+          product:products!warranty_requests_product_id_fkey(name)
         `)
         .eq("company_id", company.id);
 
@@ -212,6 +213,7 @@ export function useWarranties(filters?: WarrantyFilters) {
         batch_date: data.batch_date,
         reason: data.reason,
         observation: data.observation,
+        exchange_product_id: data.exchange_product_id || null,
       });
 
       if (warrantyError) throw warrantyError;

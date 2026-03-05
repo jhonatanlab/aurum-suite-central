@@ -1,0 +1,1 @@
+ALTER TABLE public.warranty_requests ADD COLUMN exchange_product_id uuid REFERENCES public.products(id);
