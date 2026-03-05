@@ -9,6 +9,7 @@ export interface WarrantyRequest {
   id: string;
   company_id: string;
   product_id: string;
+  exchange_product_id: string | null;
   customer_name: string | null;
   reseller_id: string | null;
   request_type: string;
