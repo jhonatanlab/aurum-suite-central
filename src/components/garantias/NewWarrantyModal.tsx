@@ -31,6 +31,7 @@ export interface WarrantySubmitData {
   client_id?: string;
   reseller_id?: string;
   request_type: string;
+  status?: string;
   batch_code?: string;
   batch_date?: string;
   reason?: string;
