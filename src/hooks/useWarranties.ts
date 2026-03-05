@@ -157,9 +157,8 @@ export function useWarranties(filters?: WarrantyFilters) {
         (w) => !w.batch_code?.includes("AA - NÃO RASTREÁVEL")
       );
 
-      const totalInWarranty = trackableData.filter(
-        (w) => w.status === "analyzing" || w.status === "approved"
-      ).length;
+      // Peças em Garantia = total de solicitações na lista (todas, independente do status)
+      const totalInWarranty = trackableData.length;
 
       const exchangesInPeriod = trackableData.filter(
         (w) => w.request_type === "exchange" && w.status === "completed"
