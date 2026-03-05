@@ -65,7 +65,7 @@ export function useWarranties(filters?: WarrantyFilters) {
         .from("warranty_requests")
         .select(`
           *,
-          product:products(id, name, category),
+          product:products!warranty_requests_product_id_fkey(id, name, category),
           reseller:resellers(id, name)
         `)
         .eq("company_id", company.id)
