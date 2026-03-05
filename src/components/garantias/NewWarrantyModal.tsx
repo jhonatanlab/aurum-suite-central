@@ -567,6 +567,7 @@ export function NewWarrantyModal({
     setSelectedCustomerId("");
     setResellerId("");
     setRequestType("exchange");
+    setWarrantyStatus("approved");
     setBatchCode("");
     setBatchDate("");
     setReason("");
