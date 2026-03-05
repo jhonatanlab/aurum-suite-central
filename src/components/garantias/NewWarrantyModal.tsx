@@ -504,6 +504,7 @@ export function NewWarrantyModal({
           : undefined,
       reseller_id: clientType === "reseller" ? resellerId : undefined,
       request_type: requestType,
+      status: warrantyStatus,
       batch_code: batchCode || undefined,
       batch_date: batchDate || undefined,
       reason: reason || undefined,
