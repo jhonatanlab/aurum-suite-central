@@ -204,7 +204,7 @@ export function NewWarrantyModal({
 
   // Fetch products purchased by selected customer - expand bundles into components
   const { data: purchasedProducts = [], isLoading: loadingProducts } = useQuery({
-    queryKey: ["customer-products", selectedCustomerId, company?.id, existingWarrantyProducts],
+    queryKey: ["customer-products", selectedCustomerId, company?.id, existingWarranties],
     queryFn: async () => {
       if (!company?.id || !selectedCustomerId) return [];
 
