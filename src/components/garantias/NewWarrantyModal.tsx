@@ -166,9 +166,32 @@ export function NewWarrantyModal({
     return customer?.name || "";
   }, [customersWithSales, selectedCustomerId]);
 
+  // Fetch existing warranty exchanges for this customer to prevent duplicates
+  const { data: existingWarrantyProducts = [] } = useQuery({
+    queryKey: ["existing-warranty-exchanges", selectedCustomerId, company?.id],
+    queryFn: async () => {
+      if (!company?.id || !selectedCustomerId) return [];
+
+      const customer = customersWithSales.find(c => c.id === selectedCustomerId);
+      if (!customer) return [];
+
+      const { data, error } = await supabase
+        .from("warranty_requests")
+        .select("product_id, request_type, status")
+        .eq("company_id", company.id)
+        .eq("customer_name", customer.name)
+        .in("request_type", ["exchange", "exchange_with_sale"])
+        .neq("status", "denied");
+
+      if (error) throw error;
+      return (data || []).map(w => w.product_id);
+    },
+    enabled: !!company?.id && !!selectedCustomerId && clientType === "customer",
+  });
+
   // Fetch products purchased by selected customer - expand bundles into components
   const { data: purchasedProducts = [], isLoading: loadingProducts } = useQuery({
-    queryKey: ["customer-products", selectedCustomerId, company?.id],
+    queryKey: ["customer-products", selectedCustomerId, company?.id, existingWarrantyProducts],
     queryFn: async () => {
       if (!company?.id || !selectedCustomerId) return [];
 
@@ -272,7 +295,13 @@ export function NewWarrantyModal({
         }
       });
 
-      return Array.from(productMap.values()).sort((a, b) => 
+      // Filter out products that already have a warranty exchange (Troca Simples or Troca com Venda)
+      const alreadyExchanged = new Set(existingWarrantyProducts);
+      const results = Array.from(productMap.values()).filter(
+        p => !alreadyExchanged.has(p.product_id)
+      );
+
+      return results.sort((a, b) => 
         a.product_name.localeCompare(b.product_name)
       );
     },
