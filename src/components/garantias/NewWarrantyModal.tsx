@@ -110,6 +110,7 @@ export function NewWarrantyModal({
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [resellerId, setResellerId] = useState("");
   const [requestType, setRequestType] = useState("exchange");
+  const [warrantyStatus, setWarrantyStatus] = useState("approved");
   const [batchCode, setBatchCode] = useState("");
   const [batchDate, setBatchDate] = useState("");
   const [reason, setReason] = useState("");
