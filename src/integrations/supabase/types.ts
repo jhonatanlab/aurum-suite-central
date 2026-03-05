@@ -1505,6 +1505,7 @@ export type Database = {
           company_id: string
           created_at: string
           customer_name: string | null
+          exchange_product_id: string | null
           id: string
           observation: string | null
           product_id: string
@@ -1523,6 +1524,7 @@ export type Database = {
           company_id: string
           created_at?: string
           customer_name?: string | null
+          exchange_product_id?: string | null
           id?: string
           observation?: string | null
           product_id: string
@@ -1541,6 +1543,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           customer_name?: string | null
+          exchange_product_id?: string | null
           id?: string
           observation?: string | null
           product_id?: string
@@ -1559,6 +1562,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warranty_requests_exchange_product_id_fkey"
+            columns: ["exchange_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {
