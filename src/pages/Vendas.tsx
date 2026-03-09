@@ -864,7 +864,7 @@ export default function Vendas() {
                         </Button>
                       </div>
                       <p className="font-semibold text-primary">
-                        {formatCurrency(item.product.price * item.quantity)}
+                        {formatCurrency(getEffectivePrice(item.product) * item.quantity)}
                       </p>
                     </div>
                   </div>)}
