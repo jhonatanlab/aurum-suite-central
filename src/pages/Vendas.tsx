@@ -85,7 +85,7 @@ export default function Vendas() {
         error: productsError
       } = await supabase
         .from("products")
-        .select("id, name, price, stock, category, type")
+        .select("id, name, price, promo_price, stock, category, type")
         .eq("company_id", company.id)
         .eq("status", "active")
         .order("name");
