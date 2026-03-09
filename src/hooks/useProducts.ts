@@ -15,6 +15,7 @@ export interface Product {
   cost_price: number | null;
   minimum_stock: number | null;
   consignment_available: boolean | null;
+  promo_price: number | null;
 }
 
 export function useProducts() {
