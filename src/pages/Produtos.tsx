@@ -596,6 +596,10 @@ export default function Produtos() {
           <TabsContent value="batch-history" className="mt-6">
             <BatchHistoryTab />
           </TabsContent>
+
+          <TabsContent value="stock-analytics" className="mt-6">
+            <StockAnalyticsTab />
+          </TabsContent>
         </Tabs>
 
         {/* Product Modal */}
