@@ -39,6 +39,17 @@ interface BatchAnalysis {
   defect_rate: number;
   status: "normal" | "attention" | "critical";
   warranties: WarrantyRecord[];
+  supplier_id: string | null;
+  supplier_name: string | null;
+}
+
+interface SupplierDefectAnalysis {
+  supplier_id: string | null;
+  supplier_name: string;
+  total_batches: number;
+  total_quantity: number;
+  total_warranties: number;
+  defect_rate: number;
 }
 
 interface WarrantyRecord {
