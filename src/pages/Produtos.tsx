@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import { ProductModal, type ProductFormData, type Product, type BundleItemData } from "@/components/products/ProductModal";
 import { BatchHistoryTab } from "@/components/products/BatchHistoryTab";
+import { StockAnalyticsTab } from "@/components/products/StockAnalyticsTab";
 
 export default function Produtos() {
   const { company } = useCompany();
