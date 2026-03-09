@@ -104,6 +104,7 @@ export default function Vendas() {
         stock: product.type === "bundle"
           ? bundleStocks[product.id] ?? 0
           : product.stock ?? 0,
+        promo_price: (product as any).promo_price ?? null,
       })) as Product[];
     },
     enabled: !!company?.id
