@@ -521,6 +521,7 @@ export default function Produtos() {
                       <TableHead className="text-muted-foreground">Nome</TableHead>
                       <TableHead className="text-muted-foreground">Categoria</TableHead>
                       <TableHead className="text-muted-foreground">Preço</TableHead>
+                      <TableHead className="text-muted-foreground">Preço Promocional</TableHead>
                       <TableHead className="text-muted-foreground">Estoque</TableHead>
                       <TableHead className="text-muted-foreground">Status</TableHead>
                       <TableHead className="text-muted-foreground w-16">Ações</TableHead>
