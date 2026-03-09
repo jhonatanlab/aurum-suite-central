@@ -542,6 +542,37 @@ export default function Produtos() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{product.category || "-"}</TableCell>
                         <TableCell className="text-primary font-semibold">{formatCurrency(product.price)}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="-"
+                            defaultValue={(product as any).promo_price || ""}
+                            className="w-28 h-8 text-sm bg-muted/30 border-border"
+                            onClick={(e) => e.stopPropagation()}
+                            onBlur={async (e) => {
+                              e.stopPropagation();
+                              const val = e.target.value ? parseFloat(e.target.value) : null;
+                              const current = (product as any).promo_price;
+                              if (val === current) return;
+                              const { error } = await supabase
+                                .from("products")
+                                .update({ promo_price: val } as any)
+                                .eq("id", product.id);
+                              if (error) {
+                                toast.error("Erro ao salvar preço promocional");
+                              } else {
+                                toast.success("Preço promocional atualizado");
+                                queryClient.invalidateQueries({ queryKey: ["products"] });
+                                queryClient.invalidateQueries({ queryKey: ["products-pdv"] });
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                            }}
+                          />
+                        </TableCell>
                         <TableCell>{getStockStatus(product)}</TableCell>
                         <TableCell>{getStatusBadge(product.status)}</TableCell>
                         <TableCell>
