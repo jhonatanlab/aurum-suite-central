@@ -29,6 +29,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  promo_price: number | null;
   stock: number | null;
   category: string | null;
   type: string;
