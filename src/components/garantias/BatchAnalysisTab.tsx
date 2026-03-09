@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package, AlertTriangle, TrendingUp, Search, Eye, Layers } from "lucide-react";
+import { Package, AlertTriangle, TrendingUp, Search, Eye, Layers, Factory } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { BatchDetailPanel } from "./BatchDetailPanel";
