@@ -73,7 +73,7 @@ export function BatchAnalysisTab() {
   const [selectedBatch, setSelectedBatch] = useState<BatchAnalysis | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  // Fetch batches with product info
+  // Fetch batches with product and supplier info
   const { data: batches, isLoading: batchesLoading } = useQuery({
     queryKey: ["product_batches_analysis", company?.id],
     queryFn: async () => {
@@ -86,9 +86,14 @@ export function BatchAnalysisTab() {
           quantity,
           created_at,
           status,
+          supplier_id,
           products (
             name,
             category
+          ),
+          suppliers (
+            id,
+            name
           )
         `)
         .eq("company_id", company!.id)
