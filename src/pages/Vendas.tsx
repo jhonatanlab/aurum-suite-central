@@ -170,8 +170,10 @@ export default function Vendas() {
   const removeFromCart = (productId: string) => {
     setCart(prev => prev.filter(item => item.product.id !== productId));
   };
+  const getEffectivePrice = (product: Product) => product.promo_price ?? product.price;
+  
   const cartSubtotal = useMemo(() => {
-    return cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+    return cart.reduce((acc, item) => acc + getEffectivePrice(item.product) * item.quantity, 0);
   }, [cart]);
   const calculatedDiscount = useMemo(() => {
     const percentVal = parseFloat(discountPercent) || 0;
