@@ -395,6 +395,7 @@ export function BatchAnalysisTab() {
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="text-muted-foreground">Código do Lote</TableHead>
                   <TableHead className="text-muted-foreground">Produto</TableHead>
+                  <TableHead className="text-muted-foreground">Fornecedor</TableHead>
                   <TableHead className="text-muted-foreground">Data Entrada</TableHead>
                   <TableHead className="text-muted-foreground text-center">Qtd. Original</TableHead>
                   <TableHead className="text-muted-foreground text-center">Em Garantia</TableHead>
