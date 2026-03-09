@@ -423,7 +423,7 @@ export function BatchAnalysisTab() {
                   ))
                 ) : filteredBatches.length === 0 ? (
                   <TableRow className="border-border">
-                    <TableCell colSpan={9} className="h-32 text-center">
+                    <TableCell colSpan={10} className="h-32 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-8 w-8 text-muted-foreground" />
                         <p className="text-muted-foreground">
