@@ -607,9 +607,16 @@ export default function Vendas() {
                               </span>
                             )}
                           </div>
-                          <p className="text-primary font-bold text-lg mb-2">
-                            {formatCurrency(product.price)}
-                          </p>
+                          {product.promo_price ? (
+                            <div className="mb-2">
+                              <p className="text-muted-foreground text-sm line-through">{formatCurrency(product.price)}</p>
+                              <p className="text-primary font-bold text-lg">{formatCurrency(product.promo_price)}</p>
+                            </div>
+                          ) : (
+                            <p className="text-primary font-bold text-lg mb-2">
+                              {formatCurrency(product.price)}
+                            </p>
+                          )}
                           <p className="text-sm text-muted-foreground">
                             Estoque: {product.stock ?? 0}
                           </p>
