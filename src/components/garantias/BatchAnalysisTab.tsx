@@ -223,6 +223,37 @@ export function BatchAnalysisTab() {
     return { monitored, withAlert, avgDefectRate };
   }, [batchAnalysis]);
 
+  // Supplier defect analysis
+  const supplierAnalysis = useMemo((): SupplierDefectAnalysis[] => {
+    const supplierMap = new Map<string, SupplierDefectAnalysis>();
+
+    batchAnalysis.forEach((batch) => {
+      const key = batch.supplier_id || "__no_supplier__";
+      const existing = supplierMap.get(key);
+
+      if (existing) {
+        existing.total_batches += 1;
+        existing.total_quantity += batch.original_quantity;
+        existing.total_warranties += batch.warranty_count;
+      } else {
+        supplierMap.set(key, {
+          supplier_id: batch.supplier_id,
+          supplier_name: batch.supplier_name || "Sem fornecedor",
+          total_batches: 1,
+          total_quantity: batch.original_quantity,
+          total_warranties: batch.warranty_count,
+          defect_rate: 0,
+        });
+      }
+    });
+
+    supplierMap.forEach((s) => {
+      s.defect_rate = s.total_quantity > 0 ? (s.total_warranties / s.total_quantity) * 100 : 0;
+    });
+
+    return Array.from(supplierMap.values()).sort((a, b) => b.defect_rate - a.defect_rate);
+  }, [batchAnalysis]);
+
   // Filter batches
   const filteredBatches = useMemo(() => {
     return batchAnalysis.filter((batch) => {
