@@ -143,6 +143,7 @@ export function BatchAnalysisTab() {
     // Initialize with batch data - key by batch_code + product_id for uniqueness
     batches.forEach((batch) => {
       const product = batch.products as { name: string; category: string | null } | null;
+      const supplier = batch.suppliers as { id: string; name: string } | null;
       const key = `${batch.batch_code}__${batch.product_id}`;
       
       analysisMap.set(key, {
@@ -157,6 +158,8 @@ export function BatchAnalysisTab() {
         defect_rate: 0,
         status: "normal",
         warranties: [],
+        supplier_id: batch.supplier_id,
+        supplier_name: supplier?.name || null,
       });
     });
 
