@@ -498,6 +498,65 @@ export function BatchAnalysisTab() {
         </CardContent>
       </Card>
 
+      {/* Supplier Defect Analysis */}
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-base font-medium text-foreground flex items-center gap-2">
+            <Factory className="h-4 w-4 text-primary" />
+            Taxa de Defeitos por Fornecedor/Fabricante
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {supplierAnalysis.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-8">
+              <Factory className="h-8 w-8 text-muted-foreground" />
+              <p className="text-muted-foreground text-sm">
+                Nenhum fornecedor cadastrado nos lotes. Cadastre fornecedores ao criar novos lotes.
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="text-muted-foreground">Fornecedor</TableHead>
+                  <TableHead className="text-muted-foreground text-center">Lotes</TableHead>
+                  <TableHead className="text-muted-foreground text-center">Qtd. Total</TableHead>
+                  <TableHead className="text-muted-foreground text-center">Garantias</TableHead>
+                  <TableHead className="text-muted-foreground text-center">Taxa de Defeito</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {supplierAnalysis.map((supplier) => (
+                  <TableRow key={supplier.supplier_id || "none"} className="border-border">
+                    <TableCell className="font-medium text-foreground">
+                      {supplier.supplier_name}
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground">{supplier.total_batches}</TableCell>
+                    <TableCell className="text-center text-muted-foreground">{supplier.total_quantity}</TableCell>
+                    <TableCell className="text-center">
+                      <span className={supplier.total_warranties > 0 ? "text-yellow-400 font-medium" : "text-muted-foreground"}>
+                        {supplier.total_warranties}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className={
+                        supplier.defect_rate >= CRITICAL_THRESHOLD
+                          ? "text-red-400 font-bold"
+                          : supplier.defect_rate >= ATTENTION_THRESHOLD
+                          ? "text-yellow-400 font-medium"
+                          : "text-foreground"
+                      }>
+                        {supplier.defect_rate.toFixed(1)}%
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Batch Detail Panel */}
       <BatchDetailPanel
         batch={selectedBatch}
