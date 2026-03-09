@@ -844,7 +844,7 @@ export default function Vendas() {
                           {item.product.name}
                         </h4>
                         <p className="text-xs text-muted-foreground">
-                          {formatCurrency(item.product.price)} un.
+                          {formatCurrency(getEffectivePrice(item.product))} un.
                         </p>
                       </div>
                       <button onClick={() => removeFromCart(item.product.id)} className="text-destructive hover:text-destructive/80 transition-colors p-1">
