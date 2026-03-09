@@ -36,6 +36,7 @@ export interface Product {
   type?: string;
   pricing_mode?: string | null;
   manual_price?: number | null;
+  promo_price?: number | null;
 }
 
 interface BatchData {

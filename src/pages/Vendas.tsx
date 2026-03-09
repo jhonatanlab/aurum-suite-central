@@ -29,6 +29,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  promo_price: number | null;
   stock: number | null;
   category: string | null;
   type: string;
@@ -84,7 +85,7 @@ export default function Vendas() {
         error: productsError
       } = await supabase
         .from("products")
-        .select("id, name, price, stock, category, type")
+        .select("id, name, price, promo_price, stock, category, type")
         .eq("company_id", company.id)
         .eq("status", "active")
         .order("name");
@@ -103,6 +104,7 @@ export default function Vendas() {
         stock: product.type === "bundle"
           ? bundleStocks[product.id] ?? 0
           : product.stock ?? 0,
+        promo_price: (product as any).promo_price ?? null,
       })) as Product[];
     },
     enabled: !!company?.id
@@ -168,8 +170,10 @@ export default function Vendas() {
   const removeFromCart = (productId: string) => {
     setCart(prev => prev.filter(item => item.product.id !== productId));
   };
+  const getEffectivePrice = (product: Product) => product.promo_price ?? product.price;
+  
   const cartSubtotal = useMemo(() => {
-    return cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+    return cart.reduce((acc, item) => acc + getEffectivePrice(item.product) * item.quantity, 0);
   }, [cart]);
   const calculatedDiscount = useMemo(() => {
     const percentVal = parseFloat(discountPercent) || 0;
@@ -270,7 +274,7 @@ export default function Vendas() {
         sale_id: sale.id,
         product_id: item.product.id,
         quantity: item.quantity,
-        price: Number(item.product.price)
+        price: Number(getEffectivePrice(item.product))
       }));
       const {
         error: itemsError
@@ -603,9 +607,16 @@ export default function Vendas() {
                               </span>
                             )}
                           </div>
-                          <p className="text-primary font-bold text-lg mb-2">
-                            {formatCurrency(product.price)}
-                          </p>
+                          {product.promo_price ? (
+                            <div className="mb-2">
+                              <p className="text-muted-foreground text-sm line-through">{formatCurrency(product.price)}</p>
+                              <p className="text-primary font-bold text-lg">{formatCurrency(product.promo_price)}</p>
+                            </div>
+                          ) : (
+                            <p className="text-primary font-bold text-lg mb-2">
+                              {formatCurrency(product.price)}
+                            </p>
+                          )}
                           <p className="text-sm text-muted-foreground">
                             Estoque: {product.stock ?? 0}
                           </p>
@@ -657,7 +668,7 @@ export default function Vendas() {
                             {item.product.name}
                           </h4>
                           <p className="text-xs text-muted-foreground">
-                            {formatCurrency(item.product.price)} un.
+                            {formatCurrency(getEffectivePrice(item.product))} un.
                           </p>
                         </div>
                         <button onClick={() => removeFromCart(item.product.id)} className="text-destructive hover:text-destructive/80 transition-colors p-1">
@@ -677,7 +688,7 @@ export default function Vendas() {
                           </Button>
                         </div>
                         <p className="font-semibold text-primary">
-                          {formatCurrency(item.product.price * item.quantity)}
+                          {formatCurrency(getEffectivePrice(item.product) * item.quantity)}
                         </p>
                       </div>
                     </div>)}
@@ -833,7 +844,7 @@ export default function Vendas() {
                           {item.product.name}
                         </h4>
                         <p className="text-xs text-muted-foreground">
-                          {formatCurrency(item.product.price)} un.
+                          {formatCurrency(getEffectivePrice(item.product))} un.
                         </p>
                       </div>
                       <button onClick={() => removeFromCart(item.product.id)} className="text-destructive hover:text-destructive/80 transition-colors p-1">
@@ -853,7 +864,7 @@ export default function Vendas() {
                         </Button>
                       </div>
                       <p className="font-semibold text-primary">
-                        {formatCurrency(item.product.price * item.quantity)}
+                        {formatCurrency(getEffectivePrice(item.product) * item.quantity)}
                       </p>
                     </div>
                   </div>)}

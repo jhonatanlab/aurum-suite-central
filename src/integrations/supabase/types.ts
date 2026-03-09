@@ -853,6 +853,7 @@ export type Database = {
           name: string
           price: number
           pricing_mode: string | null
+          promo_price: number | null
           status: string | null
           stock: number | null
           type: string
@@ -869,6 +870,7 @@ export type Database = {
           name: string
           price: number
           pricing_mode?: string | null
+          promo_price?: number | null
           status?: string | null
           stock?: number | null
           type?: string
@@ -885,6 +887,7 @@ export type Database = {
           name?: string
           price?: number
           pricing_mode?: string | null
+          promo_price?: number | null
           status?: string | null
           stock?: number | null
           type?: string

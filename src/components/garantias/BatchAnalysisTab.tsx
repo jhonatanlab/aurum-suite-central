@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package, AlertTriangle, TrendingUp, Search, Eye, Layers } from "lucide-react";
+import { Package, AlertTriangle, TrendingUp, Search, Eye, Layers, Factory } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { BatchDetailPanel } from "./BatchDetailPanel";
@@ -39,6 +39,17 @@ interface BatchAnalysis {
   defect_rate: number;
   status: "normal" | "attention" | "critical";
   warranties: WarrantyRecord[];
+  supplier_id: string | null;
+  supplier_name: string | null;
+}
+
+interface SupplierDefectAnalysis {
+  supplier_id: string | null;
+  supplier_name: string;
+  total_batches: number;
+  total_quantity: number;
+  total_warranties: number;
+  defect_rate: number;
 }
 
 interface WarrantyRecord {
@@ -62,7 +73,7 @@ export function BatchAnalysisTab() {
   const [selectedBatch, setSelectedBatch] = useState<BatchAnalysis | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  // Fetch batches with product info
+  // Fetch batches with product and supplier info
   const { data: batches, isLoading: batchesLoading } = useQuery({
     queryKey: ["product_batches_analysis", company?.id],
     queryFn: async () => {
@@ -75,9 +86,14 @@ export function BatchAnalysisTab() {
           quantity,
           created_at,
           status,
+          supplier_id,
           products (
             name,
             category
+          ),
+          suppliers (
+            id,
+            name
           )
         `)
         .eq("company_id", company!.id)
@@ -127,6 +143,7 @@ export function BatchAnalysisTab() {
     // Initialize with batch data - key by batch_code + product_id for uniqueness
     batches.forEach((batch) => {
       const product = batch.products as { name: string; category: string | null } | null;
+      const supplier = batch.suppliers as { id: string; name: string } | null;
       const key = `${batch.batch_code}__${batch.product_id}`;
       
       analysisMap.set(key, {
@@ -141,6 +158,8 @@ export function BatchAnalysisTab() {
         defect_rate: 0,
         status: "normal",
         warranties: [],
+        supplier_id: batch.supplier_id,
+        supplier_name: supplier?.name || null,
       });
     });
 
@@ -202,6 +221,37 @@ export function BatchAnalysisTab() {
         : 0;
 
     return { monitored, withAlert, avgDefectRate };
+  }, [batchAnalysis]);
+
+  // Supplier defect analysis
+  const supplierAnalysis = useMemo((): SupplierDefectAnalysis[] => {
+    const supplierMap = new Map<string, SupplierDefectAnalysis>();
+
+    batchAnalysis.forEach((batch) => {
+      const key = batch.supplier_id || "__no_supplier__";
+      const existing = supplierMap.get(key);
+
+      if (existing) {
+        existing.total_batches += 1;
+        existing.total_quantity += batch.original_quantity;
+        existing.total_warranties += batch.warranty_count;
+      } else {
+        supplierMap.set(key, {
+          supplier_id: batch.supplier_id,
+          supplier_name: batch.supplier_name || "Sem fornecedor",
+          total_batches: 1,
+          total_quantity: batch.original_quantity,
+          total_warranties: batch.warranty_count,
+          defect_rate: 0,
+        });
+      }
+    });
+
+    supplierMap.forEach((s) => {
+      s.defect_rate = s.total_quantity > 0 ? (s.total_warranties / s.total_quantity) * 100 : 0;
+    });
+
+    return Array.from(supplierMap.values()).sort((a, b) => b.defect_rate - a.defect_rate);
   }, [batchAnalysis]);
 
   // Filter batches
@@ -345,6 +395,7 @@ export function BatchAnalysisTab() {
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="text-muted-foreground">Código do Lote</TableHead>
                   <TableHead className="text-muted-foreground">Produto</TableHead>
+                  <TableHead className="text-muted-foreground">Fornecedor</TableHead>
                   <TableHead className="text-muted-foreground">Data Entrada</TableHead>
                   <TableHead className="text-muted-foreground text-center">Qtd. Original</TableHead>
                   <TableHead className="text-muted-foreground text-center">Em Garantia</TableHead>
@@ -360,6 +411,7 @@ export function BatchAnalysisTab() {
                     <TableRow key={i} className="border-border">
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-12 mx-auto" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-12 mx-auto" /></TableCell>
@@ -371,7 +423,7 @@ export function BatchAnalysisTab() {
                   ))
                 ) : filteredBatches.length === 0 ? (
                   <TableRow className="border-border">
-                    <TableCell colSpan={9} className="h-32 text-center">
+                    <TableCell colSpan={10} className="h-32 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="h-8 w-8 text-muted-foreground" />
                         <p className="text-muted-foreground">
@@ -401,6 +453,9 @@ export function BatchAnalysisTab() {
                             </p>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {batch.supplier_name || <span className="italic text-muted-foreground/50">N/A</span>}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {format(new Date(batch.entry_date), "dd/MM/yyyy", { locale: ptBR })}
@@ -441,6 +496,65 @@ export function BatchAnalysisTab() {
               </TableBody>
             </Table>
           </ScrollArea>
+        </CardContent>
+      </Card>
+
+      {/* Supplier Defect Analysis */}
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-base font-medium text-foreground flex items-center gap-2">
+            <Factory className="h-4 w-4 text-primary" />
+            Taxa de Defeitos por Fornecedor/Fabricante
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {supplierAnalysis.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-8">
+              <Factory className="h-8 w-8 text-muted-foreground" />
+              <p className="text-muted-foreground text-sm">
+                Nenhum fornecedor cadastrado nos lotes. Cadastre fornecedores ao criar novos lotes.
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="text-muted-foreground">Fornecedor</TableHead>
+                  <TableHead className="text-muted-foreground text-center">Lotes</TableHead>
+                  <TableHead className="text-muted-foreground text-center">Qtd. Total</TableHead>
+                  <TableHead className="text-muted-foreground text-center">Garantias</TableHead>
+                  <TableHead className="text-muted-foreground text-center">Taxa de Defeito</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {supplierAnalysis.map((supplier) => (
+                  <TableRow key={supplier.supplier_id || "none"} className="border-border">
+                    <TableCell className="font-medium text-foreground">
+                      {supplier.supplier_name}
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground">{supplier.total_batches}</TableCell>
+                    <TableCell className="text-center text-muted-foreground">{supplier.total_quantity}</TableCell>
+                    <TableCell className="text-center">
+                      <span className={supplier.total_warranties > 0 ? "text-yellow-400 font-medium" : "text-muted-foreground"}>
+                        {supplier.total_warranties}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className={
+                        supplier.defect_rate >= CRITICAL_THRESHOLD
+                          ? "text-red-400 font-bold"
+                          : supplier.defect_rate >= ATTENTION_THRESHOLD
+                          ? "text-yellow-400 font-medium"
+                          : "text-foreground"
+                      }>
+                        {supplier.defect_rate.toFixed(1)}%
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

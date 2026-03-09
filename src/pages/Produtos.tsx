@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Search, Package, History, Layers } from "lucide-react";
+import { Plus, Trash2, Search, Package, History, Layers, BarChart3 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import { ProductModal, type ProductFormData, type Product, type BundleItemData } from "@/components/products/ProductModal";
 import { BatchHistoryTab } from "@/components/products/BatchHistoryTab";
+import { StockAnalyticsTab } from "@/components/products/StockAnalyticsTab";
 
 export default function Produtos() {
   const { company } = useCompany();
@@ -61,7 +62,7 @@ export default function Produtos() {
 
       const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available, type, pricing_mode, manual_price")
+        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available, type, pricing_mode, manual_price, promo_price")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
@@ -464,6 +465,10 @@ export default function Produtos() {
               <History className="w-4 h-4" />
               Histórico de Lotes
             </TabsTrigger>
+            <TabsTrigger value="stock-analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Dados do Estoque
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="catalog" className="mt-6 space-y-4">
@@ -516,6 +521,7 @@ export default function Produtos() {
                       <TableHead className="text-muted-foreground">Nome</TableHead>
                       <TableHead className="text-muted-foreground">Categoria</TableHead>
                       <TableHead className="text-muted-foreground">Preço</TableHead>
+                      <TableHead className="text-muted-foreground">Preço Promocional</TableHead>
                       <TableHead className="text-muted-foreground">Estoque</TableHead>
                       <TableHead className="text-muted-foreground">Status</TableHead>
                       <TableHead className="text-muted-foreground w-16">Ações</TableHead>
@@ -536,6 +542,37 @@ export default function Produtos() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{product.category || "-"}</TableCell>
                         <TableCell className="text-primary font-semibold">{formatCurrency(product.price)}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="-"
+                            defaultValue={(product as any).promo_price || ""}
+                            className="w-28 h-8 text-sm bg-muted/30 border-border"
+                            onClick={(e) => e.stopPropagation()}
+                            onBlur={async (e) => {
+                              e.stopPropagation();
+                              const val = e.target.value ? parseFloat(e.target.value) : null;
+                              const current = (product as any).promo_price;
+                              if (val === current) return;
+                              const { error } = await supabase
+                                .from("products")
+                                .update({ promo_price: val } as any)
+                                .eq("id", product.id);
+                              if (error) {
+                                toast.error("Erro ao salvar preço promocional");
+                              } else {
+                                toast.success("Preço promocional atualizado");
+                                queryClient.invalidateQueries({ queryKey: ["products"] });
+                                queryClient.invalidateQueries({ queryKey: ["products-pdv"] });
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                            }}
+                          />
+                        </TableCell>
                         <TableCell>{getStockStatus(product)}</TableCell>
                         <TableCell>{getStatusBadge(product.status)}</TableCell>
                         <TableCell>
@@ -558,6 +595,10 @@ export default function Produtos() {
 
           <TabsContent value="batch-history" className="mt-6">
             <BatchHistoryTab />
+          </TabsContent>
+
+          <TabsContent value="stock-analytics" className="mt-6">
+            <StockAnalyticsTab />
           </TabsContent>
         </Tabs>
 
