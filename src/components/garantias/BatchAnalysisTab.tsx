@@ -456,6 +456,7 @@ export function BatchAnalysisTab() {
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {batch.supplier_name || <span className="italic text-muted-foreground/50">N/A</span>}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {format(new Date(batch.entry_date), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
