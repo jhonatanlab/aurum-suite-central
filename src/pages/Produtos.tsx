@@ -465,6 +465,10 @@ export default function Produtos() {
               <History className="w-4 h-4" />
               Histórico de Lotes
             </TabsTrigger>
+            <TabsTrigger value="stock-analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Dados do Estoque
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="catalog" className="mt-6 space-y-4">
