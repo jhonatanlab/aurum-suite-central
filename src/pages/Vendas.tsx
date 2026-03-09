@@ -274,7 +274,7 @@ export default function Vendas() {
         sale_id: sale.id,
         product_id: item.product.id,
         quantity: item.quantity,
-        price: Number(item.product.price)
+        price: Number(getEffectivePrice(item.product))
       }));
       const {
         error: itemsError
