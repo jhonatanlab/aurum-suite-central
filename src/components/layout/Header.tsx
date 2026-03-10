@@ -40,7 +40,7 @@ const routeTitles: Record<string, string> = {
   "/configuracoes": "Configurações",
 };
 
-export function Header({ title }: HeaderProps) {
+export function Header({ title, onMenuClick }: HeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
