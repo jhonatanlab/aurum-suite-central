@@ -634,7 +634,7 @@ export default function Vendas() {
           {/* Mobile: Floating cart button */}
           {isMobile && <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
               <SheetTrigger asChild>
-                <Button className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 z-40" size="icon">
+                <Button className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-2xl bg-primary hover:bg-primary/90 z-50 border-2 border-primary-foreground/20" size="icon">
                   <ShoppingCart className="h-6 w-6" />
                   {cart.length > 0 && <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
                       {cart.reduce((acc, item) => acc + item.quantity, 0)}
