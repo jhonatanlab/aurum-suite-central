@@ -210,13 +210,6 @@ export function Header({ title }: HeaderProps) {
                 <Building2 className="h-4 w-4 mr-2" />
                 Meu Negócio
               </DropdownMenuItem>
-              <DropdownMenuItem 
-                className="text-muted-foreground hover:text-foreground focus:bg-secondary cursor-pointer"
-                onClick={() => navigate('/configuracoes')}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Configurações
-              </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border" />
               <DropdownMenuItem 
                 className="text-destructive focus:bg-secondary cursor-pointer"
