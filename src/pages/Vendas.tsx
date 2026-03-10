@@ -593,7 +593,7 @@ export default function Vendas() {
                 </div> : filteredProducts.length === 0 ? <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                   <Package className="h-12 w-12 mb-4 opacity-50" />
                   <p>Nenhum produto encontrado</p>
-                </div> : <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                </div> : <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                   {filteredProducts.map(product => <Card key={product.id} className="bg-card border-border card-hover group">
                       <CardContent className="p-4 flex flex-col h-full">
                         <div className="flex-1">

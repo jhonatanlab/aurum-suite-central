@@ -90,7 +90,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
           {/* Breadcrumb + Title */}
           <div className="flex flex-col gap-0.5">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <nav className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
             <Link 
               to="/" 
               className="flex items-center gap-1 hover:text-foreground transition-colors"
