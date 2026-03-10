@@ -46,6 +46,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
   const { user, signOut } = useAuth();
   const { company, companyUser } = useCompany();
   const { notifications, totalCount, overdueCount } = useFinancialNotifications({ dueSoonDays: 3 });
+  const isMobile = useIsMobile();
   
   const currentPath = location.pathname;
   const pageTitle = routeTitles[currentPath] || title;
