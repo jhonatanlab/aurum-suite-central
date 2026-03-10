@@ -755,7 +755,7 @@ export default function Vendas() {
                     </div>
                   </div>
 
-                  <MultiPaymentManager payments={payments} setPayments={setPayments} totalAmount={totalWithFreight} />
+                  <MultiPaymentManager totalDue={cartTotal} onPaymentsChange={handlePaymentsChange} onTotalPaidChange={handleTotalPaidChange} onCostsChange={handleCostsChange} onInterestToCustomer={handleInterestToCustomer} />
 
                   <div className="space-y-2 pt-3 border-t border-border">
                     <div className="flex justify-between text-sm">
@@ -768,7 +768,8 @@ export default function Vendas() {
                       </div>}
                     <div className="flex justify-between text-lg font-bold">
                       <span className="text-foreground">Total</span>
-                      <span className="text-primary">{formatCurrency(totalWithFreight)}</span>
+                      <span className="text-primary">{formatCurrency(cartTotal)}</span>
+                    </div>
                     </div>
                   </div>
 
