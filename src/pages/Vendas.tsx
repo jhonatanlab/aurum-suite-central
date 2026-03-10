@@ -856,17 +856,17 @@ export default function Vendas() {
                     <CalendarIcon className="h-3 w-3" />
                     Data da Venda
                   </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal bg-card border-border", !saleDate && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {saleDate ? format(saleDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={saleDate} onSelect={(d) => d && setSaleDate(d)} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
-                    </PopoverContent>
-                  </Popover>
+                   <Popover modal={true}>
+                     <PopoverTrigger asChild>
+                       <Button variant="outline" className={cn("w-full justify-start text-left font-normal bg-card border-border", !saleDate && "text-muted-foreground")}>
+                         <CalendarIcon className="mr-2 h-4 w-4" />
+                         {saleDate ? format(saleDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
+                       </Button>
+                     </PopoverTrigger>
+                     <PopoverContent className="w-auto p-0 z-[99999]" align="start" side="top">
+                       <Calendar mode="single" selected={saleDate} onSelect={(d) => d && setSaleDate(d)} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
+                     </PopoverContent>
+                   </Popover>
                 </div>
 
                 {/* Discount Fields */}
