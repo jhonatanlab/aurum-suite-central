@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Building2,
   Lock,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { systemSettings } from "@/config/systemSettings";
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCompany } from "@/hooks/useCompany";
 import { usePlanUsage } from "@/hooks/usePlanUsage";
+import { useIsMobile } from "@/hooks/use-mobile";
 import aurumLogo from "@/assets/aurum-logo.png";
 
 // Modules accessible by "vendedor" role
@@ -43,29 +45,53 @@ const menuItems = [
   { title: "Configurações", icon: Settings, path: "/configuracoes" },
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { companyUser } = useCompany();
   const { blockedPaths, loading: planLoading } = usePlanUsage();
+  const isMobile = useIsMobile();
   const userRole = companyUser?.role;
+
+  const handleNavClick = () => {
+    if (isMobile && onMobileClose) {
+      onMobileClose();
+    }
+  };
 
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out flex flex-col",
-        collapsed ? "w-20" : "w-64"
+        "fixed left-0 top-0 z-50 h-screen border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out flex flex-col",
+        isMobile
+          ? cn("w-72", mobileOpen ? "translate-x-0" : "-translate-x-full")
+          : cn(collapsed ? "w-20" : "w-64")
       )}
     >
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4 shrink-0">
-        {!collapsed && (
+        {(!collapsed || isMobile) && (
           <div className="flex items-center gap-2 animate-fade-in">
             <img src={aurumLogo} alt="Aurum Suite" className="h-8" />
           </div>
         )}
-        {collapsed && (
+        {collapsed && !isMobile && (
           <img src={aurumLogo} alt="Aurum Suite" className="h-8 mx-auto" />
+        )}
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMobileClose}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-5 w-5" />
+          </Button>
         )}
       </div>
 
@@ -85,12 +111,12 @@ export function AppSidebar() {
                 className={cn(
                   "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium cursor-not-allowed opacity-50",
                   "text-muted-foreground",
-                  collapsed && "justify-center px-2"
+                  collapsed && !isMobile && "justify-center px-2"
                 )}
                 title="Módulo não disponível no seu plano"
               >
                 <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
-                {!collapsed && (
+                {(!collapsed || isMobile) && (
                   <>
                     <span className="truncate">{item.title}</span>
                     <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-auto" />
@@ -100,12 +126,13 @@ export function AppSidebar() {
             ) : (
               <NavLink
                 to={item.path}
+                onClick={handleNavClick}
                 className={cn(
                   "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 group",
                   isActive
                     ? "bg-secondary border-l-2 border-l-[hsl(var(--gold))] text-[hsl(var(--gold))]"
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                  collapsed && "justify-center px-2 border-l-0",
+                  collapsed && !isMobile && "justify-center px-2 border-l-0",
                   !isActive && "hover:gold-glow-subtle"
                 )}
                 style={{
@@ -120,11 +147,11 @@ export function AppSidebar() {
                       : "text-muted-foreground group-hover:text-[hsl(var(--gold))]"
                   )} 
                 />
-                {!collapsed && <span className="truncate">{item.title}</span>}
+                {(!collapsed || isMobile) && <span className="truncate">{item.title}</span>}
               </NavLink>
             );
 
-            if (collapsed) {
+            if (collapsed && !isMobile) {
               return (
                 <Tooltip key={item.path} delayDuration={0}>
                   <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
@@ -148,27 +175,29 @@ export function AppSidebar() {
         </div>
       </nav>
 
-      {/* Collapse Toggle */}
-      <div className="border-t border-sidebar-border p-3 shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCollapsed(!collapsed)}
-          className={cn(
-            "w-full justify-center text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-all duration-200",
-            collapsed && "px-2"
-          )}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <>
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              <span>Recolher</span>
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Collapse Toggle - Desktop only */}
+      {!isMobile && (
+        <div className="border-t border-sidebar-border p-3 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(!collapsed)}
+            className={cn(
+              "w-full justify-center text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-all duration-200",
+              collapsed && "px-2"
+            )}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <>
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                <span>Recolher</span>
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </aside>
   );
 }
