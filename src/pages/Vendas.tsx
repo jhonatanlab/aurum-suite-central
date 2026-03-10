@@ -823,7 +823,7 @@ export default function Vendas() {
                   </Button>
                 </div>
               </SheetContent>
-            </Sheet>}
+            </Sheet></>}
 
           {/* Desktop: Fixed Cart Panel */}
           {!isMobile && <div className="fixed top-0 right-0 w-[400px] h-screen bg-secondary border-l border-border flex flex-col shadow-2xl z-30">
