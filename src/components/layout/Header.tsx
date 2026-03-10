@@ -108,6 +108,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
           
           {/* Page Title */}
           <h1 className="text-xl font-semibold text-foreground">{pageTitle}</h1>
+          </div>
         </div>
 
         {/* Right Section */}
