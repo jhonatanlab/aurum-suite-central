@@ -1,4 +1,4 @@
-import { Bell, Search, User, ChevronRight, Home, LogOut, Building2, Settings, AlertTriangle, Clock } from "lucide-react";
+import { Bell, Search, User, ChevronRight, Home, LogOut, Building2, AlertTriangle, Clock, Menu } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { useFinancialNotifications, FinancialNotification } from "@/hooks/useFinancialNotifications";
@@ -19,6 +20,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 interface HeaderProps {
   title: string;
+  onMenuClick?: () => void;
 }
 
 const routeTitles: Record<string, string> = {
@@ -38,12 +40,13 @@ const routeTitles: Record<string, string> = {
   "/configuracoes": "Configurações",
 };
 
-export function Header({ title }: HeaderProps) {
+export function Header({ title, onMenuClick }: HeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { company, companyUser } = useCompany();
   const { notifications, totalCount, overdueCount } = useFinancialNotifications({ dueSoonDays: 3 });
+  const isMobile = useIsMobile();
   
   const currentPath = location.pathname;
   const pageTitle = routeTitles[currentPath] || title;
@@ -75,11 +78,19 @@ export function Header({ title }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 h-16 glass border-b border-[hsl(var(--glass-border))]">
-      <div className="flex h-full items-center justify-between px-6">
-        {/* Breadcrumb + Title */}
-        <div className="flex flex-col gap-0.5">
+      <div className="flex h-full items-center justify-between px-4 md:px-6">
+        {/* Left: Menu + Breadcrumb */}
+        <div className="flex items-center gap-3">
+          {/* Mobile hamburger */}
+          {isMobile && (
+            <Button variant="ghost" size="icon" onClick={onMenuClick} className="text-muted-foreground hover:text-foreground">
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
+          {/* Breadcrumb + Title */}
+          <div className="flex flex-col gap-0.5">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <nav className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
             <Link 
               to="/" 
               className="flex items-center gap-1 hover:text-foreground transition-colors"
@@ -97,6 +108,7 @@ export function Header({ title }: HeaderProps) {
           
           {/* Page Title */}
           <h1 className="text-xl font-semibold text-foreground">{pageTitle}</h1>
+          </div>
         </div>
 
         {/* Right Section */}
@@ -209,13 +221,6 @@ export function Header({ title }: HeaderProps) {
               >
                 <Building2 className="h-4 w-4 mr-2" />
                 Meu Negócio
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                className="text-muted-foreground hover:text-foreground focus:bg-secondary cursor-pointer"
-                onClick={() => navigate('/configuracoes')}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Configurações
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border" />
               <DropdownMenuItem 
