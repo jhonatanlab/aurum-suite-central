@@ -664,6 +664,121 @@ export default function Vendas() {
                   </div>
                 </SheetHeader>
 
+                {/* Cart Content for Mobile */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {cart.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                      <ShoppingCart className="h-10 w-10 mb-3 opacity-40" />
+                      <p className="text-sm">Carrinho vazio</p>
+                    </div> : cart.map(item => <div key={item.product.id} className="bg-card rounded-xl p-4 border border-border">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1 min-w-0 mr-2">
+                          <h4 className="font-medium text-foreground text-sm line-clamp-1">
+                            {item.product.name}
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            {formatCurrency(getEffectivePrice(item.product))} un.
+                          </p>
+                        </div>
+                        <button onClick={() => removeFromCart(item.product.id)} className="text-destructive hover:text-destructive/80 transition-colors p-1">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="icon" className="h-8 w-8 border-border" onClick={() => updateQuantity(item.product.id, -1)}>
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-8 text-center font-medium text-foreground">{item.quantity}</span>
+                          <Button variant="outline" size="icon" className="h-8 w-8 border-border" onClick={() => updateQuantity(item.product.id, 1)}>
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <span className="font-semibold text-primary">
+                          {formatCurrency(getEffectivePrice(item.product) * item.quantity)}
+                        </span>
+                      </div>
+                    </div>)}
+                </div>
+
+                {/* Cart Footer for Mobile */}
+                <div className="p-5 border-t border-border space-y-4 max-h-[60vh] overflow-y-auto">
+                   <ClientSelect value={selectedClientId} onChange={setSelectedClientId} onOriginChange={setSaleOriginValue} originValue={saleOriginValue} />
+
+                   {(!selectedClientId || selectedClientId === "none") && (
+                   <div className="space-y-2">
+                     <Label className="text-sm text-muted-foreground flex items-center gap-1">Origem</Label>
+                     <Select value={saleOriginValue} onValueChange={setSaleOriginValue}>
+                       <SelectTrigger className="bg-card border-border">
+                         <SelectValue placeholder="Selecione a origem" />
+                       </SelectTrigger>
+                       <SelectContent className="bg-card border-border">
+                         {originOptions.map((opt) => (
+                           <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   )}
+
+                   <div className="space-y-2">
+                     <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                       <CalendarIcon className="h-3 w-3" />
+                       Data da venda
+                     </Label>
+                     <Popover>
+                       <PopoverTrigger asChild>
+                         <Button variant="outline" className={cn("w-full justify-start text-left font-normal bg-card border-border", !saleDate && "text-muted-foreground")}>
+                           <CalendarIcon className="mr-2 h-4 w-4" />
+                           {saleDate ? format(saleDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
+                         </Button>
+                       </PopoverTrigger>
+                       <PopoverContent className="w-auto p-0" align="start">
+                         <Calendar mode="single" selected={saleDate} onSelect={(d) => d && setSaleDate(d)} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
+                       </PopoverContent>
+                     </Popover>
+                   </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Percent className="h-3 w-3" />
+                        Desconto (%)
+                      </Label>
+                      <Input type="number" min="0" max="100" step="0.01" placeholder="0" value={discountPercent} onChange={e => handleDiscountPercentChange(e.target.value)} className="bg-card border-border focus:border-primary" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                        <DollarSign className="h-3 w-3" />
+                        Desconto (R$)
+                      </Label>
+                      <Input type="number" min="0" step="0.01" placeholder="0,00" value={discountValue} onChange={e => handleDiscountValueChange(e.target.value)} className="bg-card border-border focus:border-primary" />
+                    </div>
+                  </div>
+
+                  <MultiPaymentManager payments={payments} setPayments={setPayments} totalAmount={totalWithFreight} />
+
+                  <div className="space-y-2 pt-3 border-t border-border">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span className="text-foreground">{formatCurrency(cartTotal)}</span>
+                    </div>
+                    {parseFloat(discountValue) > 0 && <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Desconto</span>
+                        <span className="text-destructive">-{formatCurrency(parseFloat(discountValue))}</span>
+                      </div>}
+                    <div className="flex justify-between text-lg font-bold">
+                      <span className="text-foreground">Total</span>
+                      <span className="text-primary">{formatCurrency(totalWithFreight)}</span>
+                    </div>
+                  </div>
+
+                  <Button onClick={handleFinalizeSale} className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base" disabled={cart.length === 0 || payments.length === 0 || finalizeSaleMutation.isPending}>
+                    {finalizeSaleMutation.isPending ? "Processando..." : "Finalizar Venda"}
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>}
+
           {/* Desktop: Fixed Cart Panel */}
           {!isMobile && <div className="fixed top-0 right-0 w-[400px] h-screen bg-secondary border-l border-border flex flex-col shadow-2xl z-30">
               {/* Cart Header - Compact */}
