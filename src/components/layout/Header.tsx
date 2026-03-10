@@ -78,9 +78,17 @@ export function Header({ title, onMenuClick }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 h-16 glass border-b border-[hsl(var(--glass-border))]">
-      <div className="flex h-full items-center justify-between px-6">
-        {/* Breadcrumb + Title */}
-        <div className="flex flex-col gap-0.5">
+      <div className="flex h-full items-center justify-between px-4 md:px-6">
+        {/* Left: Menu + Breadcrumb */}
+        <div className="flex items-center gap-3">
+          {/* Mobile hamburger */}
+          {isMobile && (
+            <Button variant="ghost" size="icon" onClick={onMenuClick} className="text-muted-foreground hover:text-foreground">
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
+          {/* Breadcrumb + Title */}
+          <div className="flex flex-col gap-0.5">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Link 
