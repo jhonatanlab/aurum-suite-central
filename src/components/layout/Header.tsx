@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 interface HeaderProps {
   title: string;
+  onMenuClick?: () => void;
 }
 
 const routeTitles: Record<string, string> = {
