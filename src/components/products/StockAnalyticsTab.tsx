@@ -11,13 +11,13 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  TableRow } from
+"@/components/ui/table";
 import { TrendingUp, DollarSign, Package, BarChart3, AlertTriangle, RefreshCw } from "lucide-react";
 import { format, subMonths } from "date-fns";
 
 const formatCurrency = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 interface ProductWithSales {
   id: string;
@@ -38,16 +38,16 @@ export function StockAnalyticsTab() {
   const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ["stock-analytics-products", company?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, category, price, cost_price, stock, minimum_stock, promo_price")
-        .eq("company_id", company!.id)
-        .eq("status", "active")
-        .eq("type", "simple");
+      const { data, error } = await supabase.
+      from("products").
+      select("id, name, category, price, cost_price, stock, minimum_stock, promo_price").
+      eq("company_id", company!.id).
+      eq("status", "active").
+      eq("type", "simple");
       if (error) throw error;
       return data;
     },
-    enabled: !!company?.id,
+    enabled: !!company?.id
   });
 
   // Get sales data from last 3 months for giro de estoque
@@ -55,16 +55,16 @@ export function StockAnalyticsTab() {
     queryKey: ["stock-analytics-sales", company?.id],
     queryFn: async () => {
       const threeMonthsAgo = subMonths(new Date(), 3).toISOString();
-      const { data, error } = await supabase
-        .from("sale_items")
-        .select("product_id, quantity, sale_id, sales!inner(company_id, status, created_at)")
-        .eq("sales.company_id", company!.id)
-        .eq("sales.status", "completed")
-        .gte("sales.created_at", threeMonthsAgo);
+      const { data, error } = await supabase.
+      from("sale_items").
+      select("product_id, quantity, sale_id, sales!inner(company_id, status, created_at)").
+      eq("sales.company_id", company!.id).
+      eq("sales.status", "completed").
+      gte("sales.created_at", threeMonthsAgo);
       if (error) throw error;
       return data;
     },
-    enabled: !!company?.id,
+    enabled: !!company?.id
   });
 
   const analytics = useMemo(() => {
@@ -80,13 +80,13 @@ export function StockAnalyticsTab() {
       ...p,
       stock: p.stock || 0,
       totalSold: salesByProduct[p.id] || 0,
-      revenue: (salesByProduct[p.id] || 0) * (p.promo_price || p.price),
+      revenue: (salesByProduct[p.id] || 0) * (p.promo_price || p.price)
     }));
 
     // MarkUp geral
     const totalCost = enrichedProducts.reduce((sum, p) => sum + (p.cost_price || 0) * p.stock, 0);
     const totalSellValue = enrichedProducts.reduce((sum, p) => sum + (p.promo_price || p.price) * p.stock, 0);
-    const markupGeral = totalCost > 0 ? ((totalSellValue - totalCost) / totalCost) * 100 : 0;
+    const markupGeral = totalCost > 0 ? (totalSellValue - totalCost) / totalCost * 100 : 0;
 
     // Capital Imobilizado
     const capitalImobilizado = enrichedProducts.reduce((sum, p) => sum + (p.cost_price || 0) * p.stock, 0);
@@ -97,10 +97,10 @@ export function StockAnalyticsTab() {
     let cumulative = 0;
     const abcProducts = sorted.map((p) => {
       cumulative += p.revenue;
-      const pct = totalRevenue > 0 ? (cumulative / totalRevenue) * 100 : 0;
+      const pct = totalRevenue > 0 ? cumulative / totalRevenue * 100 : 0;
       let curve: "A" | "B" | "C" = "C";
-      if (pct <= 80) curve = "A";
-      else if (pct <= 95) curve = "B";
+      if (pct <= 80) curve = "A";else
+      if (pct <= 95) curve = "B";
       return { ...p, curve, cumulativePct: pct };
     });
 
@@ -122,7 +122,7 @@ export function StockAnalyticsTab() {
       low,
       ok,
       giroEstoque,
-      totalProducts: enrichedProducts.length,
+      totalProducts: enrichedProducts.length
     };
   }, [products, salesData]);
 
@@ -132,14 +132,14 @@ export function StockAnalyticsTab() {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="bg-card border-border">
+          {Array.from({ length: 4 }).map((_, i) =>
+          <Card key={i} className="bg-card border-border">
               <CardContent className="pt-6"><Skeleton className="h-8 w-20" /></CardContent>
             </Card>
-          ))}
+          )}
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   if (!analytics) return null;
@@ -163,7 +163,7 @@ export function StockAnalyticsTab() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-primary">{analytics.markupGeral.toFixed(1)}%</p>
-            <p className="text-xs text-muted-foreground">sobre custo total</p>
+            <p className="text-xs text-muted-foreground">Sobre Custo Total</p>
           </CardContent>
         </Card>
 
@@ -176,7 +176,7 @@ export function StockAnalyticsTab() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-foreground">{formatCurrency(analytics.capitalImobilizado)}</p>
-            <p className="text-xs text-muted-foreground">qtd × preço de compra</p>
+            <p className="text-xs text-muted-foreground">Qtd × Preço de Compra</p>
           </CardContent>
         </Card>
 
@@ -189,7 +189,7 @@ export function StockAnalyticsTab() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-foreground">{analytics.giroEstoque.toFixed(2)}x</p>
-            <p className="text-xs text-muted-foreground">últimos 3 meses</p>
+            <p className="text-xs text-muted-foreground">Últimos 3 Meses</p>
           </CardContent>
         </Card>
 
@@ -202,7 +202,7 @@ export function StockAnalyticsTab() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-foreground">{analytics.totalProducts}</p>
-            <p className="text-xs text-muted-foreground">no catálogo</p>
+            <p className="text-xs text-muted-foreground">No Catálogo</p>
           </CardContent>
         </Card>
       </div>
@@ -254,8 +254,8 @@ export function StockAnalyticsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {analytics.abcProducts.slice(0, 30).map((p) => (
-                <TableRow key={p.id} className="border-border">
+              {analytics.abcProducts.slice(0, 30).map((p) =>
+              <TableRow key={p.id} className="border-border">
                   <TableCell className="font-medium text-foreground">{p.name}</TableCell>
                   <TableCell className="text-muted-foreground">{p.category || "-"}</TableCell>
                   <TableCell className="text-center text-muted-foreground">{p.stock}</TableCell>
@@ -265,11 +265,11 @@ export function StockAnalyticsTab() {
                     <Badge className={curveColor(p.curve)}>{p.curve}</Badge>
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>);
+
 }
