@@ -769,9 +769,8 @@ export default function Vendas() {
                     <div className="flex justify-between text-lg font-bold">
                       <span className="text-foreground">Total</span>
                       <span className="text-primary">{formatCurrency(cartTotal)}</span>
-                    </div>
-                    </div>
                   </div>
+                </div>
 
                   <Button onClick={handleFinalizeSale} className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base" disabled={cart.length === 0 || payments.length === 0 || finalizeSaleMutation.isPending}>
                     {finalizeSaleMutation.isPending ? "Processando..." : "Finalizar Venda"}
