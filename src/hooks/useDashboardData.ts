@@ -187,8 +187,8 @@ export function useDashboardData(filters?: DashboardFilters) {
         filteredSales = filteredSales.filter((s) => matchingSaleIds.has(s.id));
       }
 
-      const start = new Date(chartFrom);
-      const end = new Date(chartTo);
+      const start = new Date(chartFrom + "T00:00:00");
+      const end = new Date(chartTo + "T23:59:59");
       const dailyMap: Record<string, number> = {};
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         dailyMap[format(d, "yyyy-MM-dd")] = 0;
