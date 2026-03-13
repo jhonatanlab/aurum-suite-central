@@ -196,7 +196,11 @@ export default function Dashboard() {
         <Card className="bg-card border-border animate-fade-in overflow-hidden lg:col-span-2" style={{ animationDelay: "420ms" }}>
           <CardHeader className="flex flex-row items-center gap-2">
             <BarChart3 className="h-4 w-4 text-gold" />
-            <CardTitle className="text-foreground text-base">Receita — Últimos 30 dias</CardTitle>
+            <CardTitle className="text-foreground text-base">
+              Receita — {filters.dateFrom && filters.dateTo
+                ? `${format(filters.dateFrom, "dd/MM")} a ${format(filters.dateTo, "dd/MM")}`
+                : "Período selecionado"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {chartLoading ? (
