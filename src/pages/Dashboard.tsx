@@ -128,7 +128,7 @@ export default function Dashboard() {
   } = useDashboardData(filters);
 
   const kpiCards = [
-  { title: "Receita do Mês", value: formatCurrency(kpis.monthRevenue), icon: DollarSign, accent: true },
+  { title: "Receita", value: formatCurrency(kpis.monthRevenue), icon: DollarSign, accent: true },
   { title: "Vendas", value: kpis.salesCount.toString(), icon: ShoppingCart },
   { title: "Ticket Médio", value: formatCurrency(kpis.averageTicket), icon: TrendingUp },
   { title: "Novos Clientes", value: kpis.newClients.toString(), icon: Users },
