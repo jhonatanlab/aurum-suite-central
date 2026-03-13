@@ -134,13 +134,26 @@ export function useDashboardData(filters?: DashboardFilters) {
         .select("id", { count: "exact", head: true })
         .eq("company_id", companyId);
 
-      const { count: convertedLeads } = await supabase
-        .from("leads")
-        .select("id", { count: "exact", head: true })
+      // Fetch the last CRM stage (highest position) as the "converted" stage
+      const { data: lastStage } = await supabase
+        .from("crm_stages")
+        .select("id")
         .eq("company_id", companyId)
-        .eq("status", "won");
+        .order("position", { ascending: false })
+        .limit(1)
+        .single();
 
-      const conversionRate = (totalLeads ?? 0) > 0 ? ((convertedLeads ?? 0) / (totalLeads ?? 0)) * 100 : 0;
+      let convertedCount = 0;
+      if (lastStage) {
+        const { count } = await supabase
+          .from("leads")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId)
+          .eq("status", lastStage.id);
+        convertedCount = count ?? 0;
+      }
+
+      const conversionRate = (totalLeads ?? 0) > 0 ? (convertedCount / (totalLeads ?? 0)) * 100 : 0;
 
       const { data: saleItems } = await supabase
         .from("sale_items")
