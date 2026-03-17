@@ -115,7 +115,6 @@ function App() {
                   </ProtectedRoute>
                 } />
                 <Route path="/whatsapp" element={
-                  systemSettings.modes.mvp ? <Navigate to="/" replace /> :
                   <ProtectedRoute>
                     <Whatsapp />
                   </ProtectedRoute>
