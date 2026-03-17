@@ -3,5 +3,5 @@ export const systemSettings = {
     mvp: true,
   },
   // Modules hidden when MVP mode is active
-  mvpHiddenModules: ["/whatsapp", "/campanhas", "/automacoes", "/configuracoes"],
+  mvpHiddenModules: ["/campanhas", "/automacoes", "/configuracoes"],
 };
