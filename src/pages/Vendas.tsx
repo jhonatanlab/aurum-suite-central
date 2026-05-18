@@ -936,12 +936,16 @@ export default function Vendas() {
                       <span className="text-muted-foreground">Juros</span>
                       <span className="text-foreground">+{formatCurrency(interestToCustomer)}</span>
                     </div>}
+                  {extraPaid > 0 && <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Acréscimo (pago a mais)</span>
+                      <span className="text-foreground">+{formatCurrency(extraPaid)}</span>
+                    </div>}
                   <div className="flex items-center justify-between pt-2">
                     <span className="text-muted-foreground font-medium">Total</span>
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-5 w-5 text-primary" />
                       <span className="text-2xl font-bold text-foreground">
-                        {formatCurrency(cartTotal)}
+                        {formatCurrency(effectiveTotal)}
                       </span>
                     </div>
                   </div>
