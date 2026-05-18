@@ -191,6 +191,9 @@ export default function Vendas() {
   const cartTotal = useMemo(() => {
     return Math.max(0, cartSubtotal - calculatedDiscount + clientFreightValue + interestToCustomer);
   }, [cartSubtotal, calculatedDiscount, clientFreightValue, interestToCustomer]);
+  // Quando o cliente paga mais que o total, o excedente é somado ao total da venda (acréscimo)
+  const extraPaid = Math.max(0, Math.round((totalPaid - cartTotal) * 100) / 100);
+  const effectiveTotal = Math.round((cartTotal + extraPaid) * 100) / 100;
 
   // All costs including store freight
   const allCosts = useMemo(() => {
@@ -260,7 +263,7 @@ export default function Vendas() {
         subtotal: cartSubtotal,
         client_freight: clientFreightValue,
         store_freight: storeFreightValue,
-        total: cartTotal,
+        total: effectiveTotal,
         total_paid: totalPaid,
         pending_balance: actualPendingBalance,
         sale_costs: allCosts as any,
@@ -483,7 +486,7 @@ export default function Vendas() {
           } else if (cart.length > 1) {
             productName = `${cart.length} produtos`;
           }
-          const leadUpdate: Record<string, any> = { product_value: cartTotal };
+          const leadUpdate: Record<string, any> = { product_value: effectiveTotal };
           if (saleOriginValue) {
             leadUpdate.source = saleOriginValue;
           }
@@ -491,7 +494,7 @@ export default function Vendas() {
           await moveLeadToSales.mutateAsync({
             leadId: selectedLead.id,
             productName,
-            saleTotal: cartTotal,
+            saleTotal: effectiveTotal,
             currentHistory: leadData?.history as any[] || [],
             userEmail: user?.email || "Sistema"
           });
@@ -766,9 +769,13 @@ export default function Vendas() {
                         <span className="text-muted-foreground">Desconto</span>
                         <span className="text-destructive">-{formatCurrency(parseFloat(discountValue))}</span>
                       </div>}
+                    {extraPaid > 0 && <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Acréscimo (pago a mais)</span>
+                        <span className="text-foreground">+{formatCurrency(extraPaid)}</span>
+                      </div>}
                     <div className="flex justify-between text-lg font-bold">
                       <span className="text-foreground">Total</span>
-                      <span className="text-primary">{formatCurrency(cartTotal)}</span>
+                      <span className="text-primary">{formatCurrency(effectiveTotal)}</span>
                   </div>
                 </div>
 
@@ -929,12 +936,16 @@ export default function Vendas() {
                       <span className="text-muted-foreground">Juros</span>
                       <span className="text-foreground">+{formatCurrency(interestToCustomer)}</span>
                     </div>}
+                  {extraPaid > 0 && <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Acréscimo (pago a mais)</span>
+                      <span className="text-foreground">+{formatCurrency(extraPaid)}</span>
+                    </div>}
                   <div className="flex items-center justify-between pt-2">
                     <span className="text-muted-foreground font-medium">Total</span>
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-5 w-5 text-primary" />
                       <span className="text-2xl font-bold text-foreground">
-                        {formatCurrency(cartTotal)}
+                        {formatCurrency(effectiveTotal)}
                       </span>
                     </div>
                   </div>
