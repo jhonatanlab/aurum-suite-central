@@ -769,9 +769,13 @@ export default function Vendas() {
                         <span className="text-muted-foreground">Desconto</span>
                         <span className="text-destructive">-{formatCurrency(parseFloat(discountValue))}</span>
                       </div>}
+                    {extraPaid > 0 && <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Acréscimo (pago a mais)</span>
+                        <span className="text-foreground">+{formatCurrency(extraPaid)}</span>
+                      </div>}
                     <div className="flex justify-between text-lg font-bold">
                       <span className="text-foreground">Total</span>
-                      <span className="text-primary">{formatCurrency(cartTotal)}</span>
+                      <span className="text-primary">{formatCurrency(effectiveTotal)}</span>
                   </div>
                 </div>
 
