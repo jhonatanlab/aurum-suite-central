@@ -263,7 +263,7 @@ export default function Vendas() {
         subtotal: cartSubtotal,
         client_freight: clientFreightValue,
         store_freight: storeFreightValue,
-        total: cartTotal,
+        total: effectiveTotal,
         total_paid: totalPaid,
         pending_balance: actualPendingBalance,
         sale_costs: allCosts as any,
