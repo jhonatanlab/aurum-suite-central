@@ -486,7 +486,7 @@ export default function Vendas() {
           } else if (cart.length > 1) {
             productName = `${cart.length} produtos`;
           }
-          const leadUpdate: Record<string, any> = { product_value: cartTotal };
+          const leadUpdate: Record<string, any> = { product_value: effectiveTotal };
           if (saleOriginValue) {
             leadUpdate.source = saleOriginValue;
           }
@@ -494,7 +494,7 @@ export default function Vendas() {
           await moveLeadToSales.mutateAsync({
             leadId: selectedLead.id,
             productName,
-            saleTotal: cartTotal,
+            saleTotal: effectiveTotal,
             currentHistory: leadData?.history as any[] || [],
             userEmail: user?.email || "Sistema"
           });
