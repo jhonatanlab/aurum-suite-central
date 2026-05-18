@@ -191,6 +191,9 @@ export default function Vendas() {
   const cartTotal = useMemo(() => {
     return Math.max(0, cartSubtotal - calculatedDiscount + clientFreightValue + interestToCustomer);
   }, [cartSubtotal, calculatedDiscount, clientFreightValue, interestToCustomer]);
+  // Quando o cliente paga mais que o total, o excedente é somado ao total da venda (acréscimo)
+  const extraPaid = Math.max(0, Math.round((totalPaid - cartTotal) * 100) / 100);
+  const effectiveTotal = Math.round((cartTotal + extraPaid) * 100) / 100;
 
   // All costs including store freight
   const allCosts = useMemo(() => {
