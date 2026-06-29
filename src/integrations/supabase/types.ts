@@ -1897,6 +1897,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_stock_fifo: {
+        Args: {
+          p_company_id: string
+          p_created_by?: string
+          p_product_id: string
+          p_quantity: number
+          p_source_id?: string
+          p_source_type: string
+          p_warranty_id?: string
+        }
+        Returns: {
+          consumed_batch_code: string
+          consumed_quantity: number
+        }[]
+      }
       create_company_for_user: {
         Args: { _cnpj?: string; _name: string }
         Returns: string
