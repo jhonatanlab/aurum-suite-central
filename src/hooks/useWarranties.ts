@@ -203,7 +203,7 @@ export function useWarranties(filters?: WarrantyFilters) {
       const today = new Date().toISOString().split("T")[0];
 
       // 1. Create the warranty request record
-      const { error: warrantyError } = await supabase.from("warranty_requests").insert({
+      const { data: createdWarranty, error: warrantyError } = await supabase.from("warranty_requests").insert({
         company_id: company.id,
         product_id: data.product_id,
         customer_name: data.customer_name,
@@ -215,25 +215,27 @@ export function useWarranties(filters?: WarrantyFilters) {
         reason: data.reason,
         observation: data.observation,
         exchange_product_id: data.exchange_product_id || null,
-      });
+      }).select("id").single();
 
       if (warrantyError) throw warrantyError;
+
+      const warrantyId = createdWarranty?.id ?? null;
 
       // 2. Type-specific side effects
       const customValue = data.custom_value || data.original_product_value || 0;
 
-      // --- TROCA SIMPLES: Stock out for the selected exchange product ---
+      // --- TROCA SIMPLES: Stock out via FIFO, tagged as warranty replacement ---
       if (data.request_type === "exchange" && data.exchange_product_id) {
-        await supabase.from("product_batches").insert({
-          company_id: company.id,
-          product_id: data.exchange_product_id,
-          batch_code: data.batch_code || "Código Não Preenchido",
-          batch_type: "warranty_exchange",
-          quantity: -1,
-          status: "active",
-          created_by: userEmail,
-          observation: `Saída por garantia - Troca Simples`,
+        const { error: fifoError } = await supabase.rpc("consume_stock_fifo", {
+          p_company_id: company.id,
+          p_product_id: data.exchange_product_id,
+          p_quantity: 1,
+          p_source_type: "warranty_replacement",
+          p_source_id: warrantyId,
+          p_warranty_id: warrantyId,
+          p_created_by: userEmail,
         });
+        if (fifoError) throw fifoError;
       }
 
       // --- REBANHO: Financial entry based on who pays (using custom value) ---
