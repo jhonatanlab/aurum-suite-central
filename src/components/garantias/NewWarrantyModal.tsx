@@ -455,6 +455,7 @@ export function NewWarrantyModal({
       id: p.id,
       name: p.name,
       badge: formatCurrency(Number(p.price)),
+      stock: p.stock ?? null,
     })),
     [exchangeEligibleProducts]
   );
