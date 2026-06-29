@@ -219,6 +219,8 @@ export function useWarranties(filters?: WarrantyFilters) {
 
       if (warrantyError) throw warrantyError;
 
+      const warrantyId = createdWarranty?.id ?? null;
+
       // 2. Type-specific side effects
       const customValue = data.custom_value || data.original_product_value || 0;
 
