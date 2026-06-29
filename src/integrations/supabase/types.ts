@@ -785,8 +785,11 @@ export type Database = {
           observation: string | null
           product_id: string
           quantity: number
+          source_id: string | null
+          source_type: string | null
           status: string
           supplier_id: string | null
+          warranty_id: string | null
         }
         Insert: {
           adjustment_reason?: string | null
@@ -799,8 +802,11 @@ export type Database = {
           observation?: string | null
           product_id: string
           quantity?: number
+          source_id?: string | null
+          source_type?: string | null
           status?: string
           supplier_id?: string | null
+          warranty_id?: string | null
         }
         Update: {
           adjustment_reason?: string | null
@@ -813,8 +819,11 @@ export type Database = {
           observation?: string | null
           product_id?: string
           quantity?: number
+          source_id?: string | null
+          source_type?: string | null
           status?: string
           supplier_id?: string | null
+          warranty_id?: string | null
         }
         Relationships: [
           {
@@ -836,6 +845,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_batches_warranty_id_fkey"
+            columns: ["warranty_id"]
+            isOneToOne: false
+            referencedRelation: "warranty_requests"
             referencedColumns: ["id"]
           },
         ]
