@@ -96,6 +96,14 @@ interface ProductBatchInfo {
 
 type ClientType = "customer" | "reseller" | "unregistered";
 
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+};
+
+
 export function NewWarrantyModal({
   open,
   onOpenChange,
@@ -679,12 +687,7 @@ export function NewWarrantyModal({
     setInstallments(1);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
