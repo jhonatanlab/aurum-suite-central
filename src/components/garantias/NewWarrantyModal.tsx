@@ -748,51 +748,20 @@ export function NewWarrantyModal({
 
               <div className="space-y-2">
                 <Label>Produto Comprado *</Label>
-                <Select 
-                  value={productId} 
+                <WarrantyProductCombobox
+                  items={purchasedProductItems}
+                  value={productId}
                   onValueChange={setProductId}
+                  placeholder={
+                    !selectedCustomerId
+                      ? "Selecione um cliente primeiro"
+                      : loadingProducts
+                        ? "Carregando produtos..."
+                        : "Selecione o produto"
+                  }
                   disabled={!selectedCustomerId}
-                >
-                  <SelectTrigger className="bg-card">
-                    <SelectValue 
-                      placeholder={
-                        !selectedCustomerId 
-                          ? "Selecione um cliente primeiro" 
-                          : loadingProducts 
-                            ? "Carregando produtos..." 
-                            : "Selecione o produto"
-                      } 
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {purchasedProducts.length === 0 && !loadingProducts && selectedCustomerId ? (
-                      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                        Nenhum produto encontrado para este cliente
-                      </div>
-                    ) : (
-                      purchasedProducts.map((product) => {
-                        const isLocked = exchangedProductIds.has(product.product_id);
-                        return (
-                          <SelectItem 
-                            key={product.product_id} 
-                            value={product.product_id}
-                            disabled={isLocked}
-                          >
-                            <div className="flex items-center gap-2">
-                              {isLocked && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                              <span className={isLocked ? "text-muted-foreground" : ""}>
-                                {product.product_name}
-                              </span>
-                              {isLocked && (
-                                <span className="text-xs text-muted-foreground">(já trocado)</span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        );
-                      })
-                    )}
-                  </SelectContent>
-                </Select>
+                  isLoading={loadingProducts}
+                />
               </div>
             </>
           ) : clientType === "reseller" ? (
@@ -815,18 +784,14 @@ export function NewWarrantyModal({
 
               <div className="space-y-2">
                 <Label>Produto *</Label>
-                <Select value={productId} onValueChange={setProductId}>
-                  <SelectTrigger className="bg-card">
-                    <SelectValue placeholder="Selecione o produto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <ResellerProductSelect 
-                      resellerId={resellerId} 
-                      onProductSelect={setProductId}
-                      selectedProductId={productId}
-                    />
-                  </SelectContent>
-                </Select>
+                <WarrantyProductCombobox
+                  items={resellerProductItems}
+                  value={productId}
+                  onValueChange={setProductId}
+                  placeholder={!resellerId ? "Selecione um revendedor primeiro" : "Selecione o produto"}
+                  disabled={!resellerId}
+                  isLoading={loadingResellerProducts}
+                />
               </div>
             </>
           ) : (
@@ -843,24 +808,13 @@ export function NewWarrantyModal({
 
               <div className="space-y-2">
                 <Label>Produto *</Label>
-                <Select value={productId} onValueChange={setProductId}>
-                  <SelectTrigger className="bg-card">
-                    <SelectValue placeholder={loadingAllProducts ? "Carregando..." : "Selecione o produto"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allProducts.length === 0 && !loadingAllProducts ? (
-                      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                        Nenhum produto encontrado
-                      </div>
-                    ) : (
-                      allProducts.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <WarrantyProductCombobox
+                  items={allProductItems}
+                  value={productId}
+                  onValueChange={setProductId}
+                  placeholder={loadingAllProducts ? "Carregando..." : "Selecione o produto"}
+                  isLoading={loadingAllProducts}
+                />
               </div>
 
               {productId && (
@@ -904,18 +858,12 @@ export function NewWarrantyModal({
                 </p>
                 <div className="space-y-2">
                   <Label>Produto para Troca *</Label>
-                  <Select value={exchangeSimpleProductId} onValueChange={setExchangeSimpleProductId}>
-                    <SelectTrigger className="bg-card">
-                      <SelectValue placeholder="Selecione o produto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allProducts.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <WarrantyProductCombobox
+                    items={allProductItems}
+                    value={exchangeSimpleProductId}
+                    onValueChange={setExchangeSimpleProductId}
+                    placeholder="Selecione o produto"
+                  />
                 </div>
               </div>
             </div>
@@ -1025,24 +973,12 @@ export function NewWarrantyModal({
                 
                 <div className="space-y-2">
                   <Label>Produto da Troca (valor superior) *</Label>
-                  <Select value={exchangeProductId} onValueChange={setExchangeProductId}>
-                    <SelectTrigger className="bg-card">
-                      <SelectValue placeholder="Selecione o novo produto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {exchangeEligibleProducts.length === 0 ? (
-                        <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                          Nenhum produto com valor superior a {formatCurrency(selectedProductPrice)}
-                        </div>
-                      ) : (
-                        exchangeEligibleProducts.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} — {formatCurrency(Number(product.price))}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <WarrantyProductCombobox
+                    items={exchangeEligibleItems}
+                    value={exchangeProductId}
+                    onValueChange={setExchangeProductId}
+                    placeholder="Selecione o novo produto"
+                  />
                 </div>
 
                 {exchangeProductId && (
