@@ -863,293 +863,185 @@ export function NewWarrantyModal({
         </div>
       )}
 
-          <div className="space-y-2">
-            <Separator />
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">2 — O que aconteceu</p>
-            <Label>Tipo de Solicitação *</Label>
-            <Select value={requestType} onValueChange={handleRequestTypeChange}>
-              <SelectTrigger className="bg-card">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {REQUEST_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+{step === 2 && (
+  <div className="space-y-4">
+    <div className="space-y-2">
+      <Label>Tipo de Solicitação *</Label>
+      <Select value={requestType} onValueChange={handleRequestTypeChange}>
+        <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {REQUEST_TYPES.map((t) => (
+            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+
+    {requestType === "exchange" && productId && (
+      <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+        <p className="text-sm font-medium">↻ Troca Simples — Selecione o produto de reposição</p>
+        <p className="text-xs text-muted-foreground">O produto selecionado terá saída registrada no estoque.</p>
+        <div className="space-y-2">
+          <Label>Produto para Troca *</Label>
+          <WarrantyProductCombobox
+            items={allProductItems}
+            value={exchangeSimpleProductId}
+            onValueChange={setExchangeSimpleProductId}
+            placeholder="Selecione o produto"
+          />
+        </div>
+      </div>
+    )}
+
+    {requestType === "herd" && productId && (
+      <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+        <p className="text-sm font-medium">Rebanho — Quem paga?</p>
+        <RadioGroup value={paymentResponsibility} onValueChange={(v) => setPaymentResponsibility(v as "client" | "company")} className="flex flex-col gap-2">
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="client" id="herd-paid-client" />
+            <Label htmlFor="herd-paid-client" className="font-normal cursor-pointer">
+              Pago pelo Cliente <span className="text-xs text-muted-foreground ml-2">(registra como entrada no financeiro)</span>
+            </Label>
           </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="company" id="herd-paid-company" />
+            <Label htmlFor="herd-paid-company" className="font-normal cursor-pointer">
+              Pago pela Empresa <span className="text-xs text-muted-foreground ml-2">(registra como saída/prejuízo no financeiro)</span>
+            </Label>
+          </div>
+        </RadioGroup>
+        <div className="space-y-2">
+          <Label>Valor (R$)</Label>
+          <Input type="number" step="0.01" min="0" value={customValue} onChange={(e) => setCustomValue(e.target.value)} placeholder="0,00" className="bg-card" />
+        </div>
+      </div>
+    )}
 
-          {/* TROCA SIMPLES: Select product to send + stock out */}
-          {requestType === "exchange" && productId && (
-            <div className="space-y-3">
-              <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
-                <p className="text-sm font-medium">
-                  ↻ Troca Simples — Selecione o produto de reposição
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  O produto selecionado terá saída registrada no estoque.
-                </p>
-                <div className="space-y-2">
-                  <Label>Produto para Troca *</Label>
-                  <WarrantyProductCombobox
-                    items={allProductItems}
-                    value={exchangeSimpleProductId}
-                    onValueChange={setExchangeSimpleProductId}
-                    placeholder="Selecione o produto"
-                  />
-                </div>
+    {requestType === "repair" && productId && (
+      <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+        <p className="text-sm font-medium">🔧 Conserto — Quem paga?</p>
+        <RadioGroup value={paymentResponsibility} onValueChange={(v) => setPaymentResponsibility(v as "client" | "company")} className="flex flex-col gap-2">
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="client" id="repair-paid-client" />
+            <Label htmlFor="repair-paid-client" className="font-normal cursor-pointer">
+              Pago pelo Cliente <span className="text-xs text-muted-foreground ml-2">(registra como entrada no financeiro)</span>
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="company" id="repair-paid-company" />
+            <Label htmlFor="repair-paid-company" className="font-normal cursor-pointer">
+              Pago pela Empresa <span className="text-xs text-muted-foreground ml-2">(registra como saída no financeiro)</span>
+            </Label>
+          </div>
+        </RadioGroup>
+        <div className="space-y-2">
+          <Label>Valor do Conserto (R$)</Label>
+          <Input type="number" step="0.01" min="0" value={customValue} onChange={(e) => setCustomValue(e.target.value)} placeholder="0,00" className="bg-card" />
+        </div>
+      </div>
+    )}
+
+    {requestType === "exchange_with_sale" && productId && (
+      <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
+        <p className="text-sm font-medium">🔄 Troca com Venda</p>
+        <div className="space-y-2">
+          <Label>Produto da Troca (valor superior) *</Label>
+          <WarrantyProductCombobox
+            items={exchangeEligibleItems}
+            value={exchangeProductId}
+            onValueChange={setExchangeProductId}
+            placeholder={exchangeEligibleItems.length === 0 ? `Nenhum produto com valor superior a ${formatCurrency(selectedProductPrice)}` : "Selecione o novo produto"}
+          />
+        </div>
+        {exchangeProductId && (
+          <>
+            <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Valor compra anterior (desconto):</span>
+                <span className="text-destructive">-{formatCurrency(selectedProductPrice)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Valor novo produto:</span>
+                <span>{formatCurrency(exchangeProductPrice)}</span>
+              </div>
+              <div className="border-t border-border pt-2 flex justify-between font-medium">
+                <span>Cliente deve pagar:</span>
+                <span className="text-primary">{formatCurrency(priceDifference)}</span>
               </div>
             </div>
-          )}
-
-          {/* REBANHO: Quem paga + valor */}
-          {requestType === "herd" && productId && (
-            <div className="space-y-3">
-              <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
-                <p className="text-sm font-medium">
-                  Rebanho — Quem paga?
-                </p>
-                <RadioGroup
-                  value={paymentResponsibility}
-                  onValueChange={(v) => setPaymentResponsibility(v as "client" | "company")}
-                  className="flex flex-col gap-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="client" id="herd-paid-client" />
-                    <Label htmlFor="herd-paid-client" className="font-normal cursor-pointer">
-                      Pago pelo Cliente
-                      <span className="text-xs text-muted-foreground ml-2">
-                        (registra como entrada no financeiro)
-                      </span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="company" id="herd-paid-company" />
-                    <Label htmlFor="herd-paid-company" className="font-normal cursor-pointer">
-                      Pago pela Empresa
-                      <span className="text-xs text-muted-foreground ml-2">
-                        (registra como saída/prejuízo no financeiro)
-                      </span>
-                    </Label>
-                  </div>
-                </RadioGroup>
-
-                <div className="space-y-2">
-                  <Label>Valor (R$)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={customValue}
-                    onChange={(e) => setCustomValue(e.target.value)}
-                    placeholder="0,00"
-                    className="bg-card"
-                  />
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label>Forma de Pagamento *</Label>
+              <Select value={paymentMethod} onValueChange={(v) => { setPaymentMethod(v); if (v !== "cartao_credito") { setGatewayId(null); setInstallments(1); } }}>
+                <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
-
-          {/* CONSERTO: Quem paga + valor */}
-          {requestType === "repair" && productId && (
-            <div className="space-y-3">
-              <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
-                <p className="text-sm font-medium">
-                  🔧 Conserto — Quem paga?
-                </p>
-                <RadioGroup
-                  value={paymentResponsibility}
-                  onValueChange={(v) => setPaymentResponsibility(v as "client" | "company")}
-                  className="flex flex-col gap-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="client" id="repair-paid-client" />
-                    <Label htmlFor="repair-paid-client" className="font-normal cursor-pointer">
-                      Pago pelo Cliente
-                      <span className="text-xs text-muted-foreground ml-2">
-                        (registra como entrada no financeiro)
-                      </span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="company" id="repair-paid-company" />
-                    <Label htmlFor="repair-paid-company" className="font-normal cursor-pointer">
-                      Pago pela Empresa
-                      <span className="text-xs text-muted-foreground ml-2">
-                        (registra como saída no financeiro)
-                      </span>
-                    </Label>
-                  </div>
-                </RadioGroup>
-
-                <div className="space-y-2">
-                  <Label>Valor do Conserto (R$)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={customValue}
-                    onChange={(e) => setCustomValue(e.target.value)}
-                    placeholder="0,00"
-                    className="bg-card"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TROCA COM VENDA: Only higher-priced products + payment method */}
-          {requestType === "exchange_with_sale" && productId && (
-            <div className="space-y-3">
-              <div className="rounded-lg border border-border bg-card/50 p-3 space-y-3">
-                <p className="text-sm font-medium">🔄 Troca com Venda</p>
-                
-                <div className="space-y-2">
-                  <Label>Produto da Troca (valor superior) *</Label>
-                  <WarrantyProductCombobox
-                    items={exchangeEligibleItems}
-                    value={exchangeProductId}
-                    onValueChange={setExchangeProductId}
-                    placeholder="Selecione o novo produto"
-                  />
-                </div>
-
-                {exchangeProductId && (
-                  <>
-                    <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Valor compra anterior (desconto):</span>
-                        <span className="text-destructive">-{formatCurrency(selectedProductPrice)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Valor novo produto:</span>
-                        <span>{formatCurrency(exchangeProductPrice)}</span>
-                      </div>
-                      <div className="border-t border-border pt-2 flex justify-between font-medium">
-                        <span>Cliente deve pagar:</span>
-                        <span className="text-primary">
-                          {formatCurrency(priceDifference)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Forma de Pagamento *</Label>
-                      <Select 
-                        value={paymentMethod} 
-                        onValueChange={(v) => {
-                          setPaymentMethod(v);
-                          if (v !== "cartao_credito") {
-                            setGatewayId(null);
-                            setInstallments(1);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="bg-card">
-                          <SelectValue />
-                        </SelectTrigger>
+            {paymentMethod === "cartao_credito" && activeGateways.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs">Gateway / Maquininha</Label>
+                <Select value={gatewayId || "none"} onValueChange={(value) => { setGatewayId(value === "none" ? null : value); setInstallments(1); }}>
+                  <SelectTrigger className="bg-card"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Selecione um gateway</SelectItem>
+                    {activeGateways.map((gw) => (
+                      <SelectItem key={gw.id} value={gw.id}>{gw.name} (taxa: {gw.service_fee_percent}%)</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {gatewayId && (() => {
+                  const gateway = activeGateways.find(g => g.id === gatewayId);
+                  if (!gateway || gateway.installment_rules.length === 0) return null;
+                  const installmentOptions = gateway.installment_rules
+                    .sort((a: any, b: any) => a.installments - b.installments)
+                    .map((rule: any) => {
+                      const { interestAmount, passToCustomer } = calculateGatewayInterest(gateway, priceDifference, rule.installments, paymentSettings.interest_starts_at);
+                      const label = interestAmount > 0 ? `${rule.installments}x (+${formatCurrency(interestAmount)}${passToCustomer ? "" : " custo"})` : `${rule.installments}x (sem juros)`;
+                      return { value: rule.installments, label };
+                    });
+                  return (
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-xs">Parcelas</Label>
+                      <Select value={installments.toString()} onValueChange={(v) => setInstallments(parseInt(v))}>
+                        <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {PAYMENT_METHODS.map((m) => (
-                            <SelectItem key={m.value} value={m.value}>
-                              {m.label}
-                            </SelectItem>
+                          {installmentOptions.map((opt: any) => (
+                            <SelectItem key={opt.value} value={opt.value.toString()}>{opt.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-
-                    {paymentMethod === "cartao_credito" && activeGateways.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Gateway / Maquininha</Label>
-                          <Select
-                            value={gatewayId || "none"}
-                            onValueChange={(value) => {
-                              setGatewayId(value === "none" ? null : value);
-                              setInstallments(1);
-                            }}
-                          >
-                            <SelectTrigger className="bg-card">
-                              <SelectValue placeholder="Selecione..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Selecione um gateway</SelectItem>
-                              {activeGateways.map((gw) => (
-                                <SelectItem key={gw.id} value={gw.id}>
-                                  {gw.name} (taxa: {gw.service_fee_percent}%)
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {gatewayId && (() => {
-                          const gateway = activeGateways.find(g => g.id === gatewayId);
-                          if (!gateway || gateway.installment_rules.length === 0) return null;
-                          
-                          const installmentOptions = gateway.installment_rules
-                            .sort((a: any, b: any) => a.installments - b.installments)
-                            .map((rule: any) => {
-                              const { interestAmount, passToCustomer } = calculateGatewayInterest(
-                                gateway,
-                                priceDifference,
-                                rule.installments,
-                                paymentSettings.interest_starts_at
-                              );
-                              const label = interestAmount > 0
-                                ? `${rule.installments}x (+${formatCurrency(interestAmount)}${passToCustomer ? "" : " custo"})`
-                                : `${rule.installments}x (sem juros)`;
-                              return { value: rule.installments, label };
-                            });
-
-                          return (
-                            <div className="space-y-1">
-                              <Label className="text-xs">Parcelas</Label>
-                              <Select
-                                value={installments.toString()}
-                                onValueChange={(v) => setInstallments(parseInt(v))}
-                              >
-                                <SelectTrigger className="bg-card">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {installmentOptions.map((opt: any) => (
-                                    <SelectItem key={opt.value} value={opt.value.toString()}>
-                                      {opt.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
-
-                    {paymentMethod === "cartao_credito" && activeGateways.length === 0 && (
-                      <div className="text-xs text-amber-500 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        Configure gateways em Meu Negócio → Pagamentos
-                      </div>
-                    )}
-                  </>
-                )}
+                  );
+                })()}
               </div>
-            </div>
-          )}
+            )}
+            {paymentMethod === "cartao_credito" && activeGateways.length === 0 && (
+              <div className="text-xs text-amber-500 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Configure gateways em Meu Negócio → Pagamentos
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    )}
 
-          {requestType === "total_loss" && productId && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
-              <p className="text-sm font-medium text-destructive">
-                ⛔ Perda Total
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Registro apenas. Cliente não tem direito a receber outra peça.
-              </p>
-            </div>
-          )}
+    {requestType === "total_loss" && productId && (
+      <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+        <p className="text-sm font-medium text-destructive">⛔ Perda Total</p>
+        <p className="text-xs text-muted-foreground mt-1">Registro apenas. Cliente não tem direito a receber outra peça.</p>
+      </div>
+    )}
+
+    <div className="flex justify-between gap-3 pt-2">
+      <Button type="button" variant="outline" onClick={() => setStep(1)}>Voltar</Button>
+      <Button type="button" disabled={!canAdvanceStep2} onClick={() => setStep(3)}>Próximo</Button>
+    </div>
+  </div>
+)}
 
           <Separator />
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">3 — Detalhes do registro</p>
