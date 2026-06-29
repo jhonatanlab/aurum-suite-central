@@ -441,6 +441,15 @@ export function NewWarrantyModal({
     return allProducts.filter(p => p.id !== productId && Number(p.price) > selectedProductPrice);
   }, [allProducts, productId, selectedProductPrice, requestType]);
 
+  const exchangeEligibleItems = useMemo(() =>
+    exchangeEligibleProducts.map((p) => ({
+      id: p.id,
+      name: p.name,
+      badge: formatCurrency(Number(p.price)),
+    })),
+    [exchangeEligibleProducts]
+  );
+
   // Fetch real lot by replaying FIFO consumption until the selected sale movement
   const { data: batchInfo } = useQuery<ProductBatchInfo>({
     queryKey: ["product-batch-info", productId, selectedProductSaleId, company?.id],
