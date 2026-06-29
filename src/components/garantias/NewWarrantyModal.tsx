@@ -21,7 +21,7 @@ import { useResellers } from "@/hooks/useResellers";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, ArrowRight, AlertCircle, Percent, Lock } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { usePaymentGateways } from "@/hooks/usePaymentGateways";
 import { usePaymentSettings } from "@/hooks/usePaymentSettings";
 import { WarrantyProductCombobox } from "./WarrantyProductCombobox";
