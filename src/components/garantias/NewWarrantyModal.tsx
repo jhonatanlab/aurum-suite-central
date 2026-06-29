@@ -709,11 +709,31 @@ export function NewWarrantyModal({
 
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { resetForm(); } onOpenChange(v); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nova Solicitação de Garantia</DialogTitle>
         </DialogHeader>
+
+        {/* Indicador de progresso */}
+        <div className="flex gap-1.5 pt-1 pb-2">
+          {[
+            { n: 1, label: "Quem solicitou" },
+            { n: 2, label: "O que aconteceu" },
+            { n: 3, label: "Detalhes" },
+          ].map(({ n, label }) => (
+            <div key={n} className="flex-1 flex flex-col gap-1">
+              <div className={`h-1 rounded-full transition-colors duration-300 ${
+                step > n ? "bg-green-500" : step === n ? "bg-primary" : "bg-muted"
+              }`} />
+              <span className={`text-[10px] font-medium transition-colors duration-300 ${
+                step === n ? "text-primary" : step > n ? "text-green-500" : "text-muted-foreground"
+              }`}>
+                {label}
+              </span>
+            </div>
+          ))}
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
