@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useResellers } from "@/hooks/useResellers";
@@ -133,6 +134,7 @@ export function NewWarrantyModal({
   const [exchangeSimpleProductId, setExchangeSimpleProductId] = useState("");
   const [gatewayId, setGatewayId] = useState<string | null>(null);
   const [installments, setInstallments] = useState(1);
+  const [step, setStep] = useState(1);
 
   // Fetch customers with sales
   const { data: customersWithSales = [], isLoading: loadingCustomers } = useQuery({
@@ -656,6 +658,7 @@ export function NewWarrantyModal({
     setExchangeSimpleProductId("");
     setGatewayId(null);
     setInstallments(1);
+    setStep(1);
   };
 
   const handleCustomerChange = (customerId: string) => {
@@ -688,6 +691,20 @@ export function NewWarrantyModal({
     setGatewayId(null);
     setInstallments(1);
   };
+
+  const canAdvanceStep1 =
+    !!productId &&
+    (clientType === "unregistered" ||
+      (clientType === "customer" && !!selectedCustomerId) ||
+      (clientType === "reseller" && !!resellerId));
+
+  const canAdvanceStep2 =
+    !!requestType &&
+    (requestType === "total_loss" ||
+      requestType === "repair" ||
+      requestType === "herd" ||
+      (requestType === "exchange" && !!exchangeSimpleProductId) ||
+      (requestType === "exchange_with_sale" && !!exchangeProductId));
 
 
 
