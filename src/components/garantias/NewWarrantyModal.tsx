@@ -700,9 +700,7 @@ export function NewWarrantyModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-          <div className="text-sm font-medium text-primary pt-2">
-            1 — Quem solicitou
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">1 — Quem solicitou</p>
             <Label>Tipo de Cliente</Label>
             <RadioGroup
               value={clientType}
@@ -839,9 +837,8 @@ export function NewWarrantyModal({
           )}
 
           <div className="space-y-2">
-          <div className="text-sm font-medium text-primary pt-2">
-            2 — O que aconteceu
-          </div>
+            <Separator />
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">2 — O que aconteceu</p>
             <Label>Tipo de Solicitação *</Label>
             <Select value={requestType} onValueChange={handleRequestTypeChange}>
               <SelectTrigger className="bg-card">
@@ -1127,9 +1124,8 @@ export function NewWarrantyModal({
             </div>
           )}
 
-          <div className="text-sm font-medium text-primary pt-2">
-            3 — Detalhes do registro
-          </div>
+          <Separator />
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">3 — Detalhes do registro</p>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Código do Lote</Label>
