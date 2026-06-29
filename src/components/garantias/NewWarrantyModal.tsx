@@ -396,7 +396,7 @@ export function NewWarrantyModal({
 
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price")
+        .select("id, name, price, stock")
         .eq("company_id", company.id)
         .eq("status", "active")
         .eq("type", "simple")
