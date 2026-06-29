@@ -736,8 +736,9 @@ export function NewWarrantyModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+      {step === 1 && (
+        <div className="space-y-4">
           <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">1 — Quem solicitou</p>
             <Label>Tipo de Cliente</Label>
             <RadioGroup
               value={clientType}
@@ -746,21 +747,15 @@ export function NewWarrantyModal({
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="customer" id="customer" />
-                <Label htmlFor="customer" className="font-normal cursor-pointer">
-                  Cliente Final
-                </Label>
+                <Label htmlFor="customer" className="font-normal cursor-pointer">Cliente Final</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="reseller" id="reseller" />
-                <Label htmlFor="reseller" className="font-normal cursor-pointer">
-                  Revendedor
-                </Label>
+                <Label htmlFor="reseller" className="font-normal cursor-pointer">Revendedor</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="unregistered" id="unregistered" />
-                <Label htmlFor="unregistered" className="font-normal cursor-pointer">
-                  Cliente não cadastrado
-                </Label>
+                <Label htmlFor="unregistered" className="font-normal cursor-pointer">Cliente não cadastrado</Label>
               </div>
             </RadioGroup>
           </div>
@@ -780,15 +775,12 @@ export function NewWarrantyModal({
                       </div>
                     ) : (
                       customersWithSales.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </SelectItem>
+                        <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
                       ))
                     )}
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label>Produto Comprado *</Label>
                 <WarrantyProductCombobox
@@ -796,11 +788,9 @@ export function NewWarrantyModal({
                   value={productId}
                   onValueChange={setProductId}
                   placeholder={
-                    !selectedCustomerId
-                      ? "Selecione um cliente primeiro"
-                      : loadingProducts
-                        ? "Carregando produtos..."
-                        : "Selecione o produto"
+                    !selectedCustomerId ? "Selecione um cliente primeiro"
+                    : loadingProducts ? "Carregando produtos..."
+                    : "Selecione o produto"
                   }
                   disabled={!selectedCustomerId}
                   isLoading={loadingProducts}
@@ -817,14 +807,11 @@ export function NewWarrantyModal({
                   </SelectTrigger>
                   <SelectContent>
                     {resellers.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.name}
-                      </SelectItem>
+                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label>Produto *</Label>
                 <WarrantyProductCombobox
@@ -848,7 +835,6 @@ export function NewWarrantyModal({
                   className="bg-card"
                 />
               </div>
-
               <div className="space-y-2">
                 <Label>Produto *</Label>
                 <WarrantyProductCombobox
@@ -859,12 +845,9 @@ export function NewWarrantyModal({
                   isLoading={loadingAllProducts}
                 />
               </div>
-
               {productId && (
                 <div className="rounded-lg border border-primary/30 bg-primary/10 p-3">
-                  <p className="text-sm text-primary font-medium">
-                    ⚠️ AA - NÃO RASTREÁVEL
-                  </p>
+                  <p className="text-sm text-primary font-medium">⚠️ AA - NÃO RASTREÁVEL</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Este registro não contabiliza como peça com defeito e não possui rastreabilidade de lote.
                   </p>
@@ -872,6 +855,13 @@ export function NewWarrantyModal({
               )}
             </>
           )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" disabled={!canAdvanceStep1} onClick={() => setStep(2)}>Próximo</Button>
+          </div>
+        </div>
+      )}
 
           <div className="space-y-2">
             <Separator />
