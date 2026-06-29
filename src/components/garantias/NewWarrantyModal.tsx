@@ -419,6 +419,30 @@ export function NewWarrantyModal({
     return exchangeProductPrice - selectedProductPrice;
   }, [requestType, exchangeProductId, productId, exchangeProductPrice, selectedProductPrice]);
 
+  const purchasedProductItems = useMemo(() =>
+    purchasedProducts.map((p) => ({
+      id: p.product_id,
+      name: p.product_name,
+      isLocked: exchangedProductIds.has(p.product_id),
+      lockedReason: "já trocado",
+    })),
+    [purchasedProducts, exchangedProductIds]
+  );
+
+  const allProductItems = useMemo(() =>
+    allProducts.map((p) => ({ id: p.id, name: p.name })),
+    [allProducts]
+  );
+
+  const exchangeEligibleItems = useMemo(() =>
+    exchangeEligibleProducts.map((p) => ({
+      id: p.id,
+      name: p.name,
+      badge: formatCurrency(Number(p.price)),
+    })),
+    [exchangeEligibleProducts]
+  );
+
   // Products with higher price for exchange_with_sale
   const exchangeEligibleProducts = useMemo(() => {
     if (!productId || requestType !== "exchange_with_sale") return [];
