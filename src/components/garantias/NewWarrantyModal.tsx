@@ -439,7 +439,7 @@ export function NewWarrantyModal({
   );
 
   const allProductItems = useMemo(() =>
-    allProducts.map((p) => ({ id: p.id, name: p.name })),
+    allProducts.map((p) => ({ id: p.id, name: p.name, stock: p.stock ?? null })),
     [allProducts]
   );
 
