@@ -215,7 +215,7 @@ export function useWarranties(filters?: WarrantyFilters) {
         reason: data.reason,
         observation: data.observation,
         exchange_product_id: data.exchange_product_id || null,
-      });
+      }).select("id").single();
 
       if (warrantyError) throw warrantyError;
 
