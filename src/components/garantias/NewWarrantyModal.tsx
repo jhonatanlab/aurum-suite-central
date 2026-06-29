@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, ArrowRight, AlertCircle, Percent, Lock } from "lucide-react";
 import { usePaymentGateways } from "@/hooks/usePaymentGateways";
 import { usePaymentSettings } from "@/hooks/usePaymentSettings";
+import { WarrantyProductCombobox } from "./WarrantyProductCombobox";
 
 export interface WarrantySubmitData {
   product_id: string;
