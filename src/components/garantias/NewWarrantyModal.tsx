@@ -658,6 +658,7 @@ export function NewWarrantyModal({
     setExchangeSimpleProductId("");
     setGatewayId(null);
     setInstallments(1);
+    setStep(1);
   };
 
   const handleCustomerChange = (customerId: string) => {
