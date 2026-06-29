@@ -340,6 +340,46 @@ export function NewWarrantyModal({
   });
 
   // Fetch all products for unregistered client or exchange_with_sale
+  // Fetch reseller consignment products
+  const { data: resellerProducts = [], isLoading: loadingResellerProducts } = useQuery({
+    queryKey: ["reseller-consignment-products", resellerId, company?.id],
+    queryFn: async () => {
+      if (!company?.id || !resellerId) return [];
+
+      const { data, error } = await supabase
+        .from("consignment_items")
+        .select(`
+          product_id,
+          products:product_id (id, name)
+        `)
+        .eq("company_id", company.id)
+        .eq("reseller_id", resellerId);
+
+      if (error) throw error;
+
+      const productMap = new Map<string, { id: string; name: string }>();
+      
+      data?.forEach((item: any) => {
+        if (item.product_id && item.products) {
+          productMap.set(item.product_id, {
+            id: item.product_id,
+            name: item.products.name,
+          });
+        }
+      });
+
+      return Array.from(productMap.values()).sort((a, b) => 
+        a.name.localeCompare(b.name)
+      );
+    },
+    enabled: !!company?.id && !!resellerId && clientType === "reseller",
+  });
+
+  const resellerProductItems = useMemo(() =>
+    resellerProducts.map((p) => ({ id: p.id, name: p.name })),
+    [resellerProducts]
+  );
+
   const { data: allProducts = [], isLoading: loadingAllProducts } = useQuery({
     queryKey: ["all-simple-products", company?.id],
     queryFn: async () => {
