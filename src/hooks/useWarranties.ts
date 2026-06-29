@@ -203,7 +203,7 @@ export function useWarranties(filters?: WarrantyFilters) {
       const today = new Date().toISOString().split("T")[0];
 
       // 1. Create the warranty request record
-      const { error: warrantyError } = await supabase.from("warranty_requests").insert({
+      const { data: createdWarranty, error: warrantyError } = await supabase.from("warranty_requests").insert({
         company_id: company.id,
         product_id: data.product_id,
         customer_name: data.customer_name,
