@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useResellers } from "@/hooks/useResellers";
 import { useCompany } from "@/hooks/useCompany";
