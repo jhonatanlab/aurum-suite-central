@@ -134,6 +134,7 @@ export function NewWarrantyModal({
   const [exchangeSimpleProductId, setExchangeSimpleProductId] = useState("");
   const [gatewayId, setGatewayId] = useState<string | null>(null);
   const [installments, setInstallments] = useState(1);
+  const [step, setStep] = useState(1);
 
   // Fetch customers with sales
   const { data: customersWithSales = [], isLoading: loadingCustomers } = useQuery({
