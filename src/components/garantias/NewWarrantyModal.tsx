@@ -679,12 +679,7 @@ export function NewWarrantyModal({
     setInstallments(1);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
