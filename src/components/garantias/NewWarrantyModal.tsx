@@ -396,7 +396,7 @@ export function NewWarrantyModal({
 
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price")
+        .select("id, name, price, stock")
         .eq("company_id", company.id)
         .eq("status", "active")
         .eq("type", "simple")
@@ -439,7 +439,7 @@ export function NewWarrantyModal({
   );
 
   const allProductItems = useMemo(() =>
-    allProducts.map((p) => ({ id: p.id, name: p.name })),
+    allProducts.map((p) => ({ id: p.id, name: p.name, stock: p.stock ?? null })),
     [allProducts]
   );
 
@@ -455,6 +455,7 @@ export function NewWarrantyModal({
       id: p.id,
       name: p.name,
       badge: formatCurrency(Number(p.price)),
+      stock: p.stock ?? null,
     })),
     [exchangeEligibleProducts]
   );
