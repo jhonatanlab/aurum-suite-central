@@ -21,9 +21,10 @@ import { useResellers } from "@/hooks/useResellers";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, ArrowRight, AlertCircle, Percent, Lock } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { usePaymentGateways } from "@/hooks/usePaymentGateways";
 import { usePaymentSettings } from "@/hooks/usePaymentSettings";
+import { WarrantyProductCombobox } from "./WarrantyProductCombobox";
 
 export interface WarrantySubmitData {
   product_id: string;
@@ -339,6 +340,46 @@ export function NewWarrantyModal({
   });
 
   // Fetch all products for unregistered client or exchange_with_sale
+  // Fetch reseller consignment products
+  const { data: resellerProducts = [], isLoading: loadingResellerProducts } = useQuery({
+    queryKey: ["reseller-consignment-products", resellerId, company?.id],
+    queryFn: async () => {
+      if (!company?.id || !resellerId) return [];
+
+      const { data, error } = await supabase
+        .from("consignment_items")
+        .select(`
+          product_id,
+          products:product_id (id, name)
+        `)
+        .eq("company_id", company.id)
+        .eq("reseller_id", resellerId);
+
+      if (error) throw error;
+
+      const productMap = new Map<string, { id: string; name: string }>();
+      
+      data?.forEach((item: any) => {
+        if (item.product_id && item.products) {
+          productMap.set(item.product_id, {
+            id: item.product_id,
+            name: item.products.name,
+          });
+        }
+      });
+
+      return Array.from(productMap.values()).sort((a, b) => 
+        a.name.localeCompare(b.name)
+      );
+    },
+    enabled: !!company?.id && !!resellerId && clientType === "reseller",
+  });
+
+  const resellerProductItems = useMemo(() =>
+    resellerProducts.map((p) => ({ id: p.id, name: p.name })),
+    [resellerProducts]
+  );
+
   const { data: allProducts = [], isLoading: loadingAllProducts } = useQuery({
     queryKey: ["all-simple-products", company?.id],
     queryFn: async () => {
@@ -378,11 +419,36 @@ export function NewWarrantyModal({
     return exchangeProductPrice - selectedProductPrice;
   }, [requestType, exchangeProductId, productId, exchangeProductPrice, selectedProductPrice]);
 
+  const purchasedProductItems = useMemo(() =>
+    purchasedProducts.map((p) => ({
+      id: p.product_id,
+      name: p.product_name,
+      isLocked: exchangedProductIds.has(p.product_id),
+      lockedReason: "já trocado",
+    })),
+    [purchasedProducts, exchangedProductIds]
+  );
+
+  const allProductItems = useMemo(() =>
+    allProducts.map((p) => ({ id: p.id, name: p.name })),
+    [allProducts]
+  );
+
+
   // Products with higher price for exchange_with_sale
   const exchangeEligibleProducts = useMemo(() => {
     if (!productId || requestType !== "exchange_with_sale") return [];
     return allProducts.filter(p => p.id !== productId && Number(p.price) > selectedProductPrice);
   }, [allProducts, productId, selectedProductPrice, requestType]);
+
+  const exchangeEligibleItems = useMemo(() =>
+    exchangeEligibleProducts.map((p) => ({
+      id: p.id,
+      name: p.name,
+      badge: formatCurrency(Number(p.price)),
+    })),
+    [exchangeEligibleProducts]
+  );
 
   // Fetch real lot by replaying FIFO consumption until the selected sale movement
   const { data: batchInfo } = useQuery<ProductBatchInfo>({
@@ -682,51 +748,20 @@ export function NewWarrantyModal({
 
               <div className="space-y-2">
                 <Label>Produto Comprado *</Label>
-                <Select 
-                  value={productId} 
+                <WarrantyProductCombobox
+                  items={purchasedProductItems}
+                  value={productId}
                   onValueChange={setProductId}
+                  placeholder={
+                    !selectedCustomerId
+                      ? "Selecione um cliente primeiro"
+                      : loadingProducts
+                        ? "Carregando produtos..."
+                        : "Selecione o produto"
+                  }
                   disabled={!selectedCustomerId}
-                >
-                  <SelectTrigger className="bg-card">
-                    <SelectValue 
-                      placeholder={
-                        !selectedCustomerId 
-                          ? "Selecione um cliente primeiro" 
-                          : loadingProducts 
-                            ? "Carregando produtos..." 
-                            : "Selecione o produto"
-                      } 
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {purchasedProducts.length === 0 && !loadingProducts && selectedCustomerId ? (
-                      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                        Nenhum produto encontrado para este cliente
-                      </div>
-                    ) : (
-                      purchasedProducts.map((product) => {
-                        const isLocked = exchangedProductIds.has(product.product_id);
-                        return (
-                          <SelectItem 
-                            key={product.product_id} 
-                            value={product.product_id}
-                            disabled={isLocked}
-                          >
-                            <div className="flex items-center gap-2">
-                              {isLocked && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                              <span className={isLocked ? "text-muted-foreground" : ""}>
-                                {product.product_name}
-                              </span>
-                              {isLocked && (
-                                <span className="text-xs text-muted-foreground">(já trocado)</span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        );
-                      })
-                    )}
-                  </SelectContent>
-                </Select>
+                  isLoading={loadingProducts}
+                />
               </div>
             </>
           ) : clientType === "reseller" ? (
@@ -749,18 +784,14 @@ export function NewWarrantyModal({
 
               <div className="space-y-2">
                 <Label>Produto *</Label>
-                <Select value={productId} onValueChange={setProductId}>
-                  <SelectTrigger className="bg-card">
-                    <SelectValue placeholder="Selecione o produto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <ResellerProductSelect 
-                      resellerId={resellerId} 
-                      onProductSelect={setProductId}
-                      selectedProductId={productId}
-                    />
-                  </SelectContent>
-                </Select>
+                <WarrantyProductCombobox
+                  items={resellerProductItems}
+                  value={productId}
+                  onValueChange={setProductId}
+                  placeholder={!resellerId ? "Selecione um revendedor primeiro" : "Selecione o produto"}
+                  disabled={!resellerId}
+                  isLoading={loadingResellerProducts}
+                />
               </div>
             </>
           ) : (
@@ -777,24 +808,13 @@ export function NewWarrantyModal({
 
               <div className="space-y-2">
                 <Label>Produto *</Label>
-                <Select value={productId} onValueChange={setProductId}>
-                  <SelectTrigger className="bg-card">
-                    <SelectValue placeholder={loadingAllProducts ? "Carregando..." : "Selecione o produto"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allProducts.length === 0 && !loadingAllProducts ? (
-                      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                        Nenhum produto encontrado
-                      </div>
-                    ) : (
-                      allProducts.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <WarrantyProductCombobox
+                  items={allProductItems}
+                  value={productId}
+                  onValueChange={setProductId}
+                  placeholder={loadingAllProducts ? "Carregando..." : "Selecione o produto"}
+                  isLoading={loadingAllProducts}
+                />
               </div>
 
               {productId && (
@@ -838,18 +858,12 @@ export function NewWarrantyModal({
                 </p>
                 <div className="space-y-2">
                   <Label>Produto para Troca *</Label>
-                  <Select value={exchangeSimpleProductId} onValueChange={setExchangeSimpleProductId}>
-                    <SelectTrigger className="bg-card">
-                      <SelectValue placeholder="Selecione o produto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allProducts.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <WarrantyProductCombobox
+                    items={allProductItems}
+                    value={exchangeSimpleProductId}
+                    onValueChange={setExchangeSimpleProductId}
+                    placeholder="Selecione o produto"
+                  />
                 </div>
               </div>
             </div>
@@ -959,24 +973,12 @@ export function NewWarrantyModal({
                 
                 <div className="space-y-2">
                   <Label>Produto da Troca (valor superior) *</Label>
-                  <Select value={exchangeProductId} onValueChange={setExchangeProductId}>
-                    <SelectTrigger className="bg-card">
-                      <SelectValue placeholder="Selecione o novo produto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {exchangeEligibleProducts.length === 0 ? (
-                        <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                          Nenhum produto com valor superior a {formatCurrency(selectedProductPrice)}
-                        </div>
-                      ) : (
-                        exchangeEligibleProducts.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} — {formatCurrency(Number(product.price))}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <WarrantyProductCombobox
+                    items={exchangeEligibleItems}
+                    value={exchangeProductId}
+                    onValueChange={setExchangeProductId}
+                    placeholder="Selecione o novo produto"
+                  />
                 </div>
 
                 {exchangeProductId && (
@@ -1206,83 +1208,3 @@ export function NewWarrantyModal({
   );
 }
 
-// Sub-component for reseller products (from consignment items)
-function ResellerProductSelect({ 
-  resellerId, 
-  onProductSelect,
-  selectedProductId 
-}: { 
-  resellerId: string; 
-  onProductSelect: (id: string) => void;
-  selectedProductId: string;
-}) {
-  const { company } = useCompany();
-  
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ["reseller-consignment-products", resellerId, company?.id],
-    queryFn: async () => {
-      if (!company?.id || !resellerId) return [];
-
-      const { data, error } = await supabase
-        .from("consignment_items")
-        .select(`
-          product_id,
-          products:product_id (id, name)
-        `)
-        .eq("company_id", company.id)
-        .eq("reseller_id", resellerId);
-
-      if (error) throw error;
-
-      const productMap = new Map<string, { id: string; name: string }>();
-      
-      data?.forEach((item: any) => {
-        if (item.product_id && item.products) {
-          productMap.set(item.product_id, {
-            id: item.product_id,
-            name: item.products.name,
-          });
-        }
-      });
-
-      return Array.from(productMap.values()).sort((a, b) => 
-        a.name.localeCompare(b.name)
-      );
-    },
-    enabled: !!company?.id && !!resellerId,
-  });
-
-  if (!resellerId) {
-    return (
-      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-        Selecione um revendedor primeiro
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-        Carregando produtos...
-      </div>
-    );
-  }
-
-  if (products.length === 0) {
-    return (
-      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-        Nenhum produto em consignação
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {products.map((product) => (
-        <SelectItem key={product.id} value={product.id}>
-          {product.name}
-        </SelectItem>
-      ))}
-    </>
-  );
-}
