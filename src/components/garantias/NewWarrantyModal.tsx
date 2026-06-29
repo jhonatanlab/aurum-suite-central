@@ -692,6 +692,20 @@ export function NewWarrantyModal({
     setInstallments(1);
   };
 
+  const canAdvanceStep1 =
+    !!productId &&
+    (clientType === "unregistered" ||
+      (clientType === "customer" && !!selectedCustomerId) ||
+      (clientType === "reseller" && !!resellerId));
+
+  const canAdvanceStep2 =
+    !!requestType &&
+    (requestType === "total_loss" ||
+      requestType === "repair" ||
+      requestType === "herd" ||
+      (requestType === "exchange" && !!exchangeSimpleProductId) ||
+      (requestType === "exchange_with_sale" && !!exchangeProductId));
+
 
 
   return (
