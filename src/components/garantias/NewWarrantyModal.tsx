@@ -1043,95 +1043,83 @@ export function NewWarrantyModal({
   </div>
 )}
 
-          <Separator />
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">3 — Detalhes do registro</p>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Código do Lote</Label>
-              <Input
-                value={batchCode}
-                onChange={(e) => setBatchCode(e.target.value)}
-                placeholder="Ex: LOT-2024-001"
-                className="bg-card"
-                readOnly={
-                  (clientType === "customer" && !!batchInfo?.batch_code) ||
-                  clientType === "unregistered"
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Data do Lote</Label>
-              <Input
-                type="date"
-                value={batchDate}
-                onChange={(e) => setBatchDate(e.target.value)}
-                className="bg-card"
-                readOnly={
-                  (clientType === "customer" && !!batchInfo?.batch_date) ||
-                  clientType === "unregistered"
-                }
-              />
-            </div>
-          </div>
+{step === 3 && (
+  <div className="space-y-4">
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label>Código do Lote</Label>
+        <Input
+          value={batchCode}
+          onChange={(e) => setBatchCode(e.target.value)}
+          placeholder="Ex: LOT-2024-001"
+          className="bg-card"
+          readOnly={
+            (clientType === "customer" && !!batchInfo?.batch_code) ||
+            clientType === "unregistered"
+          }
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Data do Lote</Label>
+        <Input
+          type="date"
+          value={batchDate}
+          onChange={(e) => setBatchDate(e.target.value)}
+          className="bg-card"
+          readOnly={
+            (clientType === "customer" && !!batchInfo?.batch_date) ||
+            clientType === "unregistered"
+          }
+        />
+      </div>
+    </div>
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={warrantyStatus} onValueChange={setWarrantyStatus}>
-              <SelectTrigger className="bg-card">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="approved">Aprovada</SelectItem>
-                <SelectItem value="denied">Negada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    <div className="space-y-2">
+      <Label>Status</Label>
+      <Select value={warrantyStatus} onValueChange={setWarrantyStatus}>
+        <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="approved">Aprovada</SelectItem>
+          <SelectItem value="denied">Negada</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
 
-          <div className="space-y-2">
-            <Label>Motivo / Defeito</Label>
-            <Textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Descreva o defeito ou motivo da garantia..."
-              className="bg-card resize-none"
-              rows={2}
-            />
-          </div>
+    <div className="space-y-2">
+      <Label>Motivo / Defeito</Label>
+      <Textarea
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Descreva o defeito ou motivo da garantia..."
+        className="bg-card resize-none"
+        rows={2}
+      />
+    </div>
 
-          <div className="space-y-2">
-            <Label>Observações</Label>
-            <Textarea
-              value={observation}
-              onChange={(e) => setObservation(e.target.value)}
-              placeholder="Observações adicionais..."
-              className="bg-card resize-none"
-              rows={2}
-            />
-          </div>
+    <div className="space-y-2">
+      <Label>Observações</Label>
+      <Textarea
+        value={observation}
+        onChange={(e) => setObservation(e.target.value)}
+        placeholder="Observações adicionais..."
+        className="bg-card resize-none"
+        rows={2}
+      />
+    </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={
-                !productId || 
-                isLoading || 
-                (clientType === "customer" && !selectedCustomerId) ||
-                (requestType === "exchange_with_sale" && !exchangeProductId) ||
-                (requestType === "exchange" && !exchangeSimpleProductId)
-              }
-            >
-              {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Registrar Garantia
-            </Button>
-          </div>
-        </form>
+    <div className="flex justify-between gap-3 pt-2">
+      <Button type="button" variant="outline" onClick={() => setStep(2)}>Voltar</Button>
+      <Button
+        type="submit"
+        disabled={isLoading}
+      >
+        {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+        Registrar Garantia
+      </Button>
+    </div>
+  </div>
+)}
+      </form>
       </DialogContent>
     </Dialog>
   );
