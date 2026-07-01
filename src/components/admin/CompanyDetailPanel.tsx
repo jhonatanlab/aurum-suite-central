@@ -35,9 +35,11 @@ interface CompanyDetailPanelProps {
   instance: WhatsAppInstance | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRequestUnblock?: (company: Company) => void;
 }
 
-export function CompanyDetailPanel({ company, instance, open, onOpenChange }: CompanyDetailPanelProps) {
+export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRequestUnblock }: CompanyDetailPanelProps) {
+
   if (!company) return null;
 
   const getStatusBadge = (status: string | null) => {
