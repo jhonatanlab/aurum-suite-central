@@ -50,10 +50,22 @@ export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRe
         return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Trial</Badge>;
       case 'suspended':
         return <Badge variant="destructive">Suspensa</Badge>;
+      case 'canceled':
+      case 'cancelled':
+        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Cancelada</Badge>;
+      case 'past_due':
+        return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Inadimplente</Badge>;
+      case 'blocked':
+        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Bloqueada</Badge>;
+      case null:
+      case undefined:
+      case '':
+        return <Badge variant="outline">Sem status</Badge>;
       default:
-        return <Badge variant="outline">Ativa</Badge>;
+        return <Badge variant="outline">{String(status).charAt(0).toUpperCase() + String(status).slice(1)}</Badge>;
     }
   };
+
 
   const getPlanBadge = (plan: string | null) => {
     switch (plan) {
