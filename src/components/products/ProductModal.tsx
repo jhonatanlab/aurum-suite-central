@@ -595,7 +595,53 @@ export function ProductModal({
                   </div>
                 )}
 
-                {/* SECTION 1: Replenishment (New Batch) */}
+                {/* Stock Action Selector - only when editing */}
+                {isEditing && (
+                  <div className="space-y-2">
+                    <Label className="text-white font-medium">O que você quer fazer?</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStockAction("add");
+                          setFormData({ ...formData, adjustment: { ...formData.adjustment, quantity: "", reason: "" } });
+                        }}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                          stockAction === "add"
+                            ? "border-[#C7A052] bg-[#C7A052]/10"
+                            : "border-[#2A2A2A] bg-[#121212] hover:border-[#3A3A3A]"
+                        }`}
+                      >
+                        <RefreshCw className={`h-5 w-5 ${stockAction === "add" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
+                        <div className="text-left">
+                          <p className={`text-sm font-medium ${stockAction === "add" ? "text-white" : "text-[#A1A1AA]"}`}>Adicionar estoque</p>
+                          <p className="text-xs text-[#6B6B6B]">Entrada de novo lote</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStockAction("adjust");
+                          setFormData({ ...formData, batch: { batch_code: "", quantity: "", supplier_id: "" } });
+                        }}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                          stockAction === "adjust"
+                            ? "border-blue-400 bg-blue-400/10"
+                            : "border-[#2A2A2A] bg-[#121212] hover:border-[#3A3A3A]"
+                        }`}
+                      >
+                        <Wrench className={`h-5 w-5 ${stockAction === "adjust" ? "text-blue-400" : "text-[#6B6B6B]"}`} />
+                        <div className="text-left">
+                          <p className={`text-sm font-medium ${stockAction === "adjust" ? "text-white" : "text-[#A1A1AA]"}`}>Corrigir estoque</p>
+                          <p className="text-xs text-[#6B6B6B]">Ajuste de contagem</p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ADD STOCK: Replenishment (New Batch) — always shown on create, or when action=add on edit */}
+                {(!isEditing || stockAction === "add") && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <RefreshCw className="h-5 w-5 text-[#C7A052]" />
@@ -629,7 +675,7 @@ export function ProductModal({
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="batch_quantity" className="text-white font-medium">
-                        Quantidade {!isEditing && "*"}
+                        Quantidade a adicionar {!isEditing && "*"}
                       </Label>
                       <Input
                         id="batch_quantity"
@@ -683,24 +729,28 @@ export function ProductModal({
                     </div>
                   </div>
                 </div>
+                )}
 
-                {/* SECTION 2: Adjust Last Batch - only when editing */}
-                {isEditing && formData.adjustment.batch_id && (
-                  <div className="space-y-4 pt-4 border-t border-[#2A2A2A]">
+                {/* ADJUST STOCK: Correction — only when editing and action=adjust */}
+                {isEditing && stockAction === "adjust" && formData.adjustment.batch_id && (
+                  <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <Wrench className="h-5 w-5 text-blue-400" />
                       <h3 className="text-sm font-medium text-blue-400 uppercase tracking-wider">
-                        Ajustar Último Lote
+                        Corrigir Estoque (Recontagem)
                       </h3>
                     </div>
 
-                    <p className="text-xs text-[#A1A1AA]">
-                      Edite a quantidade do último lote adicionado. O código do lote não será alterado.
-                    </p>
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-400/10 border border-blue-400/30">
+                      <AlertTriangle className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-blue-400">
+                        Informe o total real em estoque. O sistema calcula a diferença automaticamente.
+                      </p>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-white font-medium">Código do Lote</Label>
+                        <Label className="text-white font-medium">Lote a corrigir</Label>
                         <Input
                           value={formData.adjustment.batch_code || ""}
                           disabled
@@ -708,23 +758,42 @@ export function ProductModal({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="adj_quantity" className="text-white font-medium">Quantidade</Label>
+                        <Label htmlFor="adj_quantity" className="text-white font-medium">Novo total em estoque *</Label>
                         <Input
                           id="adj_quantity"
                           type="number"
                           min="0"
                           value={formData.adjustment.quantity}
                           onChange={(e) => setFormData({ ...formData, adjustment: { ...formData.adjustment, quantity: e.target.value } })}
-                          placeholder="Nova quantidade"
+                          placeholder="Total real contado"
                           className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-blue-400 focus:ring-blue-400/20"
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="adj_reason" className="text-white font-medium">Motivo do ajuste *</Label>
+                      <Select
+                        value={formData.adjustment.reason || ""}
+                        onValueChange={(value) => setFormData({ ...formData, adjustment: { ...formData.adjustment, reason: value } })}
+                      >
+                        <SelectTrigger className="bg-[#121212] border-[#2A2A2A] text-white focus:border-blue-400 focus:ring-blue-400/20">
+                          <SelectValue placeholder="Selecione o motivo" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
+                          <SelectItem value="quebra" className="text-white focus:bg-[#2A2A2A] focus:text-white">Quebra</SelectItem>
+                          <SelectItem value="perda" className="text-white focus:bg-[#2A2A2A] focus:text-white">Perda</SelectItem>
+                          <SelectItem value="erro_cadastro" className="text-white focus:bg-[#2A2A2A] focus:text-white">Erro no cadastro</SelectItem>
+                          <SelectItem value="recontagem" className="text-white focus:bg-[#2A2A2A] focus:text-white">Recontagem</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 )}
               </div>
             )}
           </div>
+
 
           {/* Footer */}
           <div className="pt-4 border-t border-[#2A2A2A] flex gap-3">
