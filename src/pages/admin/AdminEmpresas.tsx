@@ -149,14 +149,18 @@ export default function AdminEmpresas() {
 
   async function fetchData() {
     try {
-      const [companiesRes, instancesRes] = await Promise.all([
+      const [companiesRes, instancesRes, subsRes] = await Promise.all([
         supabase
           .from('companies')
           .select('id, name, cnpj, plan, status, created_at, updated_at, last_access_at, whatsapp_settings')
           .order('created_at', { ascending: false }),
         supabase
           .from('whatsapp_instances')
-          .select('id, company_id, instance_id, phone_number, status, last_connected_at')
+          .select('id, company_id, instance_id, phone_number, status, last_connected_at'),
+        supabase
+          .from('subscriptions')
+          .select('company_id, status, created_at')
+          .order('created_at', { ascending: false })
       ]);
 
       if (companiesRes.error) throw companiesRes.error;
@@ -168,6 +172,7 @@ export default function AdminEmpresas() {
 
       setCompanies(typedCompanies);
       setInstances(instancesRes.data || []);
+      setSubscriptions((subsRes.data || []) as SubscriptionRow[]);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -183,6 +188,16 @@ export default function AdminEmpresas() {
   const getInstanceForCompany = (companyId: string) => {
     return instances.find(i => i.company_id === companyId) || null;
   };
+
+  const getLatestSubStatus = (companyId: string): string | null => {
+    const sub = subscriptions.find(s => s.company_id === companyId);
+    return sub?.status ?? null;
+  };
+
+  const getEffectiveStatusForCompany = (company: Company): string | null => {
+    return getEffectiveCompanyStatus(company.status, getLatestSubStatus(company.id));
+  };
+
 
   const getPlanBadge = (plan: string | null) => {
     switch (plan) {
