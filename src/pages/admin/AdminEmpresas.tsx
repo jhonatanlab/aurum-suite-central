@@ -55,6 +55,33 @@ interface WhatsAppInstance {
   last_connected_at: string | null;
 }
 
+interface SubscriptionRow {
+  company_id: string;
+  status: string | null;
+  created_at: string;
+}
+
+const BLOCKED_SUB_STATUSES = new Set([
+  "canceled",
+  "cancelled",
+  "past_due",
+  "unpaid",
+  "incomplete_expired",
+  "paused",
+]);
+
+export function getEffectiveCompanyStatus(
+  companyStatus: string | null,
+  subStatus: string | null | undefined
+): string | null {
+  if (subStatus && BLOCKED_SUB_STATUSES.has(subStatus)) return subStatus;
+  if (companyStatus && companyStatus !== "active" && companyStatus !== "trial") {
+    return companyStatus;
+  }
+  return companyStatus;
+}
+
+
 export function getCompanyStatusBadge(status: string | null) {
   switch (status) {
     case "active":
