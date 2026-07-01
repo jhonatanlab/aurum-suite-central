@@ -55,6 +55,33 @@ interface WhatsAppInstance {
   last_connected_at: string | null;
 }
 
+interface SubscriptionRow {
+  company_id: string;
+  status: string | null;
+  created_at: string;
+}
+
+const BLOCKED_SUB_STATUSES = new Set([
+  "canceled",
+  "cancelled",
+  "past_due",
+  "unpaid",
+  "incomplete_expired",
+  "paused",
+]);
+
+export function getEffectiveCompanyStatus(
+  companyStatus: string | null,
+  subStatus: string | null | undefined
+): string | null {
+  if (subStatus && BLOCKED_SUB_STATUSES.has(subStatus)) return subStatus;
+  if (companyStatus && companyStatus !== "active" && companyStatus !== "trial") {
+    return companyStatus;
+  }
+  return companyStatus;
+}
+
+
 export function getCompanyStatusBadge(status: string | null) {
   switch (status) {
     case "active":
@@ -106,6 +133,7 @@ export async function unblockCompany(companyId: string) {
 export default function AdminEmpresas() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [instances, setInstances] = useState<WhatsAppInstance[]>([]);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -114,20 +142,25 @@ export default function AdminEmpresas() {
   const [unblocking, setUnblocking] = useState(false);
   const { toast } = useToast();
 
+
   useEffect(() => {
     fetchData();
   }, []);
 
   async function fetchData() {
     try {
-      const [companiesRes, instancesRes] = await Promise.all([
+      const [companiesRes, instancesRes, subsRes] = await Promise.all([
         supabase
           .from('companies')
           .select('id, name, cnpj, plan, status, created_at, updated_at, last_access_at, whatsapp_settings')
           .order('created_at', { ascending: false }),
         supabase
           .from('whatsapp_instances')
-          .select('id, company_id, instance_id, phone_number, status, last_connected_at')
+          .select('id, company_id, instance_id, phone_number, status, last_connected_at'),
+        supabase
+          .from('subscriptions')
+          .select('company_id, status, created_at')
+          .order('created_at', { ascending: false })
       ]);
 
       if (companiesRes.error) throw companiesRes.error;
@@ -139,6 +172,7 @@ export default function AdminEmpresas() {
 
       setCompanies(typedCompanies);
       setInstances(instancesRes.data || []);
+      setSubscriptions((subsRes.data || []) as SubscriptionRow[]);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -154,6 +188,16 @@ export default function AdminEmpresas() {
   const getInstanceForCompany = (companyId: string) => {
     return instances.find(i => i.company_id === companyId) || null;
   };
+
+  const getLatestSubStatus = (companyId: string): string | null => {
+    const sub = subscriptions.find(s => s.company_id === companyId);
+    return sub?.status ?? null;
+  };
+
+  const getEffectiveStatusForCompany = (company: Company): string | null => {
+    return getEffectiveCompanyStatus(company.status, getLatestSubStatus(company.id));
+  };
+
 
   const getPlanBadge = (plan: string | null) => {
     switch (plan) {
@@ -258,7 +302,8 @@ export default function AdminEmpresas() {
                 <TableBody>
                   {filteredCompanies.map((company) => {
                     const instance = getInstanceForCompany(company.id);
-                    const isBlocked = company.status !== "active" && company.status !== "trial";
+                    const effectiveStatus = getEffectiveStatusForCompany(company);
+                    const isBlocked = effectiveStatus !== "active" && effectiveStatus !== "trial";
                     return (
                       <TableRow
                         key={company.id}
@@ -274,7 +319,8 @@ export default function AdminEmpresas() {
                           </div>
                         </TableCell>
                         <TableCell>{getPlanBadge(company.plan)}</TableCell>
-                        <TableCell>{getCompanyStatusBadge(company.status)}</TableCell>
+                        <TableCell>{getCompanyStatusBadge(effectiveStatus)}</TableCell>
+
                         <TableCell>
                           {instance?.status === 'connected' ? (
                             <div className="flex items-center gap-1.5">
@@ -348,12 +394,13 @@ export default function AdminEmpresas() {
       </div>
 
       <CompanyDetailPanel
-        company={selectedCompany}
+        company={selectedCompany ? { ...selectedCompany, status: getEffectiveStatusForCompany(selectedCompany) } : null}
         instance={selectedCompany ? getInstanceForCompany(selectedCompany.id) : null}
         open={panelOpen}
         onOpenChange={setPanelOpen}
         onRequestUnblock={(c) => setConfirmCompany(c as Company)}
       />
+
 
       <AlertDialog open={!!confirmCompany} onOpenChange={(open) => !open && setConfirmCompany(null)}>
         <AlertDialogContent>
