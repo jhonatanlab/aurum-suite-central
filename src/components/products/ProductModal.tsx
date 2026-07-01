@@ -120,6 +120,7 @@ export function ProductModal({
   lastBatch,
 }: ProductModalProps) {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
+  const [stockAction, setStockAction] = useState<"add" | "adjust">("add");
   const { activeSuppliers, isLoading: loadingSuppliers } = useSuppliers();
   const { products: allProducts } = useProducts();
   const currentDateTime = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
