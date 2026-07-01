@@ -1,34 +1,27 @@
 ## Problema
 
-O botão "Desbloquear" só aparece quando `company.status !== "active"`. Porém a empresa **felipe joias** tem:
-- `companies.status = "active"`
-- `subscriptions.status = "canceled"`
-
-Ou seja, o cancelamento veio pelo webhook do Stripe e atualizou a subscription, mas o `companies.status` continuou como `active`. Por isso a lista mostra "Ativa" e o botão de desbloquear não aparece — mesmo o usuário estando de fato bloqueado (o middleware de assinatura redireciona pra `/billing` baseado na subscription, não no `companies.status`).
+O sidebar do Felipe volta com todos os módulos travados (🔒) mesmo depois do "Desbloquear" no Admin SaaS. Motivo: o unlock manual só atualiza o banco (`companies.status` e `subscriptions.status`), mas quem decide os limites do plano é a Edge Function `check-plan-limits`, que **consulta o Stripe diretamente** (`stripe.subscriptions.list({status:"active"})`). Como a assinatura no Stripe permanece cancelada, ela devolve `currentPlan = "none"` → `blocked_modules` cobre tudo → sidebar mostra todo mundo bloqueado.
 
 ## Correção
 
-Fazer a UI de Admin > Empresas usar o **status efetivo** = combinação de `companies.status` + status da última `subscriptions`.
+Tornar o banco local a fonte de verdade primária em `check-plan-limits`, com Stripe apenas como fallback.
 
-### 1. `src/pages/admin/AdminEmpresas.tsx`
-- No `fetchData`, buscar também a última subscription de cada empresa (`subscriptions` ordenado por `created_at desc`, agrupado por `company_id`) trazendo `status`.
-- Criar helper `getEffectiveStatus(company, sub)`:
-  - Se `sub.status` for `canceled` / `cancelled` / `past_due` / `unpaid` / `incomplete_expired` → retorna esse status (tem prioridade sobre `companies.status = "active"`).
-  - Se `companies.status` estiver definido e não for `active`/`trial`, retorna ele.
-  - Caso contrário retorna `companies.status` (active/trial/etc).
-- Substituir `company.status` por `effectiveStatus` em:
-  - `getCompanyStatusBadge(effectiveStatus)` na coluna Status.
-  - Cálculo de `isBlocked = effectiveStatus !== "active" && effectiveStatus !== "trial"` que controla o botão inline "Desbloquear".
-- Passar `effectiveStatus` (via prop nova ou sobrescrevendo `company.status` numa cópia) para o `CompanyDetailPanel`.
+### `supabase/functions/check-plan-limits/index.ts`
 
-### 2. `src/components/admin/CompanyDetailPanel.tsx`
-- Trocar a condição do bloco "Empresa com acesso bloqueado" para o mesmo critério (`effectiveStatus !== 'active' && effectiveStatus !== 'trial'`) — mais tolerante que a checagem atual.
+1. Antes de chamar Stripe, buscar a assinatura mais recente da empresa em `public.subscriptions` (via `adminClient`, ordenada por `created_at desc`).
+2. Se existir um registro com `status` em `('active','trialing','canceling')`, resolver o plano a partir do próprio campo `plan` (já é `starter | profissional | growth`) e **pular a chamada ao Stripe**.
+   - Se `plan` estiver vazio, mapear `price_id`/`stripe_subscription_id` conforme necessário; fallback: `starter`.
+3. Só cair no bloco atual do Stripe quando não houver nenhuma subscription local válida.
+4. Manter o atalho de superadmin como está.
 
-### 3. `unblockCompany` (já existe)
-- Continua igual: força `companies.status = 'active'` e a última subscription para `status = 'active'`. Só o gatilho visual precisa mudar.
+Isso faz o "Desbloquear" do painel admin ter efeito imediato: ao marcar `subscriptions.status='active'`, a função passa a devolver o plano correto e o sidebar libera os módulos.
 
-## Resultado esperado
+### Nada mais muda
 
-- **felipe joias** aparecerá com badge **"Cancelada"** na lista.
-- Botão **"Desbloquear"** aparecerá tanto na linha da tabela quanto no painel de detalhes.
-- Clicando, empresa e subscription voltam para `active` e o usuário sai da tela `/billing`.
+- Frontend (`usePlanUsage`, `useSubscription`, sidebar) continua igual.
+- Webhooks do Stripe seguem atualizando `subscriptions` normalmente, então clientes reais não são afetados.
+- Nenhuma migration necessária.
+
+## Verificação
+
+Após o deploy, abrir o dashboard do Felipe e conferir que CRM, Vendas, Produtos, WhatsApp, Financeiro e Garantias ficam desbloqueados (Starter ainda mantém Revendedores travado, que é o comportamento correto do plano).
