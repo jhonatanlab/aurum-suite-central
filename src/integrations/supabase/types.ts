@@ -1935,6 +1935,7 @@ export type Database = {
         Args: { bundle_uuid: string; qty: number }
         Returns: undefined
       }
+      touch_company_last_access: { Args: never; Returns: undefined }
       user_belongs_to_company: {
         Args: { _company_id: string }
         Returns: boolean
