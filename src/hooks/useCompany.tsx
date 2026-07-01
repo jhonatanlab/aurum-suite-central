@@ -125,6 +125,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         whatsapp_settings: companyData.whatsapp_settings as unknown as WhatsAppSettings | null,
       });
       setFetchedForUserId(user.id);
+
+      // Registrar último acesso da empresa (fire-and-forget)
+      supabase.rpc('touch_company_last_access').then(({ error }) => {
+        if (error) console.warn('[Company] touch_company_last_access falhou:', error.message);
+      });
     } catch (error) {
       console.error('Erro ao buscar empresa:', error);
       setCompany(null);
