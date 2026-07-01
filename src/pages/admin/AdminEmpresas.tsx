@@ -13,10 +13,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Building2, Loader2, Eye, Clock, Wifi, WifiOff } from "lucide-react";
+import { Search, Building2, Loader2, Eye, Clock, Wifi, WifiOff, Unlock } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
 
 interface WhatsAppSettings {
   api_provider?: string;
@@ -44,6 +55,54 @@ interface WhatsAppInstance {
   last_connected_at: string | null;
 }
 
+export function getCompanyStatusBadge(status: string | null) {
+  switch (status) {
+    case "active":
+      return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Ativa</Badge>;
+    case "trial":
+      return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Trial</Badge>;
+    case "suspended":
+      return <Badge variant="destructive">Suspensa</Badge>;
+    case "canceled":
+    case "cancelled":
+      return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Cancelada</Badge>;
+    case "past_due":
+      return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Inadimplente</Badge>;
+    case "blocked":
+      return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Bloqueada</Badge>;
+    case null:
+    case undefined:
+    case "":
+      return <Badge variant="outline">Sem status</Badge>;
+    default:
+      return <Badge variant="outline">{String(status).charAt(0).toUpperCase() + String(status).slice(1)}</Badge>;
+  }
+}
+
+export async function unblockCompany(companyId: string) {
+  const { error: cErr } = await supabase
+    .from("companies")
+    .update({ status: "active" })
+    .eq("id", companyId);
+  if (cErr) throw cErr;
+
+  const { data: subs, error: sSelErr } = await supabase
+    .from("subscriptions")
+    .select("id")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (sSelErr) throw sSelErr;
+
+  if (subs && subs.length > 0) {
+    const { error: sUpdErr } = await supabase
+      .from("subscriptions")
+      .update({ status: "active" })
+      .eq("id", subs[0].id);
+    if (sUpdErr) throw sUpdErr;
+  }
+}
+
 export default function AdminEmpresas() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [instances, setInstances] = useState<WhatsAppInstance[]>([]);
@@ -51,6 +110,9 @@ export default function AdminEmpresas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [confirmCompany, setConfirmCompany] = useState<Company | null>(null);
+  const [unblocking, setUnblocking] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchData();
@@ -69,13 +131,12 @@ export default function AdminEmpresas() {
       ]);
 
       if (companiesRes.error) throw companiesRes.error;
-      
-      // Type assertion for whatsapp_settings
+
       const typedCompanies = (companiesRes.data || []).map(company => ({
         ...company,
         whatsapp_settings: company.whatsapp_settings as WhatsAppSettings | null
       }));
-      
+
       setCompanies(typedCompanies);
       setInstances(instancesRes.data || []);
     } catch (err) {
@@ -107,22 +168,34 @@ export default function AdminEmpresas() {
     }
   };
 
-  const getStatusBadge = (status: string | null) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Ativa</Badge>;
-      case 'trial':
-        return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Trial</Badge>;
-      case 'suspended':
-        return <Badge variant="destructive">Suspensa</Badge>;
-      default:
-        return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Ativa</Badge>;
-    }
-  };
-
   const handleOpenDetails = (company: Company) => {
     setSelectedCompany(company);
     setPanelOpen(true);
+  };
+
+  const handleConfirmUnblock = async () => {
+    if (!confirmCompany) return;
+    setUnblocking(true);
+    try {
+      await unblockCompany(confirmCompany.id);
+      toast({
+        title: "Empresa desbloqueada",
+        description: `${confirmCompany.name} agora tem acesso liberado.`,
+      });
+      setConfirmCompany(null);
+      await fetchData();
+      if (selectedCompany?.id === confirmCompany.id) {
+        setSelectedCompany({ ...selectedCompany, status: "active" });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao desbloquear",
+        description: err.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setUnblocking(false);
+    }
   };
 
   return (
@@ -185,9 +258,10 @@ export default function AdminEmpresas() {
                 <TableBody>
                   {filteredCompanies.map((company) => {
                     const instance = getInstanceForCompany(company.id);
+                    const isBlocked = company.status !== "active" && company.status !== "trial";
                     return (
-                      <TableRow 
-                        key={company.id} 
+                      <TableRow
+                        key={company.id}
                         className="border-border cursor-pointer hover:bg-muted/50"
                         onClick={() => handleOpenDetails(company)}
                       >
@@ -200,7 +274,7 @@ export default function AdminEmpresas() {
                           </div>
                         </TableCell>
                         <TableCell>{getPlanBadge(company.plan)}</TableCell>
-                        <TableCell>{getStatusBadge(company.status)}</TableCell>
+                        <TableCell>{getCompanyStatusBadge(company.status)}</TableCell>
                         <TableCell>
                           {instance?.status === 'connected' ? (
                             <div className="flex items-center gap-1.5">
@@ -224,9 +298,9 @@ export default function AdminEmpresas() {
                             <div className="flex items-center gap-1.5">
                               <Clock className="h-3.5 w-3.5" />
                               <span className="text-xs">
-                                {formatDistanceToNow(new Date(company.last_access_at), { 
-                                  addSuffix: true, 
-                                  locale: ptBR 
+                                {formatDistanceToNow(new Date(company.last_access_at), {
+                                  addSuffix: true,
+                                  locale: ptBR
                                 })}
                               </span>
                             </div>
@@ -235,17 +309,33 @@ export default function AdminEmpresas() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenDetails(company);
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Ver
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            {isBlocked && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmCompany(company);
+                                }}
+                              >
+                                <Unlock className="h-4 w-4 mr-1" />
+                                Desbloquear
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDetails(company);
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Ver
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -262,7 +352,27 @@ export default function AdminEmpresas() {
         instance={selectedCompany ? getInstanceForCompany(selectedCompany.id) : null}
         open={panelOpen}
         onOpenChange={setPanelOpen}
+        onRequestUnblock={(c) => setConfirmCompany(c as Company)}
       />
+
+      <AlertDialog open={!!confirmCompany} onOpenChange={(open) => !open && setConfirmCompany(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desbloquear empresa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso libera o acesso de <strong>{confirmCompany?.name}</strong> manualmente, mesmo sem assinatura ativa no Stripe.
+              Se o Stripe emitir um novo evento (ex: renovação, cancelamento), o status pode ser sobrescrito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={unblocking}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmUnblock} disabled={unblocking}>
+              {unblocking ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Unlock className="h-4 w-4 mr-2" />}
+              Desbloquear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
