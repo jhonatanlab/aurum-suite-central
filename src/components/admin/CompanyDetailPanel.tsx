@@ -1,9 +1,11 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Calendar, User, CreditCard, MessageCircle, Wifi, WifiOff, Clock } from "lucide-react";
+import { Building2, Calendar, User, CreditCard, MessageCircle, Wifi, WifiOff, Clock, Unlock } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
 
 interface WhatsAppInstance {
   id: string;
