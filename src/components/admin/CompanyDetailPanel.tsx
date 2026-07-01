@@ -1,9 +1,11 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Calendar, User, CreditCard, MessageCircle, Wifi, WifiOff, Clock } from "lucide-react";
+import { Building2, Calendar, User, CreditCard, MessageCircle, Wifi, WifiOff, Clock, Unlock } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
 
 interface WhatsAppInstance {
   id: string;
@@ -33,9 +35,11 @@ interface CompanyDetailPanelProps {
   instance: WhatsAppInstance | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRequestUnblock?: (company: Company) => void;
 }
 
-export function CompanyDetailPanel({ company, instance, open, onOpenChange }: CompanyDetailPanelProps) {
+export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRequestUnblock }: CompanyDetailPanelProps) {
+
   if (!company) return null;
 
   const getStatusBadge = (status: string | null) => {
@@ -46,10 +50,22 @@ export function CompanyDetailPanel({ company, instance, open, onOpenChange }: Co
         return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Trial</Badge>;
       case 'suspended':
         return <Badge variant="destructive">Suspensa</Badge>;
+      case 'canceled':
+      case 'cancelled':
+        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Cancelada</Badge>;
+      case 'past_due':
+        return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Inadimplente</Badge>;
+      case 'blocked':
+        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Bloqueada</Badge>;
+      case null:
+      case undefined:
+      case '':
+        return <Badge variant="outline">Sem status</Badge>;
       default:
-        return <Badge variant="outline">Ativa</Badge>;
+        return <Badge variant="outline">{String(status).charAt(0).toUpperCase() + String(status).slice(1)}</Badge>;
     }
   };
+
 
   const getPlanBadge = (plan: string | null) => {
     switch (plan) {
@@ -90,12 +106,31 @@ export function CompanyDetailPanel({ company, instance, open, onOpenChange }: Co
           </SheetTitle>
         </SheetHeader>
 
+        {company.status && company.status !== 'active' && company.status !== 'trial' && onRequestUnblock && (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <div className="text-sm">
+              <p className="font-medium text-foreground">Empresa com acesso bloqueado</p>
+              <p className="text-xs text-muted-foreground">Libere manualmente o acesso sem esperar renovação.</p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+              onClick={() => onRequestUnblock(company)}
+            >
+              <Unlock className="h-4 w-4 mr-1" />
+              Desbloquear
+            </Button>
+          </div>
+        )}
+
         <div className="mt-6 space-y-6">
           {/* Dados Básicos */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Dados Básicos
             </h3>
+
             <div className="grid gap-3">
               <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
                 <span className="text-sm text-muted-foreground">Nome</span>
