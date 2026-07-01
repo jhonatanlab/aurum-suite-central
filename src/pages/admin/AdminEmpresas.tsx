@@ -302,7 +302,8 @@ export default function AdminEmpresas() {
                 <TableBody>
                   {filteredCompanies.map((company) => {
                     const instance = getInstanceForCompany(company.id);
-                    const isBlocked = company.status !== "active" && company.status !== "trial";
+                    const effectiveStatus = getEffectiveStatusForCompany(company);
+                    const isBlocked = effectiveStatus !== "active" && effectiveStatus !== "trial";
                     return (
                       <TableRow
                         key={company.id}
@@ -318,7 +319,8 @@ export default function AdminEmpresas() {
                           </div>
                         </TableCell>
                         <TableCell>{getPlanBadge(company.plan)}</TableCell>
-                        <TableCell>{getCompanyStatusBadge(company.status)}</TableCell>
+                        <TableCell>{getCompanyStatusBadge(effectiveStatus)}</TableCell>
+
                         <TableCell>
                           {instance?.status === 'connected' ? (
                             <div className="flex items-center gap-1.5">
