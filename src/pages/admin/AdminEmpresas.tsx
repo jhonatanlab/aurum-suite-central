@@ -133,6 +133,7 @@ export async function unblockCompany(companyId: string) {
 export default function AdminEmpresas() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [instances, setInstances] = useState<WhatsAppInstance[]>([]);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -140,6 +141,7 @@ export default function AdminEmpresas() {
   const [confirmCompany, setConfirmCompany] = useState<Company | null>(null);
   const [unblocking, setUnblocking] = useState(false);
   const { toast } = useToast();
+
 
   useEffect(() => {
     fetchData();
