@@ -316,17 +316,17 @@ export function useWarranties(filters?: WarrantyFilters) {
           gateway_fee_percent: data.gateway_fee_percent || 0,
         });
 
-        // Stock reduction for the new product sold
-        await supabase.from("product_batches").insert({
-          company_id: company.id,
-          product_id: data.exchange_product_id,
-          batch_code: data.batch_code || "Código Não Preenchido",
-          batch_type: "warranty_exchange",
-          quantity: -1,
-          status: "active",
-          created_by: userEmail,
-          observation: `Garantia Troca com Venda - SALE_ID:${saleData.id}`,
+        // Stock reduction for the new product sold — FIFO, tagged as warranty replacement
+        const { error: twsFifoError } = await supabase.rpc("consume_stock_fifo", {
+          p_company_id: company.id,
+          p_product_id: data.exchange_product_id,
+          p_quantity: 1,
+          p_source_type: "warranty_replacement",
+          p_source_id: warrantyId,
+          p_warranty_id: warrantyId,
+          p_created_by: userEmail,
         });
+        if (twsFifoError) throw twsFifoError;
 
         // Financial: register the sale revenue
         if (diff > 0) {
