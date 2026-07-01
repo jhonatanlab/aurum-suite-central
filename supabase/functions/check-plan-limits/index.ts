@@ -114,34 +114,56 @@ serve(async (req) => {
       .maybeSingle();
 
     let currentPlan = "none";
+    const VALID_PLANS = new Set(["starter", "profissional", "growth"]);
+    const ALLOWED_LOCAL_STATUSES = new Set(["active", "trialing", "canceling"]);
 
     if (superadminRole) {
       currentPlan = "growth";
       logStep("Superadmin detected, granting growth plan");
     } else {
-      const env = getEnvironment();
-      const Stripe = (await import("https://esm.sh/stripe@14.21.0")).default;
-      const stripeKey = env === "test"
-        ? (Deno.env.get("STRIPE_SECRET_KEY_TEST") || "")
-        : (Deno.env.get("STRIPE_SECRET_KEY") || "");
-      const stripe = new Stripe(stripeKey, {
-        apiVersion: "2023-10-16",
-        httpClient: Stripe.createFetchHttpClient(),
-      });
+      // 1) Prefer local subscriptions table as the source of truth.
+      const { data: localSub } = await adminClient
+        .from("subscriptions")
+        .select("status, plan, price_id")
+        .eq("company_id", company_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      const PRODUCT_TO_PLAN = env === "test" ? PRODUCT_TO_PLAN_TEST : PRODUCT_TO_PLAN_LIVE;
-
-      const customers = await stripe.customers.list({ email: user.email!, limit: 1 });
-      if (customers.data.length > 0) {
-        const subs = await stripe.subscriptions.list({
-          customer: customers.data[0].id,
-          status: "active",
-          limit: 1,
-        });
-        if (subs.data.length > 0) {
-          const productId = subs.data[0].items.data[0]?.price?.product as string;
-          currentPlan = PRODUCT_TO_PLAN[productId] || "none";
+      if (localSub && ALLOWED_LOCAL_STATUSES.has(localSub.status)) {
+        if (localSub.plan && VALID_PLANS.has(localSub.plan)) {
+          currentPlan = localSub.plan;
+        } else {
+          currentPlan = "starter";
         }
+        logStep("Plan resolved from local subscriptions", { status: localSub.status, currentPlan });
+      } else {
+        // 2) Fallback to Stripe lookup only when no valid local subscription exists.
+        const env = getEnvironment();
+        const Stripe = (await import("https://esm.sh/stripe@14.21.0")).default;
+        const stripeKey = env === "test"
+          ? (Deno.env.get("STRIPE_SECRET_KEY_TEST") || "")
+          : (Deno.env.get("STRIPE_SECRET_KEY") || "");
+        const stripe = new Stripe(stripeKey, {
+          apiVersion: "2023-10-16",
+          httpClient: Stripe.createFetchHttpClient(),
+        });
+
+        const PRODUCT_TO_PLAN = env === "test" ? PRODUCT_TO_PLAN_TEST : PRODUCT_TO_PLAN_LIVE;
+
+        const customers = await stripe.customers.list({ email: user.email!, limit: 1 });
+        if (customers.data.length > 0) {
+          const subs = await stripe.subscriptions.list({
+            customer: customers.data[0].id,
+            status: "active",
+            limit: 1,
+          });
+          if (subs.data.length > 0) {
+            const productId = subs.data[0].items.data[0]?.price?.product as string;
+            currentPlan = PRODUCT_TO_PLAN[productId] || "none";
+          }
+        }
+        logStep("Plan resolved from Stripe fallback", { currentPlan });
       }
     }
     logStep("Current plan resolved", { currentPlan });
