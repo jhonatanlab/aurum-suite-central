@@ -106,12 +106,31 @@ export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRe
           </SheetTitle>
         </SheetHeader>
 
+        {company.status && company.status !== 'active' && company.status !== 'trial' && onRequestUnblock && (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <div className="text-sm">
+              <p className="font-medium text-foreground">Empresa com acesso bloqueado</p>
+              <p className="text-xs text-muted-foreground">Libere manualmente o acesso sem esperar renovação.</p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+              onClick={() => onRequestUnblock(company)}
+            >
+              <Unlock className="h-4 w-4 mr-1" />
+              Desbloquear
+            </Button>
+          </div>
+        )}
+
         <div className="mt-6 space-y-6">
           {/* Dados Básicos */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Dados Básicos
             </h3>
+
             <div className="grid gap-3">
               <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
                 <span className="text-sm text-muted-foreground">Nome</span>
