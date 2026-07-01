@@ -394,12 +394,13 @@ export default function AdminEmpresas() {
       </div>
 
       <CompanyDetailPanel
-        company={selectedCompany}
+        company={selectedCompany ? { ...selectedCompany, status: getEffectiveStatusForCompany(selectedCompany) } : null}
         instance={selectedCompany ? getInstanceForCompany(selectedCompany.id) : null}
         open={panelOpen}
         onOpenChange={setPanelOpen}
         onRequestUnblock={(c) => setConfirmCompany(c as Company)}
       />
+
 
       <AlertDialog open={!!confirmCompany} onOpenChange={(open) => !open && setConfirmCompany(null)}>
         <AlertDialogContent>
