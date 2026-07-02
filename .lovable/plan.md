@@ -1,27 +1,37 @@
 ## Problema
 
-O sidebar do Felipe volta com todos os módulos travados (🔒) mesmo depois do "Desbloquear" no Admin SaaS. Motivo: o unlock manual só atualiza o banco (`companies.status` e `subscriptions.status`), mas quem decide os limites do plano é a Edge Function `check-plan-limits`, que **consulta o Stripe diretamente** (`stripe.subscriptions.list({status:"active"})`). Como a assinatura no Stripe permanece cancelada, ela devolve `currentPlan = "none"` → `blocked_modules` cobre tudo → sidebar mostra todo mundo bloqueado.
+No `LeadSidePanel` (CRM), a aba **Informações** mostra apenas a "Data de Cadastro" do lead. Quando o lead virou cliente e teve venda(s) registradas no POS (`sales.client_id = lead.id`), a **data da venda** não aparece em lugar nenhum do painel.
 
-## Correção
+## Solução
 
-Tornar o banco local a fonte de verdade primária em `check-plan-limits`, com Stripe apenas como fallback.
+Adicionar uma seção **"Vendas do Cliente"** na aba Informações do `LeadSidePanel`, logo abaixo de "Dados Adicionais", listando todas as vendas vinculadas ao lead.
 
-### `supabase/functions/check-plan-limits/index.ts`
+### O que vai aparecer
 
-1. Antes de chamar Stripe, buscar a assinatura mais recente da empresa em `public.subscriptions` (via `adminClient`, ordenada por `created_at desc`).
-2. Se existir um registro com `status` em `('active','trialing','canceling')`, resolver o plano a partir do próprio campo `plan` (já é `starter | profissional | growth`) e **pular a chamada ao Stripe**.
-   - Se `plan` estiver vazio, mapear `price_id`/`stripe_subscription_id` conforme necessário; fallback: `starter`.
-3. Só cair no bloco atual do Stripe quando não houver nenhuma subscription local válida.
-4. Manter o atalho de superadmin como está.
+Para cada venda em `sales` com `client_id = lead.id` e `status != 'cancelled'`:
 
-Isso faz o "Desbloquear" do painel admin ter efeito imediato: ao marcar `subscriptions.status='active'`, a função passa a devolver o plano correto e o sidebar libera os módulos.
+- Data da venda (`created_at`) formatada `dd/MM/yyyy 'às' HH:mm`
+- Total da venda (`total`) em BRL
+- Badge com status (Concluída / Pendente)
 
-### Nada mais muda
+Ordenação: mais recente primeiro. Sem venda → mensagem discreta "Nenhuma venda registrada".
 
-- Frontend (`usePlanUsage`, `useSubscription`, sidebar) continua igual.
-- Webhooks do Stripe seguem atualizando `subscriptions` normalmente, então clientes reais não são afetados.
-- Nenhuma migration necessária.
+### Onde buscar
 
-## Verificação
+Nova query React Query dentro do próprio `LeadSidePanel`, disparada quando o painel abre e há `lead.id`:
 
-Após o deploy, abrir o dashboard do Felipe e conferir que CRM, Vendas, Produtos, WhatsApp, Financeiro e Garantias ficam desbloqueados (Starter ainda mantém Revendedores travado, que é o comportamento correto do plano).
+```ts
+supabase
+  .from("sales")
+  .select("id, created_at, total, status")
+  .eq("client_id", lead.id)
+  .order("created_at", { ascending: false });
+```
+
+Query key: `["lead-sales", lead.id]`, `enabled: !!lead?.id && open`.
+
+## Arquivos alterados
+
+- `src/components/crm/LeadSidePanel.tsx` — nova seção "Vendas do Cliente" + hook de fetch.
+
+Sem mudanças de banco, RLS ou lógica de negócio — apenas leitura e apresentação.

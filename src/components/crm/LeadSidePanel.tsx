@@ -8,8 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { ShoppingBag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
@@ -65,6 +67,24 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
   const queryClient = useQueryClient();
   const { getTagById } = useTags();
   const { getProductById } = useProducts();
+
+  // Fetch sales linked to this lead
+  const { data: leadSales = [] } = useQuery({
+    queryKey: ["lead-sales", lead?.id],
+    enabled: !!lead?.id && open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales")
+        .select("id, created_at, total, status")
+        .eq("client_id", lead!.id)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+
 
   // Form state
   const [name, setName] = useState("");
@@ -564,6 +584,42 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
                   </div>
                 </div>
               </div>
+
+              {/* Vendas do Cliente */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                  <ShoppingBag className="h-4 w-4" />
+                  <span>Vendas do Cliente</span>
+                </div>
+
+                {leadSales.length > 0 ? (
+                  <div className="space-y-2">
+                    {leadSales.map((sale) => (
+                      <div
+                        key={sale.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border/30 bg-secondary/30 p-3"
+                      >
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium text-foreground">
+                            {sale.created_at
+                              ? format(new Date(sale.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                              : "—"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            R$ {Number(sale.total ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {sale.status === "completed" ? "Concluída" : sale.status === "pending" ? "Pendente" : sale.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhuma venda registrada.</p>
+                )}
+              </div>
+
 
               {/* Produto de Interesse */}
               <ProductSelect
