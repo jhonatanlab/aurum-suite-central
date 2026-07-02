@@ -68,6 +68,24 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
   const { getTagById } = useTags();
   const { getProductById } = useProducts();
 
+  // Fetch sales linked to this lead
+  const { data: leadSales = [] } = useQuery({
+    queryKey: ["lead-sales", lead?.id],
+    enabled: !!lead?.id && open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales")
+        .select("id, created_at, total, status")
+        .eq("client_id", lead!.id)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+
+
   // Form state
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
