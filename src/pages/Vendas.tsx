@@ -180,10 +180,14 @@ export default function Vendas() {
   const calculatedDiscount = useMemo(() => {
     const percentVal = parseFloat(discountPercent) || 0;
     const valueVal = parseFloat(discountValue) || 0;
+    // Prioriza o valor em R$ (fonte da verdade); handlers mantêm os dois campos sincronizados
+    if (valueVal > 0) {
+      return Math.round(valueVal * 100) / 100;
+    }
     if (percentVal > 0) {
       return Math.round(cartSubtotal * percentVal / 100 * 100) / 100;
     }
-    return valueVal;
+    return 0;
   }, [cartSubtotal, discountPercent, discountValue]);
   const clientFreightValue = parseFloat(clientFreight) || 0;
   const storeFreightValue = parseFloat(storeFreight) || 0;
