@@ -585,6 +585,42 @@ export function LeadSidePanel({ lead, open, onOpenChange, onSuccess, stages }: L
                 </div>
               </div>
 
+              {/* Vendas do Cliente */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                  <ShoppingBag className="h-4 w-4" />
+                  <span>Vendas do Cliente</span>
+                </div>
+
+                {leadSales.length > 0 ? (
+                  <div className="space-y-2">
+                    {leadSales.map((sale) => (
+                      <div
+                        key={sale.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border/30 bg-secondary/30 p-3"
+                      >
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium text-foreground">
+                            {sale.created_at
+                              ? format(new Date(sale.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                              : "—"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            R$ {Number(sale.total ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {sale.status === "completed" ? "Concluída" : sale.status === "pending" ? "Pendente" : sale.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhuma venda registrada.</p>
+                )}
+              </div>
+
+
               {/* Produto de Interesse */}
               <ProductSelect
                 productId={productId}
