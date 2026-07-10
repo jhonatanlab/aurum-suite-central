@@ -1,27 +1,44 @@
-## Problema
+# Exportar Contatos do CRM
 
-No carrinho do PDV, ao digitar **Desconto (R$) = 20,00** sobre subtotal de R$ 170,00, o sistema:
+Adicionar botão de exportação na aba **Contatos** do CRM, permitindo baixar todos os leads cadastrados com seus dados completos em CSV e PDF.
 
-1. Preenche automaticamente **Desconto (%) = 11,76** (20 / 170 × 100, arredondado).
-2. No cálculo do total, o `useMemo` `calculatedDiscount` prioriza o percentual (11,76%) e recalcula: `170 × 11,76% = 19,99`.
-3. Resultado: `170 − 19,99 + 15 = 165,01` em vez dos R$ 165,00 esperados.
+## Localização
+- Componente: `src/components/crm/ContactsTab.tsx`
+- Botão posicionado ao lado da barra de busca (topo direito)
 
-A raiz é que `calculatedDiscount` (em `src/pages/Vendas.tsx`, linhas 180-187) sempre prefere o percentual quando ele existe, mesmo quando o valor em R$ foi a entrada original do usuário.
+## Formatos suportados
+Menu dropdown (mesmo padrão usado em Financeiro e Revendedores):
+- **CSV** (.csv) — para Excel/planilhas
+- **PDF** (.pdf) — relatório formatado
 
-## Correção
+## Dados exportados (colunas)
+Todos os campos relevantes do lead:
+- Nome
+- Telefone
+- E-mail
+- Etapa (nome do stage no CRM)
+- Origem (source)
+- Produto vinculado (nome)
+- Valor do produto / Valor do lead (R$)
+- Data de cadastro
+- Observações / demais campos disponíveis na tabela `leads`
 
-Em `src/pages/Vendas.tsx`:
+## Implementação
+1. Criar novo componente `src/components/crm/ContactsExportMenu.tsx` seguindo o padrão de `ExportMenu.tsx` (Financeiro) e `ResellerExportMenu.tsx`:
+   - Usa `jspdf` + `jspdf-autotable` (já instalados)
+   - CSV nativo com BOM UTF-8 e separador `;`
+   - Cabeçalho do PDF com título, data de exportação, total de contatos
+   - Estilo Aurum (header dourado `[199,160,82]`, fundo escuro alternado)
+2. Integrar no `ContactsTab.tsx`:
+   - Import do novo menu
+   - Renderizar no topo, ao lado do campo de busca
+   - Passar `filteredLeads` (respeita filtro de busca ativo) + lista de `stages` para resolver nome da etapa
+3. Aplicar filtro de busca: exporta o que o usuário está vendo. Se busca vazia, exporta todos.
 
-- Ajustar `calculatedDiscount` para usar **sempre o valor em R$** (`discountValue`) como fonte da verdade, já que os handlers mantêm os dois campos sincronizados. O percentual passa a ser apenas exibição/entrada auxiliar.
-  - Novo comportamento: se `discountValue > 0`, usa ele diretamente; senão, calcula a partir do percentual.
-- Nenhuma mudança na UI, nos inputs ou nos handlers `handleDiscountPercentChange` / `handleDiscountValueChange` — eles continuam preenchendo o outro campo automaticamente.
+## Nome de arquivo
+`contatos_crm_YYYY-MM-DD.csv` / `.pdf`
 
-## Resultado esperado
-
-- Digitando R$ 20,00 de desconto: total = 170 − 20 + 15 = **R$ 165,00** ✅
-- Digitando 10% de desconto sobre R$ 170: `discountValue` é preenchido como `17.00` pelo handler → total = 170 − 17 + 15 = **R$ 168,00** ✅ (mesmo comportamento de hoje, sem regressão).
-
-## Escopo
-
-- Apenas `src/pages/Vendas.tsx`, bloco do `useMemo calculatedDiscount`.
-- Sem alterações em migrations, hooks ou edge functions.
+## Fora de escopo
+- Sem alterações no schema
+- Sem novos campos no lead
+- Sem filtros adicionais de exportação além da busca já existente
