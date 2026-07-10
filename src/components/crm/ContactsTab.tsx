@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Search, MoveRight, Phone, Mail, Package } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
+import { ContactsExportMenu } from "./ContactsExportMenu";
 
 interface Lead {
   id: string;
