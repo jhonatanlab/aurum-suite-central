@@ -46,11 +46,33 @@
     --sidebar-ring: 40 45% 55%;
 
     /* Custom tokens */
-    --gold: 40 45% 55%;
+    --gold: 40 50% 55%;
     --gold-light: 40 50% 65%;
     --gold-dark: 40 40% 45%;
     --glass: 0 0% 100% / 0.05;
     --glass-border: 0 0% 100% / 0.1;
+
+    /* Aurum landing tokens */
+    --aurum-bg: 0 0% 7%;
+    --aurum-surface: 0 0% 12%;
+    --aurum-surface-2: 0 0% 15%;
+    --gold-soft: 40 50% 65%;
+    --gold-muted: 40 30% 45%;
+    --aurum-text: 0 0% 98%;
+    --aurum-text-muted: 240 5% 65%;
+    --aurum-border: 0 0% 20%;
+  }
+
+  .dark {
+    --aurum-bg: 0 0% 7%;
+    --aurum-surface: 0 0% 12%;
+    --aurum-surface-2: 0 0% 15%;
+    --gold: 40 50% 55%;
+    --gold-soft: 40 50% 65%;
+    --gold-muted: 40 30% 45%;
+    --aurum-text: 0 0% 98%;
+    --aurum-text-muted: 240 5% 65%;
+    --aurum-border: 0 0% 20%;
   }
 }
 
