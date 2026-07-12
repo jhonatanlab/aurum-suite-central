@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Package, AlertTriangle, Plus, Trash2, Layers, RefreshCw, Wrench } from "lucide-react";
+import { ProductImagesSection } from "./ProductImagesSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
