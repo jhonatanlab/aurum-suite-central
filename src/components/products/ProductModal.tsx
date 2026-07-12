@@ -151,6 +151,8 @@ export function ProductModal({
         status: product.status || "active",
         minimum_stock: product.minimum_stock?.toString() || "0",
         consignment_available: product.consignment_available || false,
+        sku: product.sku || "",
+        barcode: product.barcode || "",
         batch: { batch_code: "", quantity: "", supplier_id: "" },
         adjustment: lastBatch
           ? { quantity: lastBatch.quantity.toString(), reason: "", batch_id: lastBatch.id, batch_code: lastBatch.batch_code }
