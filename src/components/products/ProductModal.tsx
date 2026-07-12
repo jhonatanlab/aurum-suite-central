@@ -332,6 +332,35 @@ export function ProductModal({
                 />
               </div>
 
+              {/* Identificação */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sku" className="text-white font-medium">SKU</Label>
+                  <Input
+                    id="sku"
+                    value={formData.sku}
+                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                    placeholder="Ex: BRC-001"
+                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="barcode" className="text-white font-medium">Código de Barras</Label>
+                  <Input
+                    id="barcode"
+                    value={formData.barcode}
+                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                    placeholder="Leia ou digite"
+                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                  />
+                </div>
+              </div>
+
+              {isEditing && product && (
+                <ProductImagesSection productId={product.id} companyId={product.company_id} />
+              )}
+
+
               {/* Price & Cost - only for simple products */}
               {!isBundle && (
                 <>
