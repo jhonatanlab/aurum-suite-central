@@ -197,7 +197,9 @@ export default function Produtos() {
           consignment_available: data.consignment_available,
           pricing_mode: isBundle ? data.pricing_mode : null,
           manual_price: isBundle && data.pricing_mode === "manual" ? parseFloat(data.manual_price) || null : null,
-        })
+          sku: data.sku?.trim() || null,
+          barcode: data.barcode?.trim() || null,
+        } as any)
         .eq("id", id);
 
       if (productError) throw productError;
