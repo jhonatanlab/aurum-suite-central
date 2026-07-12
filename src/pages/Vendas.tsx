@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -34,6 +34,8 @@ interface Product {
   stock: number | null;
   category: string | null;
   type: string;
+  sku: string | null;
+  barcode: string | null;
 }
 interface CartItem {
   product: Product;
@@ -86,7 +88,7 @@ export default function Vendas() {
         error: productsError
       } = await supabase
         .from("products")
-        .select("id, name, price, promo_price, stock, category, type")
+        .select("id, name, price, promo_price, stock, category, type, sku, barcode")
         .eq("company_id", company.id)
         .eq("status", "active")
         .order("name");
