@@ -62,7 +62,7 @@ export default function Produtos() {
 
       const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available, type, pricing_mode, manual_price, promo_price")
+        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available, type, pricing_mode, manual_price, promo_price, sku")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
@@ -81,9 +81,37 @@ export default function Produtos() {
         return acc;
       }, {} as Record<string, number>) || {};
 
+      // Fetch primary cover images for visible products
+      const productIds = productsData.map((p) => p.id);
+      const coverPaths: Record<string, string> = {};
+      if (productIds.length > 0) {
+        const { data: imagesData, error: imagesError } = await supabase
+          .from("product_images" as any)
+          .select("product_id, file_path")
+          .eq("company_id", company.id)
+          .eq("is_primary", true)
+          .in("product_id", productIds);
+        if (!imagesError && imagesData) {
+          for (const img of imagesData) {
+            coverPaths[(img as any).product_id] = (img as any).file_path;
+          }
+        }
+      }
+
+      const signedUrls: Record<string, string> = {};
+      await Promise.all(
+        Object.entries(coverPaths).map(async ([productId, filePath]) => {
+          const { data } = await supabase.storage
+            .from("product-images")
+            .createSignedUrl(filePath, 3600);
+          if (data?.signedUrl) signedUrls[productId] = data.signedUrl;
+        })
+      );
+
       return productsData.map(product => ({
         ...product,
         stock: stockByProduct[product.id] || 0,
+        cover_image_url: signedUrls[product.id] || null,
       })) as Product[];
     },
     enabled: !!company?.id,
