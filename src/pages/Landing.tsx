@@ -2,13 +2,13 @@ import InteractiveGradient from "@/components/landing/InteractiveGradient";
 
 export default function Landing() {
   return (
-    <div className="relative min-h-screen bg-aurum text-foreground overflow-hidden">
+    <div className="relative min-h-screen bg-aurum overflow-hidden">
       <InteractiveGradient />
-      <section className="relative flex min-h-screen items-center justify-center px-6">
-        <h1 className="text-5xl md:text-7xl font-semibold tracking-tight gold-text">
+      <main className="relative z-10 flex items-center justify-center min-h-screen">
+        <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-gold">
           Aurum Suite
         </h1>
-      </section>
+      </main>
     </div>
   );
 }
