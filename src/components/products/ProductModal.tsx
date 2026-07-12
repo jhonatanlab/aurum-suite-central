@@ -357,8 +357,15 @@ export function ProductModal({
                 </div>
               </div>
 
-              {isEditing && product && (
+              {isEditing && product ? (
                 <ProductImagesSection productId={product.id} companyId={product.company_id} />
+              ) : (
+                <div className="space-y-3 pt-2 border-t border-[#2A2A2A]">
+                  <h3 className="text-sm font-medium text-[#A1A1AA] uppercase tracking-wider">Fotos</h3>
+                  <p className="text-xs text-[#6B6B6B] text-center py-4 border border-dashed border-[#2A2A2A] rounded-lg">
+                    Salve o produto para adicionar fotos.
+                  </p>
+                </div>
               )}
 
 
