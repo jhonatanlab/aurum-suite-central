@@ -43,7 +43,7 @@ const FEATURES: Feature[] = [
     icon: MessageCircle,
     title: "WhatsApp no seu ERP",
     description:
-      "Chat ao vivo, campanhas e integração automática com o CRM. Um clique transforma o cliente em lead.",
+      "Chat ao vivo, campanhas e integração automática com o CRM. Um clique transforma o lead em cliente.",
   },
   {
     icon: HandCoins,
