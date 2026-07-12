@@ -38,6 +38,8 @@ export interface Product {
   pricing_mode?: string | null;
   manual_price?: number | null;
   promo_price?: number | null;
+  sku?: string | null;
+  barcode?: string | null;
 }
 
 interface BatchData {
