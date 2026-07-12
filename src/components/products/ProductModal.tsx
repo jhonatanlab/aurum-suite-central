@@ -84,6 +84,7 @@ interface ProductModalProps {
   open: boolean;
   onClose: () => void;
   product: Product | null;
+  companyId?: string | null;
   onSave: (data: ProductFormData, productId?: string) => void;
   isSaving: boolean;
   userEmail?: string;
@@ -121,6 +122,7 @@ export function ProductModal({
   open,
   onClose,
   product,
+  companyId,
   onSave,
   isSaving,
   userEmail = "Sistema",
@@ -358,7 +360,7 @@ export function ProductModal({
               </div>
 
               {isEditing && product ? (
-                <ProductImagesSection productId={product.id} companyId={product.company_id} />
+                <ProductImagesSection productId={product.id} companyId={product.company_id || companyId} />
               ) : (
                 <div className="space-y-3 pt-2 border-t border-[#2A2A2A]">
                   <h3 className="text-sm font-medium text-[#A1A1AA] uppercase tracking-wider">Fotos</h3>
