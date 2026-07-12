@@ -129,9 +129,28 @@ export default function Vendas() {
   });
   const filteredProducts = useMemo(() => {
     if (!products) return [];
-    if (!searchQuery.trim()) return products;
-    return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      (p.sku && p.sku.toLowerCase().includes(q)) ||
+      (p.barcode && p.barcode.toLowerCase().includes(q))
+    );
   }, [products, searchQuery]);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q || !products) return;
+    const exactMatch = products.find(
+      p => p.barcode === q || p.sku === q
+    );
+    if (exactMatch) {
+      addToCart(exactMatch);
+      setSearchQuery("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, products]);
+
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
