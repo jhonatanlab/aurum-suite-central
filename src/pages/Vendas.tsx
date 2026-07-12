@@ -525,7 +525,7 @@ export default function Vendas() {
             <div className="mb-6">
               <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar produto..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 bg-secondary border-border focus:border-primary" />
+                <Input placeholder="Buscar por nome, SKU ou código de barras..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 bg-secondary border-border focus:border-primary" />
               </div>
             </div>
 
