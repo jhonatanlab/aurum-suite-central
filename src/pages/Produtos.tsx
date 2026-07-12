@@ -62,7 +62,7 @@ export default function Produtos() {
 
       const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available, type, pricing_mode, manual_price, promo_price")
+        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available, type, pricing_mode, manual_price, promo_price, sku")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
@@ -81,9 +81,37 @@ export default function Produtos() {
         return acc;
       }, {} as Record<string, number>) || {};
 
+      // Fetch primary cover images for visible products
+      const productIds = productsData.map((p) => p.id);
+      const coverPaths: Record<string, string> = {};
+      if (productIds.length > 0) {
+        const { data: imagesData, error: imagesError } = await supabase
+          .from("product_images" as any)
+          .select("product_id, file_path")
+          .eq("company_id", company.id)
+          .eq("is_primary", true)
+          .in("product_id", productIds);
+        if (!imagesError && imagesData) {
+          for (const img of imagesData) {
+            coverPaths[(img as any).product_id] = (img as any).file_path;
+          }
+        }
+      }
+
+      const signedUrls: Record<string, string> = {};
+      await Promise.all(
+        Object.entries(coverPaths).map(async ([productId, filePath]) => {
+          const { data } = await supabase.storage
+            .from("product-images")
+            .createSignedUrl(filePath, 3600);
+          if (data?.signedUrl) signedUrls[productId] = data.signedUrl;
+        })
+      );
+
       return productsData.map(product => ({
         ...product,
         stock: stockByProduct[product.id] || 0,
+        cover_image_url: signedUrls[product.id] || null,
       })) as Product[];
     },
     enabled: !!company?.id,
@@ -523,7 +551,8 @@ export default function Produtos() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="text-muted-foreground">Nome</TableHead>
+                      <TableHead className="text-muted-foreground">Produto</TableHead>
+                      <TableHead className="text-muted-foreground">SKU</TableHead>
                       <TableHead className="text-muted-foreground">Categoria</TableHead>
                       <TableHead className="text-muted-foreground">Preço</TableHead>
                       <TableHead className="text-muted-foreground">Preço Promocional</TableHead>
@@ -540,10 +569,26 @@ export default function Produtos() {
                         onClick={() => handleOpenEdit(product)}
                       >
                         <TableCell className="font-medium text-foreground">
-                          <div className="flex items-center gap-2">
-                            {product.name}
-                            {getTypeBadge(product)}
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-muted border border-border overflow-hidden flex-shrink-0 flex items-center justify-center">
+                              {product.cover_image_url ? (
+                                <img
+                                  src={product.cover_image_url}
+                                  alt={product.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <Package className="h-5 w-5 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="truncate max-w-[200px]">{product.name}</span>
+                              {getTypeBadge(product)}
+                            </div>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground font-mono text-xs">
+                          {product.sku || "-"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">{product.category || "-"}</TableCell>
                         <TableCell className="text-primary font-semibold">{formatCurrency(product.price)}</TableCell>

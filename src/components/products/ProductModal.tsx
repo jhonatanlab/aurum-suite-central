@@ -40,6 +40,7 @@ export interface Product {
   promo_price?: number | null;
   sku?: string | null;
   barcode?: string | null;
+  cover_image_url?: string | null;
 }
 
 interface BatchData {
