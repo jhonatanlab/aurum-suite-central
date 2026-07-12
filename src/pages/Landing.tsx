@@ -1,14 +1,11 @@
-import InteractiveGradient from "@/components/landing/InteractiveGradient";
+import Navbar from "@/components/landing/Navbar";
+import Hero from "@/components/landing/Hero";
 
 export default function Landing() {
   return (
-    <div className="relative min-h-screen bg-aurum overflow-hidden">
-      <InteractiveGradient />
-      <main className="relative z-10 flex items-center justify-center min-h-screen">
-        <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-gold">
-          Aurum Suite
-        </h1>
-      </main>
+    <div className="min-h-screen bg-aurum text-foreground">
+      <Navbar />
+      <Hero />
     </div>
   );
 }
