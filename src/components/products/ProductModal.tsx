@@ -69,12 +69,14 @@ export interface ProductFormData {
   status: string;
   minimum_stock: string;
   consignment_available: boolean;
+  sku: string;
   batch: BatchData;
   adjustment: AdjustmentData;
   type: "simple" | "bundle";
   pricing_mode: "auto_sum" | "manual" | "";
   manual_price: string;
   bundle_items: BundleItemData[];
+  barcode: string;
 }
 
 interface ProductModalProps {
