@@ -32,6 +32,7 @@ import NotFound from "./pages/NotFound";
 import Pricing from "./pages/Pricing";
 import ResetPassword from "./pages/ResetPassword";
 import Billing from "./pages/Billing";
+import Landing from "@/pages/Landing";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -76,6 +77,7 @@ function App() {
               <RecoveryRedirect />
               <Routes>
                 {/* Public routes */}
+                <Route path="/landing" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/reset-password" element={<ResetPassword />} />

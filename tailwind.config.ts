@@ -26,6 +26,14 @@ export default {
           DEFAULT: "hsl(var(--gold))",
           light: "hsl(var(--gold-light))",
           dark: "hsl(var(--gold-dark))",
+          soft: "hsl(var(--gold-soft))",
+          muted: "hsl(var(--gold-muted))",
+        },
+        aurum: {
+          DEFAULT: "hsl(var(--aurum-bg))",
+          surface: "hsl(var(--aurum-surface))",
+          "surface-2": "hsl(var(--aurum-surface-2))",
+          border: "hsl(var(--aurum-border))",
         },
         primary: {
           DEFAULT: "hsl(var(--primary))",
