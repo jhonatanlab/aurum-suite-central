@@ -551,7 +551,8 @@ export default function Produtos() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="text-muted-foreground">Nome</TableHead>
+                      <TableHead className="text-muted-foreground">Produto</TableHead>
+                      <TableHead className="text-muted-foreground">SKU</TableHead>
                       <TableHead className="text-muted-foreground">Categoria</TableHead>
                       <TableHead className="text-muted-foreground">Preço</TableHead>
                       <TableHead className="text-muted-foreground">Preço Promocional</TableHead>
@@ -568,10 +569,26 @@ export default function Produtos() {
                         onClick={() => handleOpenEdit(product)}
                       >
                         <TableCell className="font-medium text-foreground">
-                          <div className="flex items-center gap-2">
-                            {product.name}
-                            {getTypeBadge(product)}
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-muted border border-border overflow-hidden flex-shrink-0 flex items-center justify-center">
+                              {product.cover_image_url ? (
+                                <img
+                                  src={product.cover_image_url}
+                                  alt={product.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <Package className="h-5 w-5 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="truncate max-w-[200px]">{product.name}</span>
+                              {getTypeBadge(product)}
+                            </div>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground font-mono text-xs">
+                          {product.sku || "-"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">{product.category || "-"}</TableCell>
                         <TableCell className="text-primary font-semibold">{formatCurrency(product.price)}</TableCell>
