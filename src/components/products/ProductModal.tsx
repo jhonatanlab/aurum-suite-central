@@ -99,6 +99,8 @@ const initialFormData: ProductFormData = {
   status: "active",
   minimum_stock: "0",
   consignment_available: false,
+  sku: "",
+  barcode: "",
   batch: {
     batch_code: "",
     quantity: "",
