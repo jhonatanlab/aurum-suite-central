@@ -29,7 +29,7 @@ const FEATURES: Feature[] = [
   },
   {
     icon: Package,
-    title: "Estoque por lote (FIFO)",
+    title: "Estoque por lote",
     description:
       "Controle preciso de custo por lote, fornecedor e data de entrada. Análises de MarkUp, Curva ABC e Giro.",
   },
