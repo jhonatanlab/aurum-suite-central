@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Package, AlertTriangle, Plus, Trash2, Layers, RefreshCw, Wrench } from "lucide-react";
+import { ProductImagesSection } from "./ProductImagesSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +38,8 @@ export interface Product {
   pricing_mode?: string | null;
   manual_price?: number | null;
   promo_price?: number | null;
+  sku?: string | null;
+  barcode?: string | null;
 }
 
 interface BatchData {
@@ -66,12 +69,14 @@ export interface ProductFormData {
   status: string;
   minimum_stock: string;
   consignment_available: boolean;
+  sku: string;
   batch: BatchData;
   adjustment: AdjustmentData;
   type: "simple" | "bundle";
   pricing_mode: "auto_sum" | "manual" | "";
   manual_price: string;
   bundle_items: BundleItemData[];
+  barcode: string;
 }
 
 interface ProductModalProps {
@@ -94,6 +99,8 @@ const initialFormData: ProductFormData = {
   status: "active",
   minimum_stock: "0",
   consignment_available: false,
+  sku: "",
+  barcode: "",
   batch: {
     batch_code: "",
     quantity: "",
@@ -144,6 +151,8 @@ export function ProductModal({
         status: product.status || "active",
         minimum_stock: product.minimum_stock?.toString() || "0",
         consignment_available: product.consignment_available || false,
+        sku: product.sku || "",
+        barcode: product.barcode || "",
         batch: { batch_code: "", quantity: "", supplier_id: "" },
         adjustment: lastBatch
           ? { quantity: lastBatch.quantity.toString(), reason: "", batch_id: lastBatch.id, batch_code: lastBatch.batch_code }
@@ -322,6 +331,35 @@ export function ProductModal({
                   className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
                 />
               </div>
+
+              {/* Identificação */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sku" className="text-white font-medium">SKU</Label>
+                  <Input
+                    id="sku"
+                    value={formData.sku}
+                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                    placeholder="Ex: BRC-001"
+                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="barcode" className="text-white font-medium">Código de Barras</Label>
+                  <Input
+                    id="barcode"
+                    value={formData.barcode}
+                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                    placeholder="Leia ou digite"
+                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                  />
+                </div>
+              </div>
+
+              {isEditing && product && (
+                <ProductImagesSection productId={product.id} companyId={product.company_id} />
+              )}
+
 
               {/* Price & Cost - only for simple products */}
               {!isBundle && (
