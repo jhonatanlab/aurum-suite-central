@@ -856,8 +856,63 @@ export type Database = {
           },
         ]
       }
+      product_images: {
+        Row: {
+          company_id: string
+          created_at: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          is_primary: boolean
+          position: number
+          product_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          is_primary?: boolean
+          position?: number
+          product_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          is_primary?: boolean
+          position?: number
+          product_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
+          barcode: string | null
           category: string | null
           company_id: string
           consignment_available: boolean | null
@@ -870,11 +925,13 @@ export type Database = {
           price: number
           pricing_mode: string | null
           promo_price: number | null
+          sku: string | null
           status: string | null
           stock: number | null
           type: string
         }
         Insert: {
+          barcode?: string | null
           category?: string | null
           company_id: string
           consignment_available?: boolean | null
@@ -887,11 +944,13 @@ export type Database = {
           price: number
           pricing_mode?: string | null
           promo_price?: number | null
+          sku?: string | null
           status?: string | null
           stock?: number | null
           type?: string
         }
         Update: {
+          barcode?: string | null
           category?: string | null
           company_id?: string
           consignment_available?: boolean | null
@@ -904,6 +963,7 @@ export type Database = {
           price?: number
           pricing_mode?: string | null
           promo_price?: number | null
+          sku?: string | null
           status?: string | null
           stock?: number | null
           type?: string
