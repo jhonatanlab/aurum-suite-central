@@ -4,6 +4,7 @@ import { useCompany } from "@/hooks/useCompany";
 
 export interface Product {
   id: string;
+  company_id: string;
   name: string;
   price: number;
   category: string | null;
@@ -16,6 +17,8 @@ export interface Product {
   minimum_stock: number | null;
   consignment_available: boolean | null;
   promo_price: number | null;
+  sku: string | null;
+  barcode: string | null;
 }
 
 export function useProducts() {
@@ -28,7 +31,7 @@ export function useProducts() {
 
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price, category, status, stock, type, pricing_mode, manual_price, cost_price, minimum_stock, consignment_available, promo_price")
+        .select("id, company_id, name, price, category, status, stock, type, pricing_mode, manual_price, cost_price, minimum_stock, consignment_available, promo_price, sku, barcode")
         .eq("company_id", company.id)
         .eq("status", "active")
         .order("name", { ascending: true });

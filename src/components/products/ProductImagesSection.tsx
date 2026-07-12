@@ -21,7 +21,7 @@ interface ProductImage {
 
 interface Props {
   productId: string;
-  companyId: string;
+  companyId?: string | null;
 }
 
 const BUCKET = "product-images";
@@ -72,6 +72,10 @@ export function ProductImagesSection({ productId, companyId }: Props) {
 
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
+      if (!companyId) {
+        throw new Error("Empresa não identificada para salvar as fotos");
+      }
+
       const startPos = images.length;
       const hasAny = images.length > 0;
       let idx = 0;

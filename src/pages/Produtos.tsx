@@ -56,13 +56,13 @@ export default function Produtos() {
 
   // Fetch products
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", company?.id],
+    queryKey: ["products", "catalog", company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
 
       const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available, type, pricing_mode, manual_price, promo_price, sku")
+        .select("id, name, category, price, cost_price, stock, status, company_id, minimum_stock, consignment_available, type, pricing_mode, manual_price, promo_price, sku, barcode")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
 
@@ -657,6 +657,7 @@ export default function Produtos() {
           open={isPanelOpen}
           onClose={handleClosePanel}
           product={editingProduct}
+          companyId={company?.id}
           onSave={handleSave}
           isSaving={createMutation.isPending || updateMutation.isPending}
           userEmail={user?.email}
