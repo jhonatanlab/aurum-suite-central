@@ -35,9 +35,13 @@ export default function Navbar() {
       )}
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <a href="/landing" className="flex items-center gap-1">
-          <span className="font-semibold text-xl text-gold">Aurum</span>
-          <span className="font-semibold text-xl text-foreground/90">Suite</span>
+        <a href="/" className="flex items-center">
+          <img
+            src="/aurum-suite-logo.png"
+            alt="Aurum Suite"
+            className="h-8 md:h-9 w-auto select-none"
+            draggable={false}
+          />
         </a>
 
         <nav className="hidden md:flex items-center gap-8">
