@@ -82,7 +82,7 @@ export default function Features() {
           </div>
           <h2 className="text-3xl md:text-4xl font-semibold text-foreground mt-6 leading-tight">
             Um sistema pensado para{" "}
-            <span className="text-gold">joalherias e semijoias</span>
+            <span className="text-gold">joalherias e lojas de semijoias</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto pt-4">
             Do balcão da loja à conversa no WhatsApp, o Aurum organiza cada
