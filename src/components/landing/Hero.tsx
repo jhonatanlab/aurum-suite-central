@@ -21,7 +21,7 @@ export default function Hero() {
             </div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-foreground leading-[1.05]">
-              A gestão da sua joalheria,
+              A gestão da sua loja de joias e semijoias,
               <br />
               <span className="text-gold">do balcão ao WhatsApp.</span>
             </h1>
