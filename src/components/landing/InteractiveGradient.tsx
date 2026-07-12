@@ -47,13 +47,13 @@ export default function InteractiveGradient() {
   }, []);
 
   return (
-    <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
       <div
         ref={gradientRef}
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(600px circle at var(--x, 50%) var(--y, 50%), hsl(var(--gold) / 0.15), transparent 60%)",
+            "radial-gradient(600px circle at var(--x, 50%) var(--y, 50%), hsl(var(--gold) / 0.25), hsl(var(--gold) / 0.08) 30%, transparent 70%)",
         }}
       />
       <div
