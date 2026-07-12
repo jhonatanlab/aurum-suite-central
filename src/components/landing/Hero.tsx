@@ -28,7 +28,7 @@ export default function Hero() {
 
             <p className="text-lg text-muted-foreground max-w-xl">
               CRM, PDV, estoque por lote, financeiro e WhatsApp em um só
-              painel. Feito para lojistas que vendem semijoias em loja física,
+              painel. Feito para lojistas que vendem semijoias e joias em loja física,
               online e por revendedoras.
             </p>
 
