@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -34,6 +34,8 @@ interface Product {
   stock: number | null;
   category: string | null;
   type: string;
+  sku: string | null;
+  barcode: string | null;
 }
 interface CartItem {
   product: Product;
@@ -86,7 +88,7 @@ export default function Vendas() {
         error: productsError
       } = await supabase
         .from("products")
-        .select("id, name, price, promo_price, stock, category, type")
+        .select("id, name, price, promo_price, stock, category, type, sku, barcode")
         .eq("company_id", company.id)
         .eq("status", "active")
         .order("name");
@@ -127,9 +129,28 @@ export default function Vendas() {
   });
   const filteredProducts = useMemo(() => {
     if (!products) return [];
-    if (!searchQuery.trim()) return products;
-    return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      (p.sku && p.sku.toLowerCase().includes(q)) ||
+      (p.barcode && p.barcode.toLowerCase().includes(q))
+    );
   }, [products, searchQuery]);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q || !products) return;
+    const exactMatch = products.find(
+      p => p.barcode === q || p.sku === q
+    );
+    if (exactMatch) {
+      addToCart(exactMatch);
+      setSearchQuery("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, products]);
+
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
@@ -504,7 +525,7 @@ export default function Vendas() {
             <div className="mb-6">
               <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar produto..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 bg-secondary border-border focus:border-primary" />
+                <Input placeholder="Buscar por nome, SKU ou código de barras..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 bg-secondary border-border focus:border-primary" />
               </div>
             </div>
 
