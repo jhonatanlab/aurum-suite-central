@@ -56,7 +56,7 @@ export default function Produtos() {
 
   // Fetch products
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", company?.id],
+    queryKey: ["products", "catalog", company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
 
