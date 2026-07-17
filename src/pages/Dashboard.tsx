@@ -192,21 +192,21 @@ export default function Dashboard() {
       </div>
 
       {/* Revenue Chart + Sources Pie */}
-      <div className="grid gap-4 lg:grid-cols-3 mb-6">
+      <div className="grid gap-4 lg:grid-cols-3 mb-4 md:mb-6">
         <Card className="bg-card border-border animate-fade-in overflow-hidden lg:col-span-2" style={{ animationDelay: "420ms" }}>
           <CardHeader className="flex flex-row items-center gap-2">
             <BarChart3 className="h-4 w-4 text-gold" />
-            <CardTitle className="text-foreground text-base">
+            <CardTitle className="text-foreground text-sm sm:text-base">
               Receita — {filters.dateFrom && filters.dateTo ?
               `${format(filters.dateFrom, "dd/MM")} a ${format(filters.dateTo, "dd/MM")}` :
               "Período selecionado"}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 sm:px-6">
             {chartLoading ?
-            <Skeleton className="h-[280px] w-full rounded-xl" /> :
+            <Skeleton className="h-[220px] sm:h-[280px] w-full rounded-xl" /> :
 
-            <div className="h-[280px]">
+            <div className="h-[220px] sm:h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={revenueChart}>
                     <defs>
