@@ -58,13 +58,13 @@ const sourceLabels: Record<string, string> = {
 function KpiSkeleton() {
   return (
     <Card className="bg-card border-border">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-8 w-8 rounded-xl" />
+      <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2 p-3 sm:p-6">
+        <Skeleton className="h-2.5 sm:h-3 w-20" />
+        <Skeleton className="h-6 w-6 sm:h-8 sm:w-8 rounded-xl" />
       </CardHeader>
-      <CardContent>
-        <Skeleton className="h-7 w-28 mb-1" />
-        <Skeleton className="h-3 w-16" />
+      <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+        <Skeleton className="h-6 sm:h-7 w-28 mb-1" />
+        <Skeleton className="h-2.5 sm:h-3 w-16" />
       </CardContent>
     </Card>);
 
