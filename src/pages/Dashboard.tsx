@@ -132,7 +132,8 @@ export default function Dashboard() {
   { title: "Vendas", value: kpis.salesCount.toString(), icon: ShoppingCart },
   { title: "Ticket Médio", value: formatCurrency(kpis.averageTicket), icon: TrendingUp },
   { title: "Novos Clientes", value: kpis.newClients.toString(), icon: Users },
-  { title: "Taxa de Conversão", value: `${kpis.conversionRate.toFixed(1)}%`, icon: Target }];
+  { title: "Taxa de Conversão", value: `${kpis.conversionRate.toFixed(1)}%`, icon: Target },
+  { title: "Estoque", value: kpis.stockQuantity.toString(), icon: Package }];
 
 
   const totalLeads = leadSources.reduce((s, l) => s + l.count, 0);
@@ -151,7 +152,7 @@ export default function Dashboard() {
       <DashboardFilterBar filters={filters} onChange={setFilters} />
 
       {/* KPIs */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-4 md:mb-6">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6 mb-4 md:mb-6">
         {kpiCards.map((kpi, index) => {
           const Icon = kpi.icon;
           if (kpisLoading) return <KpiSkeleton key={index} />;
@@ -166,22 +167,22 @@ export default function Dashboard() {
               {kpi.accent &&
               <div className="absolute top-0 left-0 right-0 h-[2px] gold-gradient opacity-60" />
               }
-              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2 p-4 sm:p-6">
-                <CardTitle className="text-[10px] sm:text-xs font-medium text-muted-foreground tracking-wide uppercase leading-tight">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2 p-3 sm:p-6">
+                <CardTitle className="text-[9px] sm:text-xs font-medium text-muted-foreground tracking-wide uppercase leading-tight">
                   {kpi.title}
                 </CardTitle>
                 <div
-                  className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                  className={`h-6 w-6 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300 ${
                   kpi.accent ?
                   "bg-[hsl(var(--gold)/0.12)] group-hover:bg-[hsl(var(--gold)/0.2)]" :
                   "bg-secondary group-hover:bg-secondary/80"}`
                   }>
                   
-                  <Icon className="h-4 w-4 text-gold" />
+                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gold" />
                 </div>
               </CardHeader>
-              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                <div className={`text-lg sm:text-xl font-bold tracking-tight ${kpi.accent ? "text-gold" : "text-foreground"}`}>
+              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                <div className={`text-base sm:text-xl font-bold tracking-tight ${kpi.accent ? "text-gold" : "text-foreground"}`}>
                   {kpi.value}
                 </div>
                 
