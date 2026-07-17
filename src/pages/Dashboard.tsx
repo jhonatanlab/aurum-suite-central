@@ -151,7 +151,7 @@ export default function Dashboard() {
       <DashboardFilterBar filters={filters} onChange={setFilters} />
 
       {/* KPIs */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-4 md:mb-6">
         {kpiCards.map((kpi, index) => {
           const Icon = kpi.icon;
           if (kpisLoading) return <KpiSkeleton key={index} />;
@@ -166,12 +166,12 @@ export default function Dashboard() {
               {kpi.accent &&
               <div className="absolute top-0 left-0 right-0 h-[2px] gold-gradient opacity-60" />
               }
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2 p-4 sm:p-6">
+                <CardTitle className="text-[10px] sm:text-xs font-medium text-muted-foreground tracking-wide uppercase leading-tight">
                   {kpi.title}
                 </CardTitle>
                 <div
-                  className={`h-9 w-9 rounded-xl flex items-center justify-center transition-colors duration-300 ${
+                  className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300 ${
                   kpi.accent ?
                   "bg-[hsl(var(--gold)/0.12)] group-hover:bg-[hsl(var(--gold)/0.2)]" :
                   "bg-secondary group-hover:bg-secondary/80"}`
@@ -180,8 +180,8 @@ export default function Dashboard() {
                   <Icon className="h-4 w-4 text-gold" />
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className={`text-xl font-bold tracking-tight ${kpi.accent ? "text-gold" : "text-foreground"}`}>
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                <div className={`text-lg sm:text-xl font-bold tracking-tight ${kpi.accent ? "text-gold" : "text-foreground"}`}>
                   {kpi.value}
                 </div>
                 
@@ -192,21 +192,21 @@ export default function Dashboard() {
       </div>
 
       {/* Revenue Chart + Sources Pie */}
-      <div className="grid gap-4 lg:grid-cols-3 mb-6">
+      <div className="grid gap-4 lg:grid-cols-3 mb-4 md:mb-6">
         <Card className="bg-card border-border animate-fade-in overflow-hidden lg:col-span-2" style={{ animationDelay: "420ms" }}>
           <CardHeader className="flex flex-row items-center gap-2">
             <BarChart3 className="h-4 w-4 text-gold" />
-            <CardTitle className="text-foreground text-base">
+            <CardTitle className="text-foreground text-sm sm:text-base">
               Receita — {filters.dateFrom && filters.dateTo ?
               `${format(filters.dateFrom, "dd/MM")} a ${format(filters.dateTo, "dd/MM")}` :
               "Período selecionado"}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 sm:px-6">
             {chartLoading ?
-            <Skeleton className="h-[280px] w-full rounded-xl" /> :
+            <Skeleton className="h-[220px] sm:h-[280px] w-full rounded-xl" /> :
 
-            <div className="h-[280px]">
+            <div className="h-[220px] sm:h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={revenueChart}>
                     <defs>
@@ -296,7 +296,7 @@ export default function Dashboard() {
       </div>
 
       {/* Funnel + Top Products */}
-      <div className="grid gap-4 lg:grid-cols-2 mb-6">
+      <div className="grid gap-4 lg:grid-cols-2 mb-4 md:mb-6">
         {/* Funnel */}
         <Card className="bg-card border-border animate-fade-in overflow-hidden" style={{ animationDelay: "580ms" }}>
           <CardHeader className="flex flex-row items-center gap-2">
