@@ -11,6 +11,7 @@ export interface DashboardKPIs {
   newClients: number;
   productsSold: number;
   conversionRate: number;
+  stockQuantity: number;
 }
 
 export interface DailyRevenue {
