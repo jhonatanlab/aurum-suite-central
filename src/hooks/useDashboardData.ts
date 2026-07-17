@@ -11,6 +11,7 @@ export interface DashboardKPIs {
   newClients: number;
   productsSold: number;
   conversionRate: number;
+  stockQuantity: number;
 }
 
 export interface DailyRevenue {
@@ -95,7 +96,7 @@ export function useDashboardData(filters?: DashboardFilters) {
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ["dashboard-kpis", companyId, filterKey],
     queryFn: async (): Promise<DashboardKPIs> => {
-      if (!companyId) return { monthRevenue: 0, salesCount: 0, averageTicket: 0, newClients: 0, productsSold: 0, conversionRate: 0 };
+      if (!companyId) return { monthRevenue: 0, salesCount: 0, averageTicket: 0, newClients: 0, productsSold: 0, conversionRate: 0, stockQuantity: 0 };
 
       let salesQuery = supabase
         .from("sales")
@@ -162,7 +163,16 @@ export function useDashboardData(filters?: DashboardFilters) {
 
       const productsSold = saleItems?.reduce((sum, i) => sum + i.quantity, 0) ?? 0;
 
-      return { monthRevenue, salesCount, averageTicket, newClients: newClients ?? 0, productsSold, conversionRate };
+      const { data: stockData } = await supabase
+        .from("products")
+        .select("stock")
+        .eq("company_id", companyId)
+        .eq("status", "active")
+        .gt("stock", 0);
+
+      const stockQuantity = stockData?.reduce((sum, p) => sum + (p.stock ?? 0), 0) ?? 0;
+
+      return { monthRevenue, salesCount, averageTicket, newClients: newClients ?? 0, productsSold, conversionRate, stockQuantity };
     },
     enabled: !!companyId,
     refetchInterval: 60000,
@@ -409,7 +419,7 @@ export function useDashboardData(filters?: DashboardFilters) {
   });
 
   return {
-    kpis: kpis ?? { monthRevenue: 0, salesCount: 0, averageTicket: 0, newClients: 0, productsSold: 0, conversionRate: 0 },
+    kpis: kpis ?? { monthRevenue: 0, salesCount: 0, averageTicket: 0, newClients: 0, productsSold: 0, conversionRate: 0, stockQuantity: 0 },
     kpisLoading,
     revenueChart,
     chartLoading,

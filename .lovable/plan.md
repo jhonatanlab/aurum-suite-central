@@ -1,41 +1,52 @@
-
 ## Objetivo
-Otimizar o Dashboard para celular (≤768px), com foco em compactar a barra de filtros e ajustar espaçamentos, tipografia e cartões para caberem confortavelmente na tela pequena.
+Adicionar um novo card de KPI ao Dashboard exibindo a quantidade de produtos em estoque, posicionado ao lado da Taxa de Conversão, e reduzir o tamanho dos cards em 25% na visualização mobile.
 
 ## Escopo
-Apenas mudanças visuais/layout. Nenhuma alteração de lógica de dados, queries ou hooks.
+Apenas alterações visuais e de dados de dashboard. Nenhuma mudança em hooks de filtro, layout global ou design system.
 
 Arquivos afetados:
-- `src/components/dashboard/DashboardFilters.tsx`
+- `src/hooks/useDashboardData.ts`
 - `src/pages/Dashboard.tsx`
 
-## 1. Barra de filtros (`DashboardFilters.tsx`) — colapsável no mobile
+## 1. Dados de estoque (`useDashboardData.ts`)
 
-No mobile a barra hoje ocupa muito espaço vertical (5 selects/datas empilhados). Solução:
+Adicionar ao `DashboardKPIs` uma nova propriedade `stockQuantity` representando a quantidade total de unidades em estoque de produtos ativos da empresa.
 
-- No mobile (`< md`): mostrar apenas um botão compacto "Filtros" com badge do número de filtros ativos + chip do período atual (ex: "01/07 – 17/07"). Ao tocar, abrir um `Sheet` (bottom sheet do shadcn) com os controles em stack vertical (Origem, De, Até, Produto, Vendedor, botão Limpar, botão Aplicar/Fechar).
-- No desktop (`md+`): manter a barra horizontal atual sem mudanças.
-- Reduzir padding do container no mobile (`p-3` em vez de `p-4`) e usar `rounded-lg`.
-- Datas: dentro do Sheet, usar largura total (`w-full`) em cada Popover trigger.
-- Sem alterar a `interface DashboardFilters` nem `getDefaultFilters`.
+- Criar nova query que some o campo `stock` da tabela `products` para registros onde `company_id = ?`, `status = 'active'` e `stock > 0`.
+- Retornar o total no objeto de KPIs.
+- Garantir que o loading do KPI acompanhe `kpisLoading`.
 
-## 2. Página Dashboard (`Dashboard.tsx`) — ajustes mobile
+## 2. Novo card de KPI (`Dashboard.tsx`)
 
-- Grid de KPIs: manter `grid-cols-2` no mobile (já está), mas reduzir gap para `gap-3` e padding dos cards no mobile. Tornar `text-xl` responsivo: `text-lg sm:text-xl` para valores; ícones `h-8 w-8` no mobile.
-- Título dos KPIs: quebrar em 2 linhas quando necessário sem estourar (garantir `leading-tight`).
-- Charts:
-  - Gráfico de Receita: altura `h-[220px]` no mobile, `h-[280px]` md+.
-  - Pie de Origens: reduzir `outerRadius`/`innerRadius` responsivos (via prop fixa ok; manter, apenas reduzir container height mobile para `h-[240px]` total).
-- Espaçamentos entre seções: `mb-4` no mobile em vez de `mb-6`.
-- Tabelas "Últimas Vendas" e "Top Produtos": reduzir padding lateral do CardContent no mobile (`px-2`).
-- Adicionar `overflow-x-hidden` no wrapper para prevenir scroll horizontal residual.
+- Incluir novo item no array `kpiCards`, após "Taxa de Conversão":
+  - Título: "Estoque"
+  - Valor: `kpis.stockQuantity.toString()`
+  - Ícone: `Package`
+- Ajustar grid de KPIs para acomodar 6 cards:
+  - Mobile: `grid-cols-2` (6 cards = 3 linhas)
+  - `md`: `grid-cols-3`
+  - `lg`: `grid-cols-6`
 
-## 3. Fora de escopo
-- Não mexer em `AppLayout` nem `Header`.
-- Não alterar hooks (`useDashboardData`, filtros default).
-- Não mudar cores/tokens do design system.
+## 3. Redução de 25% no mobile
+
+Aplicar classes responsivas para diminuir os cards abaixo de `sm`:
+
+- `CardHeader`: `p-4 sm:p-6` → `p-3 sm:p-6`
+- Ícone container: `h-8 w-8 sm:h-9 sm:w-9` → `h-6 w-6 sm:h-9 sm:w-9`
+- Ícone: `h-4 w-4` → `h-3.5 w-3.5 sm:h-4 sm:w-4`
+- Título: `text-[10px] sm:text-xs` → `text-[9px] sm:text-xs`
+- Valor: `text-lg sm:text-xl` → `text-base sm:text-xl`
+- `CardContent`: `p-4 pt-0 sm:p-6 sm:pt-0` → `p-3 pt-0 sm:p-6 sm:pt-0`
+
+Isso mantém o desktop inalterado e reduz proporcionalmente o espaçamento e tipografia no mobile.
+
+## 4. Fora de escopo
+- Não alterar `DashboardFilters.tsx`, `AppLayout`, `Header`.
+- Não modificar cores, tokens ou animações dos cards.
+- Não alterar regras de negócio de vendas, leads ou estoque baixo.
 
 ## Validação
-- Build passa.
-- Preview mobile (391px): filtros ocupam 1 linha compacta; KPIs em 2 colunas legíveis; gráficos sem overflow; sem scroll horizontal.
-- Desktop inalterado.
+- Build passa sem erros.
+- Preview mobile: 6 cards visíveis em 2 colunas, 3 linhas, com tamanho reduzido.
+- Preview desktop: 6 cards em linha única (`grid-cols-6`), tamanho atual preservado.
+- Valor de estoque reflete a soma real de unidades dos produtos ativos.
