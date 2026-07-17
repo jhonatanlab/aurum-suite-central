@@ -296,7 +296,7 @@ export default function Dashboard() {
       </div>
 
       {/* Funnel + Top Products */}
-      <div className="grid gap-4 lg:grid-cols-2 mb-6">
+      <div className="grid gap-4 lg:grid-cols-2 mb-4 md:mb-6">
         {/* Funnel */}
         <Card className="bg-card border-border animate-fade-in overflow-hidden" style={{ animationDelay: "580ms" }}>
           <CardHeader className="flex flex-row items-center gap-2">
