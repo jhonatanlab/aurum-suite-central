@@ -137,9 +137,10 @@ export default function Produtos() {
       if (!company?.id) throw new Error("Empresa não encontrada");
 
       const isBundle = data.type === "bundle";
+      const isVariable = data.type === "variable";
       const price = isBundle
         ? (data.pricing_mode === "manual" ? parseFloat(data.manual_price) || 0 : 0)
-        : parseFloat(data.price) || 0;
+        : isVariable ? 0 : parseFloat(data.price) || 0;
 
       const { data: newProduct, error: productError } = await supabase
         .from("products")
@@ -147,15 +148,16 @@ export default function Produtos() {
           name: data.name,
           category: data.category || null,
           price,
-          cost_price: isBundle ? null : (data.cost_price ? parseFloat(data.cost_price) : null),
+          cost_price: isBundle || isVariable ? null : (data.cost_price ? parseFloat(data.cost_price) : null),
           stock: 0,
           status: data.status,
           company_id: company.id,
-          minimum_stock: isBundle ? 0 : (parseInt(data.minimum_stock) || 0),
+          minimum_stock: isBundle || isVariable ? 0 : (parseInt(data.minimum_stock) || 0),
           consignment_available: data.consignment_available,
           type: data.type,
           pricing_mode: isBundle ? data.pricing_mode : null,
           manual_price: isBundle && data.pricing_mode === "manual" ? parseFloat(data.manual_price) || null : null,
+          promo_price: isVariable ? null : undefined,
           sku: data.sku?.trim() || null,
           barcode: data.barcode?.trim() || null,
           description: data.description?.trim() || null,
@@ -184,7 +186,7 @@ export default function Produtos() {
         if (bundleError) throw bundleError;
       }
 
-      if (!isBundle) {
+      if (!isBundle && !isVariable) {
         const { error: batchError } = await supabase
           .from("product_batches")
           .insert({

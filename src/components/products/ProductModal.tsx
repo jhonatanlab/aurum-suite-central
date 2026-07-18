@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Package, AlertTriangle, Plus, Trash2, Layers, RefreshCw, Wrench } from "lucide-react";
+import { Package, AlertTriangle, Plus, Trash2, Layers, RefreshCw, Wrench, Boxes } from "lucide-react";
 import { ProductImagesSection } from "./ProductImagesSection";
+import { VariationsSection } from "./VariationsSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,7 +82,7 @@ export interface ProductFormData {
   sku: string;
   batch: BatchData;
   adjustment: AdjustmentData;
-  type: "simple" | "bundle";
+  type: "simple" | "bundle" | "variable";
   pricing_mode: "auto_sum" | "manual" | "";
   manual_price: string;
   bundle_items: BundleItemData[];
@@ -159,6 +160,7 @@ export function ProductModal({
 
   const isEditing = !!product;
   const isBundle = formData.type === "bundle";
+  const isVariable = formData.type === "variable";
 
   // Filter only simple products for bundle composition
   const simpleProducts = allProducts.filter(
@@ -189,7 +191,7 @@ export function ProductModal({
         adjustment: lastBatch
           ? { quantity: lastBatch.quantity.toString(), reason: "", batch_id: lastBatch.id, batch_code: lastBatch.batch_code }
           : { quantity: "", reason: "" },
-        type: (product.type as "simple" | "bundle") || "simple",
+        type: (product.type as "simple" | "bundle" | "variable") || "simple",
         pricing_mode: (product.pricing_mode as "auto_sum" | "manual") || "",
         manual_price: product.manual_price?.toString() || "",
         bundle_items: existingBundleItems,
@@ -239,7 +241,7 @@ export function ProductModal({
     }
 
     // Validate batch for simple products
-    if (!isBundle) {
+    if (!isBundle && !isVariable) {
       if (!isEditing && (!formData.batch.batch_code.trim() || !formData.batch.quantity)) return;
       if (isEditing && formData.batch.quantity && !formData.batch.batch_code.trim()) return;
     }
@@ -247,7 +249,7 @@ export function ProductModal({
     onSave(formData, product?.id);
   };
 
-  const isBatchValid = isBundle
+  const isBatchValid = (isBundle || isVariable)
     ? true
     : isEditing
       ? !formData.batch.quantity || (formData.batch.batch_code.trim() && !!formData.batch.quantity)
@@ -283,7 +285,7 @@ export function ProductModal({
             {!isEditing && (
               <div className="space-y-2">
                 <Label className="text-white font-medium">Tipo de Produto *</Label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, type: "simple", bundle_items: [], pricing_mode: "", manual_price: "" })}
@@ -314,6 +316,21 @@ export function ProductModal({
                       <p className="text-xs text-[#6B6B6B]">Combo de produtos</p>
                     </div>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, type: "variable", bundle_items: [], pricing_mode: "", manual_price: "" })}
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                      formData.type === "variable"
+                        ? "border-[#C7A052] bg-[#C7A052]/10"
+                        : "border-[#2A2A2A] bg-[#121212] hover:border-[#3A3A3A]"
+                    }`}
+                  >
+                    <Boxes className={`h-5 w-5 ${formData.type === "variable" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
+                    <div className="text-left">
+                      <p className={`text-sm font-medium ${formData.type === "variable" ? "text-white" : "text-[#A1A1AA]"}`}>Com variações</p>
+                      <p className="text-xs text-[#6B6B6B]">Ex: cor, tamanho</p>
+                    </div>
+                  </button>
                 </div>
               </div>
             )}
@@ -324,6 +341,10 @@ export function ProductModal({
                 {formData.type === "bundle" ? (
                   <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#C7A052]/20 text-[#C7A052]">
                     <Layers className="h-3 w-3" /> Kit
+                  </span>
+                ) : formData.type === "variable" ? (
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#C7A052]/20 text-[#C7A052]">
+                    <Boxes className="h-3 w-3" /> Com variações
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
@@ -500,7 +521,8 @@ export function ProductModal({
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                         placeholder="0.00"
-                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                        disabled={isVariable}
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20 disabled:opacity-50"
                       />
                     </div>
                     <div className="space-y-2">
@@ -513,10 +535,17 @@ export function ProductModal({
                         value={formData.cost_price}
                         onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
                         placeholder="0.00"
-                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                        disabled={isVariable}
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20 disabled:opacity-50"
                       />
                     </div>
                   </div>
+
+                  {isVariable && (
+                    <p className="text-xs text-[#C7A052]">
+                      Preço e estoque ficam nas variações.
+                    </p>
+                  )}
 
                   {/* Margin Display */}
                   {(() => {
@@ -696,7 +725,8 @@ export function ProductModal({
                       value={formData.minimum_stock}
                       onChange={(e) => setFormData({ ...formData, minimum_stock: e.target.value })}
                       placeholder="0"
-                      className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                      disabled={isVariable}
+                      className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20 disabled:opacity-50"
                     />
                   </div>
                   <div className="space-y-2">
@@ -745,7 +775,7 @@ export function ProductModal({
             </div>
 
             {/* Stock Section - only for simple products */}
-            {!isBundle && (
+            {!isBundle && !isVariable && (
               <div className="space-y-4 pt-4 border-t border-[#2A2A2A]">
                 {/* Current Stock Display when editing */}
                 {isEditing && (
@@ -954,6 +984,17 @@ export function ProductModal({
                   </div>
                 )}
               </div>
+            )}
+
+            {isEditing && product && product.type === 'variable' && (
+              <VariationsSection
+                parentProduct={{
+                  id: product.id,
+                  company_id: product.company_id,
+                  category: product.category,
+                  name: product.name,
+                }}
+              />
             )}
           </div>
 
