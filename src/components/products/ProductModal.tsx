@@ -521,7 +521,8 @@ export function ProductModal({
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                         placeholder="0.00"
-                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                        disabled={isVariable}
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20 disabled:opacity-50"
                       />
                     </div>
                     <div className="space-y-2">
@@ -534,10 +535,17 @@ export function ProductModal({
                         value={formData.cost_price}
                         onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
                         placeholder="0.00"
-                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                        disabled={isVariable}
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20 disabled:opacity-50"
                       />
                     </div>
                   </div>
+
+                  {isVariable && (
+                    <p className="text-xs text-[#C7A052]">
+                      Preço e estoque ficam nas variações.
+                    </p>
+                  )}
 
                   {/* Margin Display */}
                   {(() => {
