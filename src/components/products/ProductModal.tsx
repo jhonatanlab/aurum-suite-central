@@ -118,6 +118,13 @@ const initialFormData: ProductFormData = {
   consignment_available: false,
   sku: "",
   barcode: "",
+  description: "",
+  weight_grams: "",
+  material: "",
+  plating: "",
+  stone: "",
+  supplier_reference: "",
+  ncm: "",
   batch: {
     batch_code: "",
     quantity: "",
