@@ -178,6 +178,13 @@ export function ProductModal({
         consignment_available: product.consignment_available || false,
         sku: product.sku || "",
         barcode: product.barcode || "",
+        description: product.description || "",
+        weight_grams: product.weight_grams != null ? String(product.weight_grams) : "",
+        material: product.material || "",
+        plating: product.plating || "",
+        stone: product.stone || "",
+        supplier_reference: product.supplier_reference || "",
+        ncm: product.ncm || "",
         batch: { batch_code: "", quantity: "", supplier_id: "" },
         adjustment: lastBatch
           ? { quantity: lastBatch.quantity.toString(), reason: "", batch_id: lastBatch.id, batch_code: lastBatch.batch_code }
