@@ -234,6 +234,13 @@ export default function Produtos() {
           manual_price: isBundle && data.pricing_mode === "manual" ? parseFloat(data.manual_price) || null : null,
           sku: data.sku?.trim() || null,
           barcode: data.barcode?.trim() || null,
+          description: data.description?.trim() || null,
+          weight_grams: data.weight_grams ? parseFloat(data.weight_grams) : null,
+          material: data.material?.trim() || null,
+          plating: data.plating?.trim() || null,
+          stone: data.stone?.trim() || null,
+          supplier_reference: data.supplier_reference?.trim() || null,
+          ncm: data.ncm?.trim() || null,
         } as any)
         .eq("id", id);
 
