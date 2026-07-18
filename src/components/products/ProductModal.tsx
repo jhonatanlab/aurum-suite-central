@@ -41,6 +41,13 @@ export interface Product {
   promo_price?: number | null;
   sku?: string | null;
   barcode?: string | null;
+  description?: string | null;
+  weight_grams?: number | null;
+  material?: string | null;
+  plating?: string | null;
+  stone?: string | null;
+  supplier_reference?: string | null;
+  ncm?: string | null;
   cover_image_url?: string | null;
 }
 
