@@ -82,7 +82,7 @@ export interface ProductFormData {
   sku: string;
   batch: BatchData;
   adjustment: AdjustmentData;
-  type: "simple" | "bundle";
+  type: "simple" | "bundle" | "variable";
   pricing_mode: "auto_sum" | "manual" | "";
   manual_price: string;
   bundle_items: BundleItemData[];
