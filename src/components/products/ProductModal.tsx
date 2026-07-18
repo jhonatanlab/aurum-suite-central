@@ -775,7 +775,7 @@ export function ProductModal({
             </div>
 
             {/* Stock Section - only for simple products */}
-            {!isBundle && (
+            {!isBundle && !isVariable && (
               <div className="space-y-4 pt-4 border-t border-[#2A2A2A]">
                 {/* Current Stock Display when editing */}
                 {isEditing && (
