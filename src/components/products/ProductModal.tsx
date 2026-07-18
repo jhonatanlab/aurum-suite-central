@@ -342,6 +342,10 @@ export function ProductModal({
                   <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#C7A052]/20 text-[#C7A052]">
                     <Layers className="h-3 w-3" /> Kit
                   </span>
+                ) : formData.type === "variable" ? (
+                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#C7A052]/20 text-[#C7A052]">
+                    <Boxes className="h-3 w-3" /> Com variações
+                  </span>
                 ) : (
                   <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
                     <Package className="h-3 w-3" /> Simples
