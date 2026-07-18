@@ -86,6 +86,13 @@ export interface ProductFormData {
   manual_price: string;
   bundle_items: BundleItemData[];
   barcode: string;
+  description: string;
+  weight_grams: string;
+  material: string;
+  plating: string;
+  stone: string;
+  supplier_reference: string;
+  ncm: string;
 }
 
 interface ProductModalProps {
