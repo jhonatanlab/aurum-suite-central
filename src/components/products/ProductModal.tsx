@@ -190,7 +190,7 @@ export function ProductModal({
         adjustment: lastBatch
           ? { quantity: lastBatch.quantity.toString(), reason: "", batch_id: lastBatch.id, batch_code: lastBatch.batch_code }
           : { quantity: "", reason: "" },
-        type: (product.type as "simple" | "bundle") || "simple",
+        type: (product.type as "simple" | "bundle" | "variable") || "simple",
         pricing_mode: (product.pricing_mode as "auto_sum" | "manual") || "",
         manual_price: product.manual_price?.toString() || "",
         bundle_items: existingBundleItems,
