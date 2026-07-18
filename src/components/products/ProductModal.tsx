@@ -1004,6 +1004,15 @@ export function ProductModal({
                 }}
               />
             )}
+
+            {!isEditing && isVariable && (
+              <div className="p-4 rounded-lg border border-dashed border-[#C7A052]/30 bg-[#C7A052]/5">
+                <p className="text-sm text-[#C7A052] font-medium">Este produto terá variações</p>
+                <p className="text-xs text-[#A1A1AA] mt-1">
+                  Salve o produto primeiro. Depois reabra para adicionar cada variação (cor, tamanho, banho etc.).
+                </p>
+              </div>
+            )}
           </div>
 
 
