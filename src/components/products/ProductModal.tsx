@@ -285,7 +285,7 @@ export function ProductModal({
             {!isEditing && (
               <div className="space-y-2">
                 <Label className="text-white font-medium">Tipo de Produto *</Label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, type: "simple", bundle_items: [], pricing_mode: "", manual_price: "" })}
@@ -314,6 +314,21 @@ export function ProductModal({
                     <div className="text-left">
                       <p className={`text-sm font-medium ${formData.type === "bundle" ? "text-white" : "text-[#A1A1AA]"}`}>Kit</p>
                       <p className="text-xs text-[#6B6B6B]">Combo de produtos</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, type: "variable", bundle_items: [], pricing_mode: "", manual_price: "" })}
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                      formData.type === "variable"
+                        ? "border-[#C7A052] bg-[#C7A052]/10"
+                        : "border-[#2A2A2A] bg-[#121212] hover:border-[#3A3A3A]"
+                    }`}
+                  >
+                    <Boxes className={`h-5 w-5 ${formData.type === "variable" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
+                    <div className="text-left">
+                      <p className={`text-sm font-medium ${formData.type === "variable" ? "text-white" : "text-[#A1A1AA]"}`}>Com variações</p>
+                      <p className="text-xs text-[#6B6B6B]">Ex: cor, tamanho</p>
                     </div>
                   </button>
                 </div>
