@@ -521,8 +521,8 @@ export function ProductModal({
               )}
 
 
-              {/* Price & Cost - only for simple products */}
-              {!isBundle && (
+              {/* Price & Cost - only for simple products (hidden when variable) */}
+              {!isBundle && !isVariable && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -535,8 +535,7 @@ export function ProductModal({
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                         placeholder="0.00"
-                        disabled={isVariable}
-                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20 disabled:opacity-50"
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
                       />
                     </div>
                     <div className="space-y-2">
@@ -549,17 +548,12 @@ export function ProductModal({
                         value={formData.cost_price}
                         onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
                         placeholder="0.00"
-                        disabled={isVariable}
-                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20 disabled:opacity-50"
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
                       />
                     </div>
                   </div>
 
-                  {isVariable && (
-                    <p className="text-xs text-[#C7A052]">
-                      Preço e estoque ficam nas variações.
-                    </p>
-                  )}
+
 
                   {/* Margin Display */}
                   {(() => {
