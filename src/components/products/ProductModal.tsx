@@ -985,6 +985,17 @@ export function ProductModal({
                 )}
               </div>
             )}
+
+            {isEditing && product && product.type === 'variable' && (
+              <VariationsSection
+                parentProduct={{
+                  id: product.id,
+                  company_id: product.company_id,
+                  category: product.category,
+                  name: product.name,
+                }}
+              />
+            )}
           </div>
 
 
