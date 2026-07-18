@@ -160,6 +160,7 @@ export function ProductModal({
 
   const isEditing = !!product;
   const isBundle = formData.type === "bundle";
+  const isVariable = formData.type === "variable";
 
   // Filter only simple products for bundle composition
   const simpleProducts = allProducts.filter(
