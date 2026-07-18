@@ -388,6 +388,92 @@ export function ProductModal({
                 </div>
               </div>
 
+              {/* Ficha técnica */}
+              <details className="group space-y-3 pt-2 border-t border-[#2A2A2A]">
+                <summary className="flex items-center justify-between cursor-pointer list-none">
+                  <h3 className="text-sm font-medium text-[#A1A1AA] uppercase tracking-wider">Ficha técnica</h3>
+                  <span className="text-[#6B6B6B] group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="description" className="text-white font-medium">Descrição</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Descrição detalhada do produto"
+                      className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="weight_grams" className="text-white font-medium">Peso (g)</Label>
+                      <Input
+                        id="weight_grams"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.weight_grams}
+                        onChange={(e) => setFormData({ ...formData, weight_grams: e.target.value })}
+                        placeholder="Ex: 3.5"
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="material" className="text-white font-medium">Material</Label>
+                      <Input
+                        id="material"
+                        value={formData.material}
+                        onChange={(e) => setFormData({ ...formData, material: e.target.value })}
+                        placeholder="Ex: Aço inox"
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="plating" className="text-white font-medium">Banho</Label>
+                      <Input
+                        id="plating"
+                        value={formData.plating}
+                        onChange={(e) => setFormData({ ...formData, plating: e.target.value })}
+                        placeholder="Ex: Ouro 18k"
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="stone" className="text-white font-medium">Pedra</Label>
+                      <Input
+                        id="stone"
+                        value={formData.stone}
+                        onChange={(e) => setFormData({ ...formData, stone: e.target.value })}
+                        placeholder="Ex: Zircônia"
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="supplier_reference" className="text-white font-medium">Ref. Fornecedor</Label>
+                      <Input
+                        id="supplier_reference"
+                        value={formData.supplier_reference}
+                        onChange={(e) => setFormData({ ...formData, supplier_reference: e.target.value })}
+                        placeholder="Código do fornecedor"
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ncm" className="text-white font-medium">NCM</Label>
+                      <Input
+                        id="ncm"
+                        value={formData.ncm}
+                        onChange={(e) => setFormData({ ...formData, ncm: e.target.value })}
+                        placeholder="Ex: 71131900"
+                        className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </details>
+
               {isEditing && product ? (
                 <ProductImagesSection productId={product.id} companyId={product.company_id || companyId} />
               ) : (
