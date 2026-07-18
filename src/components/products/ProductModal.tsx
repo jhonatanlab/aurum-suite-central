@@ -725,7 +725,8 @@ export function ProductModal({
                       value={formData.minimum_stock}
                       onChange={(e) => setFormData({ ...formData, minimum_stock: e.target.value })}
                       placeholder="0"
-                      className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                      disabled={isVariable}
+                      className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20 disabled:opacity-50"
                     />
                   </div>
                   <div className="space-y-2">
