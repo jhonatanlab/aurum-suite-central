@@ -332,7 +332,6 @@ export function ProductModal({
                       ...formData,
                       type: e.target.checked ? "variable" : "simple",
                       price: e.target.checked ? "0" : formData.price,
-                      promo_price: e.target.checked ? "" : formData.promo_price,
                       cost_price: e.target.checked ? "" : formData.cost_price,
                       minimum_stock: e.target.checked ? "0" : formData.minimum_stock,
                     });
