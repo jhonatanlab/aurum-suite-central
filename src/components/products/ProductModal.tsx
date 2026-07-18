@@ -241,7 +241,7 @@ export function ProductModal({
     }
 
     // Validate batch for simple products
-    if (!isBundle) {
+    if (!isBundle && !isVariable) {
       if (!isEditing && (!formData.batch.batch_code.trim() || !formData.batch.quantity)) return;
       if (isEditing && formData.batch.quantity && !formData.batch.batch_code.trim()) return;
     }
@@ -249,7 +249,7 @@ export function ProductModal({
     onSave(formData, product?.id);
   };
 
-  const isBatchValid = isBundle
+  const isBatchValid = (isBundle || isVariable)
     ? true
     : isEditing
       ? !formData.batch.quantity || (formData.batch.batch_code.trim() && !!formData.batch.quantity)
