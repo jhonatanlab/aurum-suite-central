@@ -309,7 +309,8 @@ export function ProductModal({
     : true;
 
   const adjustValid = !isEditing || stockAction !== "adjust" || !formData.adjustment.quantity || !!formData.adjustment.reason;
-  const canSubmit = formData.name.trim() && isBatchValid && bundleValid && adjustValid;
+  const hasDuplicateErrors = !!duplicateErrors.sku || !!duplicateErrors.barcode;
+  const canSubmit = formData.name.trim() && isBatchValid && bundleValid && adjustValid && !hasDuplicateErrors;
 
   // Check for duplicate products in bundle
   const hasDuplicates = (() => {
