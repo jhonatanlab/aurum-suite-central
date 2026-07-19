@@ -155,6 +155,7 @@ export function ProductModal({
 }: ProductModalProps) {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [stockAction, setStockAction] = useState<"add" | "adjust">("add");
+  const [duplicateErrors, setDuplicateErrors] = useState<{ sku?: string; barcode?: string }>({});
   const { activeSuppliers, isLoading: loadingSuppliers } = useSuppliers();
   const { products: allProducts } = useProducts();
   const currentDateTime = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -162,6 +163,45 @@ export function ProductModal({
   const isEditing = !!product;
   const isBundle = formData.type === "bundle";
   const isVariable = formData.type === "variable";
+
+  const currentCompanyId = product?.company_id || companyId;
+
+  const checkDuplicateIdentifiers = (sku: string, barcode: string) => {
+    const trimmedSku = sku.trim();
+    const trimmedBarcode = barcode.trim();
+    const errors: { sku?: string; barcode?: string } = {};
+
+    if (trimmedSku) {
+      const duplicateSku = allProducts.find(
+        (p) =>
+          p.id !== product?.id &&
+          p.sku?.trim() === trimmedSku &&
+          (!currentCompanyId || p.company_id === currentCompanyId)
+      );
+      if (duplicateSku) {
+        errors.sku = `SKU já usado no produto "${duplicateSku.name}"`;
+      }
+    }
+
+    if (trimmedBarcode) {
+      const duplicateBarcode = allProducts.find(
+        (p) =>
+          p.id !== product?.id &&
+          p.barcode?.trim() === trimmedBarcode &&
+          (!currentCompanyId || p.company_id === currentCompanyId)
+      );
+      if (duplicateBarcode) {
+        errors.barcode = `Código de barras já usado no produto "${duplicateBarcode.name}"`;
+      }
+    }
+
+    setDuplicateErrors(errors);
+    return errors;
+  };
+
+  useEffect(() => {
+    checkDuplicateIdentifiers(formData.sku, formData.barcode);
+  }, [formData.sku, formData.barcode, allProducts, product?.id, currentCompanyId]);
 
   // Filter only simple products for bundle composition
   const simpleProducts = allProducts.filter(
