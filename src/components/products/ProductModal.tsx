@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useProducts } from "@/hooks/useProducts";
+import { toast } from "sonner";
 
 export interface Product {
   id: string;
@@ -154,6 +155,7 @@ export function ProductModal({
 }: ProductModalProps) {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [stockAction, setStockAction] = useState<"add" | "adjust">("add");
+  const [duplicateErrors, setDuplicateErrors] = useState<{ sku?: string; barcode?: string }>({});
   const { activeSuppliers, isLoading: loadingSuppliers } = useSuppliers();
   const { products: allProducts } = useProducts();
   const currentDateTime = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -161,6 +163,45 @@ export function ProductModal({
   const isEditing = !!product;
   const isBundle = formData.type === "bundle";
   const isVariable = formData.type === "variable";
+
+  const currentCompanyId = product?.company_id || companyId;
+
+  const checkDuplicateIdentifiers = (sku: string, barcode: string) => {
+    const trimmedSku = sku.trim();
+    const trimmedBarcode = barcode.trim();
+    const errors: { sku?: string; barcode?: string } = {};
+
+    if (trimmedSku) {
+      const duplicateSku = allProducts.find(
+        (p) =>
+          p.id !== product?.id &&
+          p.sku?.trim() === trimmedSku &&
+          (!currentCompanyId || p.company_id === currentCompanyId)
+      );
+      if (duplicateSku) {
+        errors.sku = `SKU já usado no produto "${duplicateSku.name}"`;
+      }
+    }
+
+    if (trimmedBarcode) {
+      const duplicateBarcode = allProducts.find(
+        (p) =>
+          p.id !== product?.id &&
+          p.barcode?.trim() === trimmedBarcode &&
+          (!currentCompanyId || p.company_id === currentCompanyId)
+      );
+      if (duplicateBarcode) {
+        errors.barcode = `Código de barras já usado no produto "${duplicateBarcode.name}"`;
+      }
+    }
+
+    setDuplicateErrors(errors);
+    return errors;
+  };
+
+  useEffect(() => {
+    checkDuplicateIdentifiers(formData.sku, formData.barcode);
+  }, [formData.sku, formData.barcode, allProducts, product?.id, currentCompanyId]);
 
   // Filter only simple products for bundle composition
   const simpleProducts = allProducts.filter(
@@ -246,6 +287,12 @@ export function ProductModal({
       if (isEditing && formData.batch.quantity && !formData.batch.batch_code.trim()) return;
     }
 
+    const identifierErrors = checkDuplicateIdentifiers(formData.sku, formData.barcode);
+    if (identifierErrors.sku || identifierErrors.barcode) {
+      toast.error(identifierErrors.sku || identifierErrors.barcode);
+      return;
+    }
+
     onSave(formData, product?.id);
   };
 
@@ -262,7 +309,8 @@ export function ProductModal({
     : true;
 
   const adjustValid = !isEditing || stockAction !== "adjust" || !formData.adjustment.quantity || !!formData.adjustment.reason;
-  const canSubmit = formData.name.trim() && isBatchValid && bundleValid && adjustValid;
+  const hasDuplicateErrors = !!duplicateErrors.sku || !!duplicateErrors.barcode;
+  const canSubmit = formData.name.trim() && isBatchValid && bundleValid && adjustValid && !hasDuplicateErrors;
 
   // Check for duplicate products in bundle
   const hasDuplicates = (() => {
@@ -408,8 +456,15 @@ export function ProductModal({
                     value={formData.sku}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                     placeholder="Ex: BRC-001"
-                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                    className={`bg-[#121212] text-white placeholder:text-[#6B6B6B] focus:ring-[#C7A052]/20 ${
+                      duplicateErrors.sku
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-[#2A2A2A] focus:border-[#C7A052]"
+                    }`}
                   />
+                  {duplicateErrors.sku && (
+                    <p className="text-xs text-red-400">{duplicateErrors.sku}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="barcode" className="text-white font-medium">Código de Barras</Label>
@@ -418,8 +473,15 @@ export function ProductModal({
                     value={formData.barcode}
                     onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                     placeholder="Leia ou digite"
-                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                    className={`bg-[#121212] text-white placeholder:text-[#6B6B6B] focus:ring-[#C7A052]/20 ${
+                      duplicateErrors.barcode
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-[#2A2A2A] focus:border-[#C7A052]"
+                    }`}
                   />
+                  {duplicateErrors.barcode && (
+                    <p className="text-xs text-red-400">{duplicateErrors.barcode}</p>
+                  )}
                 </div>
               </div>
 
