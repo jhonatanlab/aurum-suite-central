@@ -287,6 +287,12 @@ export function ProductModal({
       if (isEditing && formData.batch.quantity && !formData.batch.batch_code.trim()) return;
     }
 
+    const identifierErrors = checkDuplicateIdentifiers(formData.sku, formData.barcode);
+    if (identifierErrors.sku || identifierErrors.barcode) {
+      toast.error(identifierErrors.sku || identifierErrors.barcode);
+      return;
+    }
+
     onSave(formData, product?.id);
   };
 
