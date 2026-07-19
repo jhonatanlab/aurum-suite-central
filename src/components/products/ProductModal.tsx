@@ -456,8 +456,15 @@ export function ProductModal({
                     value={formData.sku}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                     placeholder="Ex: BRC-001"
-                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                    className={`bg-[#121212] text-white placeholder:text-[#6B6B6B] focus:ring-[#C7A052]/20 ${
+                      duplicateErrors.sku
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-[#2A2A2A] focus:border-[#C7A052]"
+                    }`}
                   />
+                  {duplicateErrors.sku && (
+                    <p className="text-xs text-red-400">{duplicateErrors.sku}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="barcode" className="text-white font-medium">Código de Barras</Label>
@@ -466,8 +473,15 @@ export function ProductModal({
                     value={formData.barcode}
                     onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                     placeholder="Leia ou digite"
-                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                    className={`bg-[#121212] text-white placeholder:text-[#6B6B6B] focus:ring-[#C7A052]/20 ${
+                      duplicateErrors.barcode
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-[#2A2A2A] focus:border-[#C7A052]"
+                    }`}
                   />
+                  {duplicateErrors.barcode && (
+                    <p className="text-xs text-red-400">{duplicateErrors.barcode}</p>
+                  )}
                 </div>
               </div>
 
