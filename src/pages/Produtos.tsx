@@ -427,7 +427,7 @@ export default function Produtos() {
         toast.error("Selecione o modo de precificação");
         return;
       }
-    } else {
+    } else if (data.type !== "variable") {
       if (!productId && (!data.batch.batch_code.trim() || !data.batch.quantity)) {
         toast.error("Código do lote e quantidade são obrigatórios para novo produto");
         return;
