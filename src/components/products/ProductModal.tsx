@@ -1126,6 +1126,77 @@ export function ProductModal({
               </div>
             )}
 
+            {!isEditing && isVariable && wizardStep === 4 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5 text-[#C7A052]" />
+                  <h3 className="text-sm font-medium text-[#C7A052] uppercase tracking-wider">
+                    Lote de Entrada *
+                  </h3>
+                </div>
+
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-[#C7A052]/10 border border-[#C7A052]/30">
+                  <AlertTriangle className="h-4 w-4 text-[#C7A052] mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-[#C7A052]">
+                    Este lote será aplicado a todas as variações. A quantidade de cada variação vem da Matriz.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="var_batch_code" className="text-white font-medium">
+                    Código do Lote *
+                  </Label>
+                  <Input
+                    id="var_batch_code"
+                    value={formData.batch.batch_code}
+                    onChange={(e) => setFormData({ ...formData, batch: { ...formData.batch, batch_code: e.target.value } })}
+                    placeholder="Ex: LT-2024-001"
+                    className="bg-[#121212] border-[#2A2A2A] text-white placeholder:text-[#6B6B6B] focus:border-[#C7A052] focus:ring-[#C7A052]/20"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="var_supplier" className="text-white font-medium">Fornecedor</Label>
+                  <Select
+                    value={formData.batch.supplier_id}
+                    onValueChange={(value) => setFormData({ ...formData, batch: { ...formData.batch, supplier_id: value } })}
+                  >
+                    <SelectTrigger className="bg-[#121212] border-[#2A2A2A] text-white focus:border-[#C7A052] focus:ring-[#C7A052]/20">
+                      <SelectValue placeholder="Selecione o fornecedor" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1E1E1E] border-[#2A2A2A]">
+                      {activeSuppliers.map((supplier) => (
+                        <SelectItem key={supplier.id} value={supplier.id} className="text-white focus:bg-[#2A2A2A] focus:text-white">
+                          {supplier.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {activeSuppliers.length === 0 && !loadingSuppliers && (
+                    <p className="text-xs text-[#A1A1AA]">
+                      Nenhum fornecedor cadastrado. Cadastre em Meu Negócio → Fornecedores.
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[#A1A1AA] font-medium text-sm">Data/Hora</Label>
+                    <div className="px-3 py-2 rounded-md bg-[#121212]/50 border border-[#2A2A2A] text-[#A1A1AA] text-sm">
+                      {currentDateTime}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[#A1A1AA] font-medium text-sm">Responsável</Label>
+                    <div className="px-3 py-2 rounded-md bg-[#121212]/50 border border-[#2A2A2A] text-[#A1A1AA] text-sm truncate">
+                      {userEmail}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
 
 
@@ -1144,14 +1215,14 @@ export function ProductModal({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setWizardStep((s) => (s - 1) as 1 | 2 | 3)}
+                onClick={() => setWizardStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
                 className="border-[#2A2A2A] text-[#A1A1AA] hover:bg-[#2A2A2A] hover:text-white"
               >
                 <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
               </Button>
             )}
 
-            {!isEditing && isVariable && wizardStep < 3 ? (
+            {!isEditing && isVariable && wizardStep < 4 ? (
               <Button
                 type="button"
                 onClick={() => {
@@ -1163,7 +1234,18 @@ export function ProductModal({
                     toast.error("Adicione ao menos um atributo com valores");
                     return;
                   }
-                  setWizardStep((s) => (s + 1) as 1 | 2 | 3);
+                  if (wizardStep === 3) {
+                    if (formData.variations.length === 0) {
+                      toast.error("Gere ao menos uma variação");
+                      return;
+                    }
+                    const invalid = formData.variations.some((v) => !v.price || parseFloat(v.price) <= 0);
+                    if (invalid) {
+                      toast.error("Informe um preço válido para cada variação");
+                      return;
+                    }
+                  }
+                  setWizardStep((s) => (s + 1) as 1 | 2 | 3 | 4);
                 }}
                 disabled={hasDuplicates}
                 className="flex-1 bg-[#C7A052] hover:bg-[#B8934A] text-[#121212] font-semibold"
