@@ -51,7 +51,7 @@ export default function Produtos() {
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  
   const [categoryFilter, setCategoryFilter] = useState("all");
 
   // Fetch products
