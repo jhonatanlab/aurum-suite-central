@@ -546,12 +546,12 @@ export default function Produtos() {
     <AppLayout title="Produtos">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Catálogo de Produtos</h2>
-            <p className="text-muted-foreground">Gerencie seus produtos e estoque</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">Catálogo de Produtos</h2>
+            <p className="text-sm text-muted-foreground">Gerencie seus produtos e estoque</p>
           </div>
-          <Button onClick={handleOpenCreate} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+          <Button onClick={handleOpenCreate} className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             Novo Produto
           </Button>
@@ -559,20 +559,21 @@ export default function Produtos() {
 
         {/* Tabs */}
         <Tabs defaultValue="catalog" className="w-full">
-          <TabsList className="bg-muted/50 border border-border">
-            <TabsTrigger value="catalog" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+          <TabsList className="bg-muted/50 border border-border w-full grid grid-cols-3 sm:inline-flex sm:w-auto h-auto">
+            <TabsTrigger value="catalog" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2 flex-col sm:flex-row py-2 text-[11px] sm:text-sm">
               <Package className="w-4 h-4" />
-              Catálogo
+              <span>Catálogo</span>
             </TabsTrigger>
-            <TabsTrigger value="batch-history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+            <TabsTrigger value="batch-history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2 flex-col sm:flex-row py-2 text-[11px] sm:text-sm">
               <History className="w-4 h-4" />
-              Histórico de Lotes
+              <span className="sm:inline"><span className="sm:hidden">Lotes</span><span className="hidden sm:inline">Histórico de Lotes</span></span>
             </TabsTrigger>
-            <TabsTrigger value="stock-analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+            <TabsTrigger value="stock-analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2 flex-col sm:flex-row py-2 text-[11px] sm:text-sm">
               <BarChart3 className="w-4 h-4" />
-              Dados do Estoque
+              <span><span className="sm:hidden">Estoque</span><span className="hidden sm:inline">Dados do Estoque</span></span>
             </TabsTrigger>
           </TabsList>
+
 
           <TabsContent value="catalog" className="mt-6 space-y-4">
             {/* Filters */}
