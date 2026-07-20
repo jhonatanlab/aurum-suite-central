@@ -344,69 +344,66 @@ export function ProductModal({
             {!isEditing && (
               <div className="space-y-2">
                 <Label className="text-white font-medium">Tipo de Produto *</Label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, type: "simple", bundle_items: [], pricing_mode: "", manual_price: "" })}
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                      formData.type === "simple" || formData.type === "variable"
+                    onClick={() => setFormData({ ...formData, type: "simple", bundle_items: [], pricing_mode: "", manual_price: "", variation_attributes: [], variations: [] })}
+                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left ${
+                      formData.type === "simple"
                         ? "border-[#C7A052] bg-[#C7A052]/10"
                         : "border-[#2A2A2A] bg-[#121212] hover:border-[#3A3A3A]"
                     }`}
                   >
-                    <Package className={`h-5 w-5 ${formData.type === "simple" || formData.type === "variable" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
-                    <div className="text-left">
-                      <p className={`text-sm font-medium ${formData.type === "simple" || formData.type === "variable" ? "text-white" : "text-[#A1A1AA]"}`}>Simples</p>
-                      <p className="text-xs text-[#6B6B6B]">Produto unitário</p>
-                    </div>
+                    <Package className={`h-5 w-5 ${formData.type === "simple" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
+                    <p className={`text-sm font-medium ${formData.type === "simple" ? "text-white" : "text-[#A1A1AA]"}`}>Simples</p>
+                    <p className="text-xs text-[#6B6B6B]">Produto unitário</p>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, type: "bundle", pricing_mode: "auto_sum", bundle_items: [{ product_id: "", quantity: 1 }] })}
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                    onClick={() => setFormData({ ...formData, type: "bundle", pricing_mode: "auto_sum", bundle_items: [{ product_id: "", quantity: 1 }], variation_attributes: [], variations: [] })}
+                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left ${
                       formData.type === "bundle"
                         ? "border-[#C7A052] bg-[#C7A052]/10"
                         : "border-[#2A2A2A] bg-[#121212] hover:border-[#3A3A3A]"
                     }`}
                   >
                     <Layers className={`h-5 w-5 ${formData.type === "bundle" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
-                    <div className="text-left">
-                      <p className={`text-sm font-medium ${formData.type === "bundle" ? "text-white" : "text-[#A1A1AA]"}`}>Kit</p>
-                      <p className="text-xs text-[#6B6B6B]">Combo de produtos</p>
-                    </div>
+                    <p className={`text-sm font-medium ${formData.type === "bundle" ? "text-white" : "text-[#A1A1AA]"}`}>Kit</p>
+                    <p className="text-xs text-[#6B6B6B]">Combo de produtos</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ ...formData, type: "variable", bundle_items: [], pricing_mode: "", manual_price: "", price: "0", cost_price: "", minimum_stock: "0" });
+                      setWizardStep(1);
+                    }}
+                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left ${
+                      formData.type === "variable"
+                        ? "border-[#C7A052] bg-[#C7A052]/10"
+                        : "border-[#2A2A2A] bg-[#121212] hover:border-[#3A3A3A]"
+                    }`}
+                  >
+                    <Boxes className={`h-5 w-5 ${formData.type === "variable" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
+                    <p className={`text-sm font-medium ${formData.type === "variable" ? "text-white" : "text-[#A1A1AA]"}`}>Com variações</p>
+                    <p className="text-xs text-[#6B6B6B]">Cor, tamanho, banho…</p>
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Toggle: produto com variações */}
-            {formData.type !== "bundle" && (
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-[#121212] border border-[#2A2A2A]">
-                <input
-                  type="checkbox"
-                  id="has_variations"
-                  checked={formData.type === "variable"}
-                  onChange={(e) => {
-                    setFormData({
-                      ...formData,
-                      type: e.target.checked ? "variable" : "simple",
-                      price: e.target.checked ? "0" : formData.price,
-                      cost_price: e.target.checked ? "" : formData.cost_price,
-                      minimum_stock: e.target.checked ? "0" : formData.minimum_stock,
-                    });
-                  }}
-                  disabled={isEditing}
-                  className="mt-1 h-4 w-4 accent-[#C7A052]"
-                />
-                <label htmlFor="has_variations" className="flex-1 cursor-pointer">
-                  <p className="text-sm font-medium text-white">Este produto tem variações</p>
-                  <p className="text-xs text-[#A1A1AA]">
-                    Marque quando o produto tem cores, tamanhos, banhos ou outras opções vendáveis separadamente. Preço e estoque ficarão em cada variação.
-                    {isEditing && " (Não pode ser alterado após criar)"}
-                  </p>
-                </label>
-              </div>
+            {/* Wizard stepper for new variable products */}
+            {!isEditing && isVariable && (
+              <VariationWizardSteps
+                current={wizardStep}
+                steps={[
+                  { id: 1, label: "Dados do produto" },
+                  { id: 2, label: "Atributos" },
+                  { id: 3, label: "Matriz de variações" },
+                ]}
+                onStepClick={(id) => setWizardStep(id as 1 | 2 | 3)}
+              />
             )}
+
 
             {/* Show type badge when editing */}
             {isEditing && (
