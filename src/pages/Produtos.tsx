@@ -593,16 +593,6 @@ export default function Produtos() {
                   className="pl-9 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-36 bg-background border-border text-foreground focus:border-primary focus:ring-primary/20">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="all" className="text-foreground focus:bg-muted focus:text-foreground">Todos</SelectItem>
-                  <SelectItem value="active" className="text-foreground focus:bg-muted focus:text-foreground">Ativo</SelectItem>
-                  <SelectItem value="inactive" className="text-foreground focus:bg-muted focus:text-foreground">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-full sm:w-40 bg-background border-border text-foreground focus:border-primary focus:ring-primary/20">
                   <SelectValue placeholder="Categoria" />
