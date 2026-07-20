@@ -852,6 +852,8 @@ export function ProductModal({
                 </Label>
               </div>
             </div>
+            )}
+
 
             {/* Stock Section - only for simple products */}
             {!isBundle && !isVariable && (
