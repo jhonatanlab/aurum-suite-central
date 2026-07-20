@@ -286,6 +286,9 @@ export function ProductModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Guard: block submit during wizard steps (variable products, new)
+    if (isVariable && !isEditing && wizardStep !== 4) return;
+
     if (isBundle) {
       if (formData.bundle_items.length === 0) return;
       if (formData.bundle_items.some((i) => !i.product_id)) return;
@@ -296,6 +299,14 @@ export function ProductModal({
     if (!isBundle && !isVariable) {
       if (!isEditing && (!formData.batch.batch_code.trim() || !formData.batch.quantity)) return;
       if (isEditing && formData.batch.quantity && !formData.batch.batch_code.trim()) return;
+    }
+
+    // Validate batch code for variable products (shared for all variations)
+    if (isVariable && !isEditing) {
+      if (!formData.batch.batch_code.trim()) {
+        toast.error("Informe o código do lote de entrada");
+        return;
+      }
     }
 
     const identifierErrors = checkDuplicateIdentifiers(formData.sku, formData.barcode);
