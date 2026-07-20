@@ -1125,14 +1125,48 @@ export function ProductModal({
             >
               Cancelar
             </Button>
-            <Button
-              type="submit"
-              disabled={isSaving || !canSubmit || hasDuplicates}
-              className="flex-1 bg-[#C7A052] hover:bg-[#B8934A] text-[#121212] font-semibold transition-colors disabled:opacity-50"
-            >
-              {isSaving ? "Salvando..." : "Salvar"}
-            </Button>
+
+            {!isEditing && isVariable && wizardStep > 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setWizardStep((s) => (s - 1) as 1 | 2 | 3)}
+                className="border-[#2A2A2A] text-[#A1A1AA] hover:bg-[#2A2A2A] hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+              </Button>
+            )}
+
+            {!isEditing && isVariable && wizardStep < 3 ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  if (wizardStep === 1 && !formData.name.trim()) {
+                    toast.error("Informe o nome do produto");
+                    return;
+                  }
+                  if (wizardStep === 2 && formData.variation_attributes.length === 0) {
+                    toast.error("Adicione ao menos um atributo com valores");
+                    return;
+                  }
+                  setWizardStep((s) => (s + 1) as 1 | 2 | 3);
+                }}
+                disabled={hasDuplicates}
+                className="flex-1 bg-[#C7A052] hover:bg-[#B8934A] text-[#121212] font-semibold"
+              >
+                Avançar <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isSaving || !canSubmit || hasDuplicates}
+                className="flex-1 bg-[#C7A052] hover:bg-[#B8934A] text-[#121212] font-semibold transition-colors disabled:opacity-50"
+              >
+                {isSaving ? "Salvando..." : "Salvar"}
+              </Button>
+            )}
           </div>
+
         </form>
       </DialogContent>
     </Dialog>
