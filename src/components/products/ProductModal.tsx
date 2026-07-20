@@ -163,7 +163,7 @@ export function ProductModal({
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [stockAction, setStockAction] = useState<"add" | "adjust">("add");
   const [duplicateErrors, setDuplicateErrors] = useState<{ sku?: string; barcode?: string }>({});
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
   const { activeSuppliers, isLoading: loadingSuppliers } = useSuppliers();
   const { products: allProducts } = useProducts();
   const currentDateTime = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
