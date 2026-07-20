@@ -1,4 +1,4 @@
-import { Bell, Search, User, ChevronRight, Home, LogOut, Building2, AlertTriangle, Clock, Menu } from "lucide-react";
+import { Bell, User, ChevronRight, Home, LogOut, Building2, AlertTriangle, Clock } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
