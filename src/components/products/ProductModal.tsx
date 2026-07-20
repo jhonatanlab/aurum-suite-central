@@ -318,11 +318,13 @@ export function ProductModal({
     onSave(formData, product?.id);
   };
 
-  const isBatchValid = (isBundle || isVariable)
+  const isBatchValid = isBundle
     ? true
-    : isEditing
-      ? !formData.batch.quantity || (formData.batch.batch_code.trim() && !!formData.batch.quantity)
-      : formData.batch.batch_code.trim() && !!formData.batch.quantity;
+    : isVariable
+      ? (isEditing ? true : !!formData.batch.batch_code.trim())
+      : isEditing
+        ? !formData.batch.quantity || (formData.batch.batch_code.trim() && !!formData.batch.quantity)
+        : formData.batch.batch_code.trim() && !!formData.batch.quantity;
 
   const bundleValid = isBundle
     ? formData.bundle_items.length > 0 &&
