@@ -98,6 +98,8 @@ export interface ProductFormData {
   stone: string;
   supplier_reference: string;
   ncm: string;
+  variation_attributes: AttributeDef[];
+  variations: VariationRow[];
 }
 
 interface ProductModalProps {
