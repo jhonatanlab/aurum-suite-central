@@ -243,6 +243,8 @@ export function ProductModal({
         pricing_mode: (product.pricing_mode as "auto_sum" | "manual") || "",
         manual_price: product.manual_price?.toString() || "",
         bundle_items: existingBundleItems,
+        variation_attributes: [],
+        variations: [],
       });
     } else {
       setFormData(initialFormData);
