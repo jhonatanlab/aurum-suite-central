@@ -125,11 +125,11 @@ export default function Produtos() {
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === "all" || product.status === statusFilter;
+      const isActive = product.status === "active";
       const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
-      return matchesSearch && matchesStatus && matchesCategory;
+      return matchesSearch && isActive && matchesCategory;
     });
-  }, [products, searchQuery, statusFilter, categoryFilter]);
+  }, [products, searchQuery, categoryFilter]);
 
   // Create product mutation
   const createMutation = useMutation({
