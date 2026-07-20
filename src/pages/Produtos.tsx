@@ -51,7 +51,7 @@ export default function Produtos() {
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  
   const [categoryFilter, setCategoryFilter] = useState("all");
 
   // Fetch products
@@ -125,11 +125,11 @@ export default function Produtos() {
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === "all" || product.status === statusFilter;
+      const isActive = product.status === "active";
       const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
-      return matchesSearch && matchesStatus && matchesCategory;
+      return matchesSearch && isActive && matchesCategory;
     });
-  }, [products, searchQuery, statusFilter, categoryFilter]);
+  }, [products, searchQuery, categoryFilter]);
 
   // Create product mutation
   const createMutation = useMutation({
@@ -593,16 +593,6 @@ export default function Produtos() {
                   className="pl-9 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-36 bg-background border-border text-foreground focus:border-primary focus:ring-primary/20">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="all" className="text-foreground focus:bg-muted focus:text-foreground">Todos</SelectItem>
-                  <SelectItem value="active" className="text-foreground focus:bg-muted focus:text-foreground">Ativo</SelectItem>
-                  <SelectItem value="inactive" className="text-foreground focus:bg-muted focus:text-foreground">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-full sm:w-40 bg-background border-border text-foreground focus:border-primary focus:ring-primary/20">
                   <SelectValue placeholder="Categoria" />
