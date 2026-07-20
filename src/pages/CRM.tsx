@@ -834,7 +834,7 @@ export default function CRM() {
 
   return (
     <AppLayout title="CRM">
-      <Tabs defaultValue="funil" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex flex-wrap gap-4 items-center justify-between">
           <div className="flex items-center gap-3">
             <TabsList className="bg-secondary/50">
