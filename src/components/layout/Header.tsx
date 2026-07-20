@@ -1,4 +1,4 @@
-import { Bell, Search, User, ChevronRight, Home, LogOut, Building2, AlertTriangle, Clock, Menu } from "lucide-react";
+import { Bell, User, ChevronRight, Home, LogOut, Building2, AlertTriangle, Clock } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,12 +81,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
       <div className="flex h-full items-center justify-between px-4 md:px-6">
         {/* Left: Menu + Breadcrumb */}
         <div className="flex items-center gap-3">
-          {/* Mobile hamburger */}
-          {isMobile && (
-            <Button variant="ghost" size="icon" onClick={onMenuClick} className="text-muted-foreground hover:text-foreground">
-              <Menu className="h-5 w-5" />
-            </Button>
-          )}
+          {/* Mobile hamburger removed — navigation moved to MobileBottomNav */}
           {/* Breadcrumb + Title */}
           <div className="flex flex-col gap-0.5">
           {/* Breadcrumb */}

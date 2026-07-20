@@ -1,6 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { Header } from "./Header";
+import { MobileBottomNav } from "./MobileBottomNav";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -63,10 +64,14 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           title={title}
           onMenuClick={() => setMobileSidebarOpen(true)}
         />
-        <main className={cn("p-6 page-transition", isMobile && "p-4")}>
+        <main className={cn("p-6 page-transition", isMobile && "p-4 pb-28")}>
           {children}
         </main>
       </div>
+
+      {isMobile && (
+        <MobileBottomNav onMenuClick={() => setMobileSidebarOpen(true)} />
+      )}
     </div>
   );
 }

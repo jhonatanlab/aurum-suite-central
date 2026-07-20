@@ -1,49 +1,44 @@
+# Barra de navegação inferior no mobile
 
-## Problemas observados
+Substituir o botão hambúrguer no header (apenas mobile) por uma **bottom bar flutuante** com 4 atalhos principais. O menu completo continua acessível pelo botão "Menu".
 
-1. **Salva ao clicar em "Avançar" para a Matriz de Variação.** Hoje o mesmo slot do rodapé alterna entre "Avançar" (type=button) e "Salvar" (type=submit). Quando o passo 3 monta, `canSubmit` já é `true` (para `variable`, `isBatchValid` é forçado como `true`), então qualquer Enter/duplo clique/relayout dispara o submit do form imediatamente.
-2. **Perdemos a entrada de Lote (rastreabilidade).** Em produto "Com variações" a seção "Lote de Entrada" foi escondida e a Matriz não tem campos de lote, fornecedor, custo do lote, código, validade. As variações são criadas com batch mínimo (só quantidade inicial em `createMutation` da `Produtos.tsx`), sem código de lote/fornecedor.
+## Escopo
 
-## O que fazer
+Somente mobile (`useIsMobile()`). Desktop permanece igual (sidebar fixa/colapsável).
 
-Escopo cirúrgico em 3 arquivos, sem migration.
+## Componentes
 
-### 1) `src/components/products/ProductModal.tsx` — travar submit no wizard
+**Novo:** `src/components/layout/MobileBottomNav.tsx`
+- Barra fixa em `bottom-0`, flutuante (com margem, `rounded-2xl`, `glass` + borda gold sutil, sombra), z-index alto (acima do conteúdo, abaixo do overlay do sidebar).
+- 4 itens, cada um com ícone (lucide) + label pequena:
+  1. **Dashboard** → `/` (`LayoutDashboard`)
+  2. **Vendas** → `/vendas` (`ShoppingCart`)
+  3. **Clientes** → `/crm?tab=contatos` (`Users`)
+  4. **Menu** → abre o sidebar mobile (`Menu`)
+- Item ativo destacado em `hsl(var(--gold))` (ícone + label + indicador superior).
+- Respeita `VENDEDOR_ALLOWED_PATHS` (vendedor vê os 4 igualmente, todos permitidos).
+- Respeita `blockedPaths` do `usePlanUsage` (item bloqueado abre `/billing` ou mostra tooltip — seguir mesmo padrão do sidebar: cadeado + opacidade reduzida).
 
-- Adicionar um 4º passo ao wizard: `1 Dados → 2 Atributos → 3 Matriz → 4 Lote`. `wizardStep` passa a ser `1 | 2 | 3 | 4`.
-- Enquanto `isVariable && !isEditing && wizardStep < 4`, o rodapé **só** renderiza botões `type="button"` (Voltar / Avançar). O botão `type="submit"` (Salvar) só existe no passo 4. Isso elimina o risco do submit "vazar" no clique de Avançar.
-- Blindar o `<form onSubmit>`: `if (isVariable && !isEditing && wizardStep !== 4) return;` no início do `handleSubmit`, para cobrir Enter em inputs.
-- Validação por passo antes de avançar:
-  - passo 1 → nome obrigatório;
-  - passo 2 → ≥ 1 atributo com valores;
-  - passo 3 → toda variação com `price > 0`;
-  - passo 4 → `batch_code` obrigatório (regra igual à do produto simples).
+**Alterado:** `src/components/layout/AppLayout.tsx`
+- Renderiza `<MobileBottomNav onMenuClick={() => setMobileSidebarOpen(true)} />` só quando `isMobile`.
+- Adiciona `pb-24` (ou `pb-28`) ao `<main>` no mobile para não cobrir conteúdo.
 
-### 2) `src/components/products/ProductModal.tsx` — passo 4 "Lote de Entrada"
+**Alterado:** `src/components/layout/Header.tsx`
+- No mobile, esconder o botão hambúrguer (Menu) — a função vai para a bottom bar. Manter título/breadcrumb.
 
-- Renderizar, quando `isVariable && !isEditing && wizardStep === 4`, o mesmo bloco de Lote já usado por produto simples: `batch_code`, `supplier_id`, `cost_price` do lote, `expiration_date`, observações. Sem campo de quantidade nesse passo — a quantidade por variação já vem da Matriz (passo 3).
-- Manter `formData.batch` como fonte única desses metadados (compartilhado entre todas as variações desse cadastro inicial).
+**Alterado:** `src/pages/CRM.tsx` (leve)
+- Ler `?tab=contatos` da URL na montagem e ativar a aba de Contatos. Sem mudar comportamento padrão quando o parâmetro não vier.
 
-### 3) `src/pages/Produtos.tsx` — persistir lote com rastreabilidade
+## Detalhes técnicos
 
-Na `createMutation`, ramo `isVariable`:
-- Após inserir as variações, para cada variação com `stock > 0` criar um `product_batches` usando `formData.batch` como base:
-  - `batch_code`: `formData.batch.batch_code` (ou `${batch_code}-${sufixo da combo}` para manter unicidade se o schema exigir; se não, reutilizar puro);
-  - `supplier_id`, `cost_price`, `expiration_date`, `notes` vindos de `formData.batch`;
-  - `quantity` / `remaining_quantity` = estoque da linha da Matriz;
-  - `product_id` = id da variação recém-criada;
-  - `company_id` = empresa atual.
-- Remover o insert atual "mínimo" de batch (sem código) para variações. Trigger de estoque já sincroniza `products.stock`.
-
-### 4) Rodapé — layout dos botões
-
-```text
-[ Cancelar ] [ Voltar ]                          [ Avançar → ]     ← passos 1-3
-[ Cancelar ] [ Voltar ]                          [ Salvar ]        ← passo 4 (único type=submit)
-```
+- Ativo por rota: `useLocation().pathname` — considerar "Clientes" ativo quando `pathname === "/crm"`.
+- Item "Menu" abre o `Sheet`/overlay do sidebar mobile já existente (via prop `onMenuClick`).
+- Usar tokens do design system (`--gold`, `glass`, `--sidebar-border`); nenhum hex hardcoded.
+- Safe-area: `pb-[env(safe-area-inset-bottom)]` no wrapper da barra.
+- Sem novas dependências.
 
 ## Fora de escopo
 
-- Nenhuma mudança de schema, RLS ou edge function.
-- Fluxo de edição de produto variável continua como está (usa `VariationsSection`).
-- Produto simples e kit não são tocados.
+- Alterações desktop.
+- Mudar a estrutura do sidebar/menu existente (continua sendo o mesmo drawer, só muda o gatilho).
+- Backend/RLS/queries.

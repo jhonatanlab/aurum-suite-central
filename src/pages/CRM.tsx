@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -553,6 +554,14 @@ export default function CRM() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "contatos" ? "contatos" : "funil";
+  const setActiveTab = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === "funil") next.delete("tab");
+    else next.set("tab", value);
+    setSearchParams(next, { replace: true });
+  };
 
   // CRM Settings and Sales Column
   const { settings } = useCrmSettings();
@@ -825,7 +834,7 @@ export default function CRM() {
 
   return (
     <AppLayout title="CRM">
-      <Tabs defaultValue="funil" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex flex-wrap gap-4 items-center justify-between">
           <div className="flex items-center gap-3">
             <TabsList className="bg-secondary/50">
