@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { Package, AlertTriangle, Plus, Trash2, Layers, RefreshCw, Wrench, Boxes } from "lucide-react";
+import { Package, AlertTriangle, Plus, Trash2, Layers, RefreshCw, Wrench, Boxes, ArrowLeft, ArrowRight } from "lucide-react";
 import { ProductImagesSection } from "./ProductImagesSection";
 import { VariationsSection } from "./VariationsSection";
+import { VariationWizardSteps } from "./VariationWizardSteps";
+import { AttributeBuilder, type AttributeDef } from "./AttributeBuilder";
+import { VariationMatrix, type VariationRow } from "./VariationMatrix";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
