@@ -412,8 +412,9 @@ export function ProductModal({
                   { id: 1, label: "Dados do produto" },
                   { id: 2, label: "Atributos" },
                   { id: 3, label: "Matriz de variações" },
+                  { id: 4, label: "Lote de entrada" },
                 ]}
-                onStepClick={(id) => setWizardStep(id as 1 | 2 | 3)}
+                onStepClick={(id) => setWizardStep(id as 1 | 2 | 3 | 4)}
               />
             )}
 
