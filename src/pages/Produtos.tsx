@@ -560,17 +560,18 @@ export default function Produtos() {
         {/* Tabs */}
         <Tabs defaultValue="catalog" className="w-full">
           <TabsList className="bg-muted/50 border border-border w-full grid grid-cols-3 sm:inline-flex sm:w-auto h-auto">
-            <TabsTrigger value="catalog" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2 flex-col sm:flex-row py-2 text-[11px] sm:text-sm">
+            <TabsTrigger value="catalog" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2 py-2 text-[11px] sm:text-sm">
               <Package className="w-4 h-4" />
-              <span>Catálogo</span>
+              <span className="hidden sm:inline">Catálogo</span>
+              <span className="sm:hidden hidden data-[state=active]:inline group-data-[state=active]:inline">Catálogo</span>
             </TabsTrigger>
-            <TabsTrigger value="batch-history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2 flex-col sm:flex-row py-2 text-[11px] sm:text-sm">
+            <TabsTrigger value="batch-history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2 py-2 text-[11px] sm:text-sm">
               <History className="w-4 h-4" />
-              <span className="sm:inline"><span className="sm:hidden">Lotes</span><span className="hidden sm:inline">Histórico de Lotes</span></span>
+              <span className="hidden sm:inline">Histórico de Lotes</span>
             </TabsTrigger>
-            <TabsTrigger value="stock-analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2 flex-col sm:flex-row py-2 text-[11px] sm:text-sm">
+            <TabsTrigger value="stock-analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2 py-2 text-[11px] sm:text-sm">
               <BarChart3 className="w-4 h-4" />
-              <span><span className="sm:hidden">Estoque</span><span className="hidden sm:inline">Dados do Estoque</span></span>
+              <span className="hidden sm:inline">Dados do Estoque</span>
             </TabsTrigger>
           </TabsList>
 
