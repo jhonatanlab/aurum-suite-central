@@ -425,6 +425,7 @@ export function ProductModal({
             )}
 
             {/* Basic Info Section */}
+            {(!(isVariable && !isEditing) || wizardStep === 1) && (
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-[#A1A1AA] uppercase tracking-wider">
                 Informações Básicas
