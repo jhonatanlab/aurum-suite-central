@@ -250,6 +250,7 @@ export function ProductModal({
     } else {
       setFormData(initialFormData);
     }
+    setWizardStep(1);
   }, [product, open, existingBundleItems, lastBatch]);
 
   const handleAddBundleItem = () => {
