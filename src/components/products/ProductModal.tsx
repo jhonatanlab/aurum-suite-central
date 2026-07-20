@@ -1078,14 +1078,40 @@ export function ProductModal({
               />
             )}
 
-            {!isEditing && isVariable && (
-              <div className="p-4 rounded-lg border border-dashed border-[#C7A052]/30 bg-[#C7A052]/5">
-                <p className="text-sm text-[#C7A052] font-medium">Este produto terá variações</p>
-                <p className="text-xs text-[#A1A1AA] mt-1">
-                  Salve o produto primeiro. Depois reabra para adicionar cada variação (cor, tamanho, banho etc.).
+            {!isEditing && isVariable && wizardStep === 2 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-[#A1A1AA] uppercase tracking-wider">
+                  Atributos das variações
+                </h3>
+                <p className="text-xs text-[#6B6B6B]">
+                  Defina os atributos (ex: Cor, Tamanho) e seus valores. As combinações vão gerar automaticamente uma variação para cada.
                 </p>
+                <AttributeBuilder
+                  attributes={formData.variation_attributes}
+                  onChange={(attrs) =>
+                    setFormData({ ...formData, variation_attributes: attrs })
+                  }
+                />
               </div>
             )}
+
+            {!isEditing && isVariable && wizardStep === 3 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-[#A1A1AA] uppercase tracking-wider">
+                  Matriz de variações
+                </h3>
+                <p className="text-xs text-[#6B6B6B]">
+                  Ajuste preço, custo, estoque e SKU de cada variação. Use "Aplicar a todas" para preencher em massa.
+                </p>
+                <VariationMatrix
+                  attributes={formData.variation_attributes}
+                  parentSku={formData.sku}
+                  rows={formData.variations}
+                  onChange={(rows) => setFormData({ ...formData, variations: rows })}
+                />
+              </div>
+            )}
+
           </div>
 
 
