@@ -200,6 +200,57 @@ export default function Produtos() {
           });
         if (batchError) throw batchError;
       }
+
+      // Create variations for variable products
+      if (isVariable && data.variations?.length > 0) {
+        const variationRows = data.variations.map((v) => ({
+          name: `${data.name} - ${Object.values(v.combo).join(" / ")}`,
+          category: data.category || null,
+          price: parseFloat(v.price) || 0,
+          cost_price: v.cost_price ? parseFloat(v.cost_price) : null,
+          stock: 0,
+          status: data.status,
+          company_id: company.id,
+          minimum_stock: 0,
+          consignment_available: data.consignment_available,
+          type: "variation",
+          parent_id: newProduct.id,
+          variant_attributes: v.combo,
+          sku: v.sku?.trim() || null,
+          barcode: v.barcode?.trim() || null,
+          weight_grams: data.weight_grams ? parseFloat(data.weight_grams) : null,
+          material: data.material?.trim() || null,
+          plating: data.plating?.trim() || null,
+          stone: data.stone?.trim() || null,
+        })) as any[];
+
+        const { data: insertedVariations, error: varError } = await supabase
+          .from("products")
+          .insert(variationRows)
+          .select();
+        if (varError) throw varError;
+
+        // Create initial batch (if any stock declared) per variation
+        const batches = (insertedVariations || [])
+          .map((prod, idx) => {
+            const qty = parseInt(data.variations[idx].stock) || 0;
+            if (qty <= 0) return null;
+            return {
+              company_id: company.id,
+              product_id: prod.id,
+              batch_code: `INICIAL-${prod.id.slice(0, 8)}`,
+              quantity: qty,
+              created_by: user?.email || "Sistema",
+              status: "active" as const,
+            };
+          })
+          .filter(Boolean) as any[];
+
+        if (batches.length > 0) {
+          const { error: batchErr } = await supabase.from("product_batches").insert(batches);
+          if (batchErr) throw batchErr;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });

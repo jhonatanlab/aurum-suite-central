@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { Package, AlertTriangle, Plus, Trash2, Layers, RefreshCw, Wrench, Boxes } from "lucide-react";
+import { Package, AlertTriangle, Plus, Trash2, Layers, RefreshCw, Wrench, Boxes, ArrowLeft, ArrowRight } from "lucide-react";
 import { ProductImagesSection } from "./ProductImagesSection";
 import { VariationsSection } from "./VariationsSection";
+import { VariationWizardSteps } from "./VariationWizardSteps";
+import { AttributeBuilder, type AttributeDef } from "./AttributeBuilder";
+import { VariationMatrix, type VariationRow } from "./VariationMatrix";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,6 +98,8 @@ export interface ProductFormData {
   stone: string;
   supplier_reference: string;
   ncm: string;
+  variation_attributes: AttributeDef[];
+  variations: VariationRow[];
 }
 
 interface ProductModalProps {
@@ -140,6 +145,8 @@ const initialFormData: ProductFormData = {
   pricing_mode: "",
   manual_price: "",
   bundle_items: [],
+  variation_attributes: [],
+  variations: [],
 };
 
 export function ProductModal({
@@ -156,6 +163,7 @@ export function ProductModal({
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [stockAction, setStockAction] = useState<"add" | "adjust">("add");
   const [duplicateErrors, setDuplicateErrors] = useState<{ sku?: string; barcode?: string }>({});
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const { activeSuppliers, isLoading: loadingSuppliers } = useSuppliers();
   const { products: allProducts } = useProducts();
   const currentDateTime = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -236,10 +244,13 @@ export function ProductModal({
         pricing_mode: (product.pricing_mode as "auto_sum" | "manual") || "",
         manual_price: product.manual_price?.toString() || "",
         bundle_items: existingBundleItems,
+        variation_attributes: [],
+        variations: [],
       });
     } else {
       setFormData(initialFormData);
     }
+    setWizardStep(1);
   }, [product, open, existingBundleItems, lastBatch]);
 
   const handleAddBundleItem = () => {
@@ -333,69 +344,66 @@ export function ProductModal({
             {!isEditing && (
               <div className="space-y-2">
                 <Label className="text-white font-medium">Tipo de Produto *</Label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, type: "simple", bundle_items: [], pricing_mode: "", manual_price: "" })}
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                      formData.type === "simple" || formData.type === "variable"
+                    onClick={() => setFormData({ ...formData, type: "simple", bundle_items: [], pricing_mode: "", manual_price: "", variation_attributes: [], variations: [] })}
+                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left ${
+                      formData.type === "simple"
                         ? "border-[#C7A052] bg-[#C7A052]/10"
                         : "border-[#2A2A2A] bg-[#121212] hover:border-[#3A3A3A]"
                     }`}
                   >
-                    <Package className={`h-5 w-5 ${formData.type === "simple" || formData.type === "variable" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
-                    <div className="text-left">
-                      <p className={`text-sm font-medium ${formData.type === "simple" || formData.type === "variable" ? "text-white" : "text-[#A1A1AA]"}`}>Simples</p>
-                      <p className="text-xs text-[#6B6B6B]">Produto unitário</p>
-                    </div>
+                    <Package className={`h-5 w-5 ${formData.type === "simple" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
+                    <p className={`text-sm font-medium ${formData.type === "simple" ? "text-white" : "text-[#A1A1AA]"}`}>Simples</p>
+                    <p className="text-xs text-[#6B6B6B]">Produto unitário</p>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, type: "bundle", pricing_mode: "auto_sum", bundle_items: [{ product_id: "", quantity: 1 }] })}
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                    onClick={() => setFormData({ ...formData, type: "bundle", pricing_mode: "auto_sum", bundle_items: [{ product_id: "", quantity: 1 }], variation_attributes: [], variations: [] })}
+                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left ${
                       formData.type === "bundle"
                         ? "border-[#C7A052] bg-[#C7A052]/10"
                         : "border-[#2A2A2A] bg-[#121212] hover:border-[#3A3A3A]"
                     }`}
                   >
                     <Layers className={`h-5 w-5 ${formData.type === "bundle" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
-                    <div className="text-left">
-                      <p className={`text-sm font-medium ${formData.type === "bundle" ? "text-white" : "text-[#A1A1AA]"}`}>Kit</p>
-                      <p className="text-xs text-[#6B6B6B]">Combo de produtos</p>
-                    </div>
+                    <p className={`text-sm font-medium ${formData.type === "bundle" ? "text-white" : "text-[#A1A1AA]"}`}>Kit</p>
+                    <p className="text-xs text-[#6B6B6B]">Combo de produtos</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ ...formData, type: "variable", bundle_items: [], pricing_mode: "", manual_price: "", price: "0", cost_price: "", minimum_stock: "0" });
+                      setWizardStep(1);
+                    }}
+                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left ${
+                      formData.type === "variable"
+                        ? "border-[#C7A052] bg-[#C7A052]/10"
+                        : "border-[#2A2A2A] bg-[#121212] hover:border-[#3A3A3A]"
+                    }`}
+                  >
+                    <Boxes className={`h-5 w-5 ${formData.type === "variable" ? "text-[#C7A052]" : "text-[#6B6B6B]"}`} />
+                    <p className={`text-sm font-medium ${formData.type === "variable" ? "text-white" : "text-[#A1A1AA]"}`}>Com variações</p>
+                    <p className="text-xs text-[#6B6B6B]">Cor, tamanho, banho…</p>
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Toggle: produto com variações */}
-            {formData.type !== "bundle" && (
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-[#121212] border border-[#2A2A2A]">
-                <input
-                  type="checkbox"
-                  id="has_variations"
-                  checked={formData.type === "variable"}
-                  onChange={(e) => {
-                    setFormData({
-                      ...formData,
-                      type: e.target.checked ? "variable" : "simple",
-                      price: e.target.checked ? "0" : formData.price,
-                      cost_price: e.target.checked ? "" : formData.cost_price,
-                      minimum_stock: e.target.checked ? "0" : formData.minimum_stock,
-                    });
-                  }}
-                  disabled={isEditing}
-                  className="mt-1 h-4 w-4 accent-[#C7A052]"
-                />
-                <label htmlFor="has_variations" className="flex-1 cursor-pointer">
-                  <p className="text-sm font-medium text-white">Este produto tem variações</p>
-                  <p className="text-xs text-[#A1A1AA]">
-                    Marque quando o produto tem cores, tamanhos, banhos ou outras opções vendáveis separadamente. Preço e estoque ficarão em cada variação.
-                    {isEditing && " (Não pode ser alterado após criar)"}
-                  </p>
-                </label>
-              </div>
+            {/* Wizard stepper for new variable products */}
+            {!isEditing && isVariable && (
+              <VariationWizardSteps
+                current={wizardStep}
+                steps={[
+                  { id: 1, label: "Dados do produto" },
+                  { id: 2, label: "Atributos" },
+                  { id: 3, label: "Matriz de variações" },
+                ]}
+                onStepClick={(id) => setWizardStep(id as 1 | 2 | 3)}
+              />
             )}
+
 
             {/* Show type badge when editing */}
             {isEditing && (
@@ -417,6 +425,7 @@ export function ProductModal({
             )}
 
             {/* Basic Info Section */}
+            {(!(isVariable && !isEditing) || wizardStep === 1) && (
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-[#A1A1AA] uppercase tracking-wider">
                 Informações Básicas
@@ -843,6 +852,8 @@ export function ProductModal({
                 </Label>
               </div>
             </div>
+            )}
+
 
             {/* Stock Section - only for simple products */}
             {!isBundle && !isVariable && (
@@ -1067,14 +1078,40 @@ export function ProductModal({
               />
             )}
 
-            {!isEditing && isVariable && (
-              <div className="p-4 rounded-lg border border-dashed border-[#C7A052]/30 bg-[#C7A052]/5">
-                <p className="text-sm text-[#C7A052] font-medium">Este produto terá variações</p>
-                <p className="text-xs text-[#A1A1AA] mt-1">
-                  Salve o produto primeiro. Depois reabra para adicionar cada variação (cor, tamanho, banho etc.).
+            {!isEditing && isVariable && wizardStep === 2 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-[#A1A1AA] uppercase tracking-wider">
+                  Atributos das variações
+                </h3>
+                <p className="text-xs text-[#6B6B6B]">
+                  Defina os atributos (ex: Cor, Tamanho) e seus valores. As combinações vão gerar automaticamente uma variação para cada.
                 </p>
+                <AttributeBuilder
+                  attributes={formData.variation_attributes}
+                  onChange={(attrs) =>
+                    setFormData({ ...formData, variation_attributes: attrs })
+                  }
+                />
               </div>
             )}
+
+            {!isEditing && isVariable && wizardStep === 3 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-[#A1A1AA] uppercase tracking-wider">
+                  Matriz de variações
+                </h3>
+                <p className="text-xs text-[#6B6B6B]">
+                  Ajuste preço, custo, estoque e SKU de cada variação. Use "Aplicar a todas" para preencher em massa.
+                </p>
+                <VariationMatrix
+                  attributes={formData.variation_attributes}
+                  parentSku={formData.sku}
+                  rows={formData.variations}
+                  onChange={(rows) => setFormData({ ...formData, variations: rows })}
+                />
+              </div>
+            )}
+
           </div>
 
 
@@ -1088,14 +1125,48 @@ export function ProductModal({
             >
               Cancelar
             </Button>
-            <Button
-              type="submit"
-              disabled={isSaving || !canSubmit || hasDuplicates}
-              className="flex-1 bg-[#C7A052] hover:bg-[#B8934A] text-[#121212] font-semibold transition-colors disabled:opacity-50"
-            >
-              {isSaving ? "Salvando..." : "Salvar"}
-            </Button>
+
+            {!isEditing && isVariable && wizardStep > 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setWizardStep((s) => (s - 1) as 1 | 2 | 3)}
+                className="border-[#2A2A2A] text-[#A1A1AA] hover:bg-[#2A2A2A] hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+              </Button>
+            )}
+
+            {!isEditing && isVariable && wizardStep < 3 ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  if (wizardStep === 1 && !formData.name.trim()) {
+                    toast.error("Informe o nome do produto");
+                    return;
+                  }
+                  if (wizardStep === 2 && formData.variation_attributes.length === 0) {
+                    toast.error("Adicione ao menos um atributo com valores");
+                    return;
+                  }
+                  setWizardStep((s) => (s + 1) as 1 | 2 | 3);
+                }}
+                disabled={hasDuplicates}
+                className="flex-1 bg-[#C7A052] hover:bg-[#B8934A] text-[#121212] font-semibold"
+              >
+                Avançar <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isSaving || !canSubmit || hasDuplicates}
+                className="flex-1 bg-[#C7A052] hover:bg-[#B8934A] text-[#121212] font-semibold transition-colors disabled:opacity-50"
+              >
+                {isSaving ? "Salvando..." : "Salvar"}
+              </Button>
+            )}
           </div>
+
         </form>
       </DialogContent>
     </Dialog>
