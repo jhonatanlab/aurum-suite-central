@@ -143,8 +143,12 @@ const initialFormData: ProductFormData = {
   },
   type: "simple",
   pricing_mode: "",
+  type: "simple",
+  pricing_mode: "",
   manual_price: "",
   bundle_items: [],
+  variation_attributes: [],
+  variations: [],
 };
 
 export function ProductModal({
