@@ -230,7 +230,9 @@ export default function Produtos() {
           .select();
         if (varError) throw varError;
 
-        // Create initial batch (if any stock declared) per variation
+        // Create real batch (per variation) using shared traceability metadata
+        const sharedBatchCode = data.batch.batch_code?.trim() || `LOTE-${newProduct.id.slice(0, 8)}`;
+        const sharedSupplierId = data.batch.supplier_id || null;
         const batches = (insertedVariations || [])
           .map((prod, idx) => {
             const qty = parseInt(data.variations[idx].stock) || 0;
@@ -238,10 +240,11 @@ export default function Produtos() {
             return {
               company_id: company.id,
               product_id: prod.id,
-              batch_code: `INICIAL-${prod.id.slice(0, 8)}`,
+              batch_code: sharedBatchCode,
               quantity: qty,
               created_by: user?.email || "Sistema",
               status: "active" as const,
+              supplier_id: sharedSupplierId,
             };
           })
           .filter(Boolean) as any[];
