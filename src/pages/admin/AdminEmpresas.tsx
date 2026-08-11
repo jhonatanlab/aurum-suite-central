@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { CompanyDetailPanel } from "@/components/admin/CompanyDetailPanel";
+import { NewCompanyModal } from "@/components/admin/NewCompanyModal";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Building2, Loader2, Eye, Clock, Wifi, WifiOff, Unlock } from "lucide-react";
+import { Search, Building2, Loader2, Eye, Clock, Wifi, WifiOff, Unlock, Plus } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -139,7 +141,9 @@ export default function AdminEmpresas() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [confirmCompany, setConfirmCompany] = useState<Company | null>(null);
+  const [newCompanyOpen, setNewCompanyOpen] = useState(false);
   const [unblocking, setUnblocking] = useState(false);
+
   const { toast } = useToast();
 
 
@@ -256,7 +260,12 @@ export default function AdminEmpresas() {
             <div className="text-sm text-muted-foreground">
               Total: <span className="font-semibold text-foreground">{companies.length}</span> empresas
             </div>
+            <Button onClick={() => setNewCompanyOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Empresa
+            </Button>
           </div>
+
         </div>
 
         <Card className="bg-card border-border">
@@ -400,6 +409,14 @@ export default function AdminEmpresas() {
         onOpenChange={setPanelOpen}
         onRequestUnblock={(c) => setConfirmCompany(c as Company)}
       />
+
+      <NewCompanyModal
+        open={newCompanyOpen}
+        onOpenChange={setNewCompanyOpen}
+        onCreated={fetchData}
+      />
+
+
 
 
       <AlertDialog open={!!confirmCompany} onOpenChange={(open) => !open && setConfirmCompany(null)}>
