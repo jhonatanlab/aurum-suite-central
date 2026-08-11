@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.list-team-members]
 verify_jwt = false
+
+[functions.admin-create-company]
+verify_jwt = false
