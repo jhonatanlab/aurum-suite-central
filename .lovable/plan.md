@@ -1,44 +1,29 @@
-# Barra de navegação inferior no mobile
+# Criar empresas pelo Admin SaaS
 
-Substituir o botão hambúrguer no header (apenas mobile) por uma **bottom bar flutuante** com 4 atalhos principais. O menu completo continua acessível pelo botão "Menu".
+Adicionar em Admin SaaS > Empresas a criação manual de uma empresa com seu proprietário, sem definir senha: o usuário recebe um e-mail para criar a própria senha.
 
-## Escopo
+## Fluxo
 
-Somente mobile (`useIsMobile()`). Desktop permanece igual (sidebar fixa/colapsável).
+1. Botão "Nova Empresa" no topo da página de Empresas abre um modal com:
+   - Nome da empresa (obrigatório)
+   - CNPJ (opcional)
+   - Nome do responsável (obrigatório)
+   - E-mail do responsável (obrigatório)
+   - Plano (Starter / Pro / Growth)
+   - Status inicial (Ativa / Trial)
+2. Ao confirmar, o sistema cria a empresa, cria (ou reaproveita) o usuário do responsável e o vincula como proprietário.
+3. O responsável recebe um e-mail de convite com link para definir a senha, que aponta para a tela de redefinição de senha do app.
+4. A lista de empresas é atualizada e uma confirmação informa que o e-mail foi enviado.
 
-## Componentes
-
-**Novo:** `src/components/layout/MobileBottomNav.tsx`
-- Barra fixa em `bottom-0`, flutuante (com margem, `rounded-2xl`, `glass` + borda gold sutil, sombra), z-index alto (acima do conteúdo, abaixo do overlay do sidebar).
-- 4 itens, cada um com ícone (lucide) + label pequena:
-  1. **Dashboard** → `/` (`LayoutDashboard`)
-  2. **Vendas** → `/vendas` (`ShoppingCart`)
-  3. **Clientes** → `/crm?tab=contatos` (`Users`)
-  4. **Menu** → abre o sidebar mobile (`Menu`)
-- Item ativo destacado em `hsl(var(--gold))` (ícone + label + indicador superior).
-- Respeita `VENDEDOR_ALLOWED_PATHS` (vendedor vê os 4 igualmente, todos permitidos).
-- Respeita `blockedPaths` do `usePlanUsage` (item bloqueado abre `/billing` ou mostra tooltip — seguir mesmo padrão do sidebar: cadeado + opacidade reduzida).
-
-**Alterado:** `src/components/layout/AppLayout.tsx`
-- Renderiza `<MobileBottomNav onMenuClick={() => setMobileSidebarOpen(true)} />` só quando `isMobile`.
-- Adiciona `pb-24` (ou `pb-28`) ao `<main>` no mobile para não cobrir conteúdo.
-
-**Alterado:** `src/components/layout/Header.tsx`
-- No mobile, esconder o botão hambúrguer (Menu) — a função vai para a bottom bar. Manter título/breadcrumb.
-
-**Alterado:** `src/pages/CRM.tsx` (leve)
-- Ler `?tab=contatos` da URL na montagem e ativar a aba de Contatos. Sem mudar comportamento padrão quando o parâmetro não vier.
+Se o e-mail já existir no sistema, é enviado um link de definição de senha em vez de um novo convite, e o usuário é vinculado à nova empresa como proprietário.
 
 ## Detalhes técnicos
 
-- Ativo por rota: `useLocation().pathname` — considerar "Clientes" ativo quando `pathname === "/crm"`.
-- Item "Menu" abre o `Sheet`/overlay do sidebar mobile já existente (via prop `onMenuClick`).
-- Usar tokens do design system (`--gold`, `glass`, `--sidebar-border`); nenhum hex hardcoded.
-- Safe-area: `pb-[env(safe-area-inset-bottom)]` no wrapper da barra.
-- Sem novas dependências.
-
-## Fora de escopo
-
-- Alterações desktop.
-- Mudar a estrutura do sidebar/menu existente (continua sendo o mesmo drawer, só muda o gatilho).
-- Backend/RLS/queries.
+- Nova Edge Function `admin-create-company`:
+  - Valida o token com `supabase.auth.getClaims(token)` e exige papel `superadmin` via `has_role`.
+  - Usa service role para: `insert` em `companies` (name, cnpj, plan, status, owner_uid), criar usuário com `auth.admin.inviteUserByEmail` (redirectTo `${origin}/reset-password`) ou, se já existir, `generateLink` tipo `recovery`; `insert` em `company_users` com role `owner`.
+  - Rollback da empresa criada se o vínculo falhar.
+  - Registrada em `supabase/config.toml` com `verify_jwt = false` (validação feita em código), seguindo o padrão das demais funções.
+- Novo componente `src/components/admin/NewCompanyModal.tsx` (Dialog, estética dark/gold do Aurum Suite) chamando a função via `supabase.functions.invoke`.
+- `src/pages/admin/AdminEmpresas.tsx`: botão "Nova Empresa" no cabeçalho, estado do modal e `fetchData()` após sucesso.
+- Sem migrations: as tabelas `companies` e `company_users` já suportam esses campos.
