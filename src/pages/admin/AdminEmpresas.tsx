@@ -256,7 +256,12 @@ export default function AdminEmpresas() {
             <div className="text-sm text-muted-foreground">
               Total: <span className="font-semibold text-foreground">{companies.length}</span> empresas
             </div>
+            <Button onClick={() => setNewCompanyOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Empresa
+            </Button>
           </div>
+
         </div>
 
         <Card className="bg-card border-border">
