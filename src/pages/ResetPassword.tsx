@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Crown, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import aurumLogo from "/aurum-suite-logo.png";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -65,10 +66,11 @@ export default function ResetPassword() {
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <Crown className="h-10 w-10 text-gold" />
-            <h1 className="text-3xl font-bold gold-text">Aurum Suite</h1>
-          </div>
+          <img
+            src={aurumLogo}
+            alt="Aurum Suite"
+            className="h-12 w-auto mx-auto mb-3"
+          />
           <p className="text-muted-foreground">Redefinição de senha</p>
         </div>
 
