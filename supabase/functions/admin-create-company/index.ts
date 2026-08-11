@@ -79,7 +79,8 @@ serve(async (req) => {
       return json({ error: "Status inválido" }, 400);
     }
 
-    const redirectTo = `${(redirectBase || supabaseUrl).replace(/\/$/, "")}/reset-password`;
+    const publicOrigin = "https://aurumsuite.cloud";
+    const redirectTo = `${(redirectBase || publicOrigin).replace(/\/$/, "")}/reset-password`;
 
     // 1) Find or create the owner user
     let userId: string | null = null;
