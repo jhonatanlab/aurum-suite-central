@@ -139,7 +139,9 @@ export default function AdminEmpresas() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [confirmCompany, setConfirmCompany] = useState<Company | null>(null);
+  const [newCompanyOpen, setNewCompanyOpen] = useState(false);
   const [unblocking, setUnblocking] = useState(false);
+
   const { toast } = useToast();
 
 
