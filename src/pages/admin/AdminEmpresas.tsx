@@ -410,6 +410,14 @@ export default function AdminEmpresas() {
         onRequestUnblock={(c) => setConfirmCompany(c as Company)}
       />
 
+      <NewCompanyModal
+        open={newCompanyOpen}
+        onOpenChange={setNewCompanyOpen}
+        onCreated={fetchData}
+      />
+
+
+
 
       <AlertDialog open={!!confirmCompany} onOpenChange={(open) => !open && setConfirmCompany(null)}>
         <AlertDialogContent>
