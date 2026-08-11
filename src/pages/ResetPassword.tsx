@@ -66,10 +66,11 @@ export default function ResetPassword() {
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <Crown className="h-10 w-10 text-gold" />
-            <h1 className="text-3xl font-bold gold-text">Aurum Suite</h1>
-          </div>
+          <img
+            src={aurumLogo}
+            alt="Aurum Suite"
+            className="h-12 w-auto mx-auto mb-3"
+          />
           <p className="text-muted-foreground">Redefinição de senha</p>
         </div>
 
