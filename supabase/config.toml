@@ -1,58 +1,43 @@
 project_id = "vxjhggnoifgfnhsmdgbp"
 
-[functions.execute-campaign]
-verify_jwt = false
-
-[functions.uazapi-create-instance]
-verify_jwt = false
-
-[functions.uazapi-get-qrcode]
-verify_jwt = false
-
-[functions.uazapi-check-status]
-verify_jwt = false
-
-[functions.uazapi-send-message]
-verify_jwt = false
-
-[functions.uazapi-disconnect]
-verify_jwt = false
-
-[functions.uazapi-webhook]
-verify_jwt = false
-
-[functions.uazapi-delete-instance]
-verify_jwt = false
-
-[functions.uazapi-reset-instance]
-verify_jwt = false
-
-[functions.auto-create-whatsapp-instance]
-verify_jwt = false
-
-[functions.n8n-proxy]
-verify_jwt = false
-
-[functions.n8n-whatsapp-sync]
-verify_jwt = false
-
-[functions.stripe-service]
-verify_jwt = false
-
-[functions.check-plan-limits]
-verify_jwt = false
-
-[functions.stripe-webhook-handler]
-verify_jwt = false
-
-[functions.create-checkout-session]
-verify_jwt = false
-
-[functions.create-team-member]
-verify_jwt = false
-
-[functions.list-team-members]
-verify_jwt = false
-
-[functions.admin-create-company]
-verify_jwt = false
+[functions]
+  [functions.admin-create-company]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.auto-create-whatsapp-instance]
+    verify_jwt = false
+  [functions.check-plan-limits]
+    verify_jwt = false
+  [functions.create-checkout-session]
+    verify_jwt = false
+  [functions.create-team-member]
+    verify_jwt = false
+  [functions.execute-campaign]
+    verify_jwt = false
+  [functions.list-team-members]
+    verify_jwt = false
+  [functions.n8n-proxy]
+    verify_jwt = false
+  [functions.n8n-whatsapp-sync]
+    verify_jwt = false
+  [functions.stripe-service]
+    verify_jwt = false
+  [functions.stripe-webhook-handler]
+    verify_jwt = false
+  [functions.uazapi-check-status]
+    verify_jwt = false
+  [functions.uazapi-create-instance]
+    verify_jwt = false
+  [functions.uazapi-delete-instance]
+    verify_jwt = false
+  [functions.uazapi-disconnect]
+    verify_jwt = false
+  [functions.uazapi-get-qrcode]
+    verify_jwt = false
+  [functions.uazapi-reset-instance]
+    verify_jwt = false
+  [functions.uazapi-send-message]
+    verify_jwt = false
+  [functions.uazapi-webhook]
+    verify_jwt = false
