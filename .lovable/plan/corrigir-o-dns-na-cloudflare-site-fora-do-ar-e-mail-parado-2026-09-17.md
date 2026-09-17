@@ -15,6 +15,7 @@ A parte do e-mail que já está certa: os dois NS `notify` → `ns3/ns4.lovable.
 Tudo é feito em DNS → Registros. Em "Nome", digite **apenas a parte antes do domínio** (a Cloudflare completa sozinha).
 
 **Apagar** (todas as linhas com ⚠):
+
 - A `aurumsuite.cloud.aurumsuite.cloud`
 - A `www.aurumsuite.cloud.aurumsuite.cloud`
 - NS `ns1.dns-parking.com` e NS `ns2.dns-parking.com`
@@ -26,11 +27,13 @@ Tudo é feito em DNS → Registros. Em "Nome", digite **apenas a parte antes do 
 
 **Criar três TXT**, todos em "Somente DNS", TTL Auto:
 
-| Nome | Conteúdo |
-|---|---|
-| `_lovable` | lovable_verify=16c3cb80cce3587a55b8d8ff0c0e39ba0deb58c43ebb002ec934a17c292d4565 |
-| `_lovable.www` | lovable_verify=f66ff58364177590289abd66ed7d08f3fd13d637e688ebda738c7ae29479f4e1 |
+
+| Nome             | Conteúdo                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `_lovable`       | lovable_verify=16c3cb80cce3587a55b8d8ff0c0e39ba0deb58c43ebb002ec934a17c292d4565       |
+| `_lovable.www`   | lovable_verify=f66ff58364177590289abd66ed7d08f3fd13d637e688ebda738c7ae29479f4e1       |
 | `_lovable-email` | lovable_email_verify=b1bafa5c835da23c5d4836e750dfd7129e4384cb7f9eca1266ab8b5b2b849b75 |
+
 
 **Manter** os dois NS `notify` → ns3.lovable.cloud e ns4.lovable.cloud (já corretos).
 
