@@ -340,7 +340,7 @@ export default function AdminEmpresas() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{getPlanBadge(company.plan)}</TableCell>
+                        <TableCell>{getPlanBadge(getEffectivePlan(company))}</TableCell>
                         <TableCell>{getCompanyStatusBadge(effectiveStatus)}</TableCell>
 
                         <TableCell>
@@ -429,7 +429,7 @@ export default function AdminEmpresas() {
       </div>
 
       <CompanyDetailPanel
-        company={selectedCompany ? { ...selectedCompany, status: getEffectiveStatusForCompany(selectedCompany) } : null}
+        company={selectedCompany ? { ...selectedCompany, status: getEffectiveStatusForCompany(selectedCompany), plan: getEffectivePlan(selectedCompany) } : null}
         instance={selectedCompany ? getInstanceForCompany(selectedCompany.id) : null}
         open={panelOpen}
         onOpenChange={setPanelOpen}
