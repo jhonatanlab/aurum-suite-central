@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { CompanyDetailPanel } from "@/components/admin/CompanyDetailPanel";
 import { NewCompanyModal } from "@/components/admin/NewCompanyModal";
+import { DeleteCompanyDialog } from "@/components/admin/DeleteCompanyDialog";
+
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Building2, Loader2, Eye, Clock, Wifi, WifiOff, Unlock, Plus } from "lucide-react";
+import { Search, Building2, Loader2, Eye, Clock, Wifi, WifiOff, Unlock, Plus, Trash2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -143,6 +145,11 @@ export default function AdminEmpresas() {
   const [confirmCompany, setConfirmCompany] = useState<Company | null>(null);
   const [newCompanyOpen, setNewCompanyOpen] = useState(false);
   const [unblocking, setUnblocking] = useState(false);
+  const [deleteCompany, setDeleteCompany] = useState<Company | null>(null);
+  const [deleteUsage, setDeleteUsage] = useState<
+    { products: number; sales: number; leads: number; resellers: number; users: number } | null
+  >(null);
+
 
   const { toast } = useToast();
 
@@ -390,6 +397,19 @@ export default function AdminEmpresas() {
                               <Eye className="h-4 w-4 mr-1" />
                               Ver
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteUsage(null);
+                                setDeleteCompany(company);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+
                           </div>
                         </TableCell>
                       </TableRow>
@@ -408,7 +428,29 @@ export default function AdminEmpresas() {
         open={panelOpen}
         onOpenChange={setPanelOpen}
         onRequestUnblock={(c) => setConfirmCompany(c as Company)}
+        onRequestDelete={(c, usage) => {
+          setDeleteUsage(usage);
+          setDeleteCompany(c as Company);
+        }}
       />
+
+      <DeleteCompanyDialog
+        company={deleteCompany}
+        usage={deleteUsage}
+        open={!!deleteCompany}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteCompany(null);
+            setDeleteUsage(null);
+          }
+        }}
+        onDeleted={() => {
+          setPanelOpen(false);
+          setSelectedCompany(null);
+          fetchData();
+        }}
+      />
+
 
       <NewCompanyModal
         open={newCompanyOpen}

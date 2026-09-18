@@ -1,10 +1,63 @@
+import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Calendar, User, CreditCard, MessageCircle, Wifi, WifiOff, Clock, Unlock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Building2,
+  Calendar,
+  User,
+  CreditCard,
+  MessageCircle,
+  Wifi,
+  WifiOff,
+  Clock,
+  Unlock,
+  Mail,
+  Phone,
+  Users,
+  BarChart3,
+  Copy,
+  Trash2,
+  AlertTriangle,
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface CompanyDetails {
+  owner: {
+    id: string;
+    email: string | null;
+    phone: string | null;
+    full_name: string | null;
+    created_at: string | null;
+    last_sign_in_at: string | null;
+  } | null;
+  members: Array<{
+    user_id: string;
+    role: string | null;
+    email: string | null;
+    phone: string | null;
+    full_name: string | null;
+    last_sign_in_at: string | null;
+  }>;
+  usage: { products: number; sales: number; leads: number; resellers: number; users: number };
+  limits: { max_users: number; max_products: number; max_resellers: number };
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Proprietário",
+  manager: "Gerente",
+  gerente: "Gerente",
+  seller: "Vendedor",
+  vendedor: "Vendedor",
+};
+
+const formatLimit = (value: number) => (value >= 999 ? "Ilimitado" : String(value));
+
 
 
 interface WhatsAppInstance {
@@ -36,11 +89,49 @@ interface CompanyDetailPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRequestUnblock?: (company: Company) => void;
+  onRequestDelete?: (company: Company, usage: CompanyDetails["usage"] | null) => void;
 }
 
-export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRequestUnblock }: CompanyDetailPanelProps) {
+export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRequestUnblock, onRequestDelete }: CompanyDetailPanelProps) {
+  const [details, setDetails] = useState<CompanyDetails | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const { toast } = useToast();
+  const companyId = company?.id ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!open || !companyId) {
+      setDetails(null);
+      return;
+    }
+    setDetailsLoading(true);
+    supabase.functions
+      .invoke("admin-company-details", { body: { company_id: companyId } })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || (data as { error?: string } | null)?.error) {
+          console.error("admin-company-details", error || data);
+          setDetails(null);
+        } else {
+          setDetails(data as CompanyDetails);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDetailsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, companyId]);
+
+  const copyValue = (value: string | null, label: string) => {
+    if (!value) return;
+    navigator.clipboard.writeText(value);
+    toast({ title: `${label} copiado`, description: value });
+  };
 
   if (!company) return null;
+
 
   const getStatusBadge = (status: string | null) => {
     switch (status) {
@@ -169,6 +260,142 @@ export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRe
 
           <Separator className="bg-border" />
 
+          {/* Responsável */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Responsável
+            </h3>
+            {detailsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : details?.owner ? (
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                  <span className="text-sm text-muted-foreground">Nome</span>
+                  <span className="text-sm font-medium text-foreground">{details.owner.full_name || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-background border border-border">
+                  <span className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    E-mail
+                  </span>
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="text-sm font-medium text-foreground truncate">{details.owner.email || '-'}</span>
+                    {details.owner.email && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => copyValue(details.owner!.email, 'E-mail')}>
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                  <span className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    Telefone
+                  </span>
+                  <span className="text-sm font-medium text-foreground">{details.owner.phone || 'Não informado'}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                  <span className="text-sm text-muted-foreground">Último login</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {details.owner.last_sign_in_at
+                      ? format(new Date(details.owner.last_sign_in_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                      : 'Nunca'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum responsável vinculado.</p>
+            )}
+          </div>
+
+          <Separator className="bg-border" />
+
+          {/* Equipe */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Equipe {details ? `(${details.members.length})` : ''}
+            </h3>
+            {detailsLoading ? (
+              <Skeleton className="h-16 w-full" />
+            ) : details && details.members.length > 0 ? (
+              <div className="grid gap-3">
+                {details.members.map((m) => (
+                  <div key={m.user_id} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-background border border-border">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{m.full_name || m.email || 'Usuário'}</p>
+                      <p className="text-xs text-muted-foreground truncate">{m.email || 'Sem e-mail'}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge variant="outline">{ROLE_LABELS[String(m.role)] || m.role || 'Usuário'}</Badge>
+                      {m.email && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyValue(m.email, 'E-mail')}>
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum usuário vinculado.</p>
+            )}
+          </div>
+
+          <Separator className="bg-border" />
+
+          {/* Uso do plano */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Uso do Plano
+            </h3>
+            {detailsLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : details ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-background border border-border">
+                  <p className="text-xs text-muted-foreground">Produtos</p>
+                  <p className="text-lg font-semibold text-primary">
+                    {details.usage.products}
+                    <span className="text-xs text-muted-foreground font-normal"> / {formatLimit(details.limits.max_products)}</span>
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border">
+                  <p className="text-xs text-muted-foreground">Usuários</p>
+                  <p className="text-lg font-semibold text-primary">
+                    {details.usage.users}
+                    <span className="text-xs text-muted-foreground font-normal"> / {formatLimit(details.limits.max_users)}</span>
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border">
+                  <p className="text-xs text-muted-foreground">Revendedores</p>
+                  <p className="text-lg font-semibold text-primary">
+                    {details.usage.resellers}
+                    <span className="text-xs text-muted-foreground font-normal"> / {formatLimit(details.limits.max_resellers)}</span>
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border">
+                  <p className="text-xs text-muted-foreground">Vendas</p>
+                  <p className="text-lg font-semibold text-foreground">{details.usage.sales}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border col-span-2">
+                  <p className="text-xs text-muted-foreground">Clientes / Leads</p>
+                  <p className="text-lg font-semibold text-foreground">{details.usage.leads}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Não foi possível carregar o uso.</p>
+            )}
+          </div>
+
+          <Separator className="bg-border" />
+
+
           {/* Plano */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
@@ -251,7 +478,32 @@ export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRe
               )}
             </div>
           </div>
+
+          {onRequestDelete && (
+            <>
+              <Separator className="bg-border" />
+              <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                <h3 className="text-sm font-semibold text-destructive uppercase tracking-wide flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Zona de Risco
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  A exclusão remove definitivamente a empresa, todos os dados e os usuários de acesso.
+                  Assinaturas ativas são canceladas automaticamente.
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => onRequestDelete(company, details?.usage ?? null)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir empresa
+                </Button>
+              </div>
+            </>
+          )}
         </div>
+
       </SheetContent>
     </Sheet>
   );
