@@ -160,27 +160,27 @@ export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRe
 
   const getPlanBadge = (plan: string | null) => {
     switch (plan) {
-      case 'pro':
-        return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">Pro</Badge>;
-      case 'business':
-        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Business</Badge>;
-      case 'enterprise':
-        return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Enterprise</Badge>;
+      case 'starter':
+        return <Badge className="bg-slate-500/20 text-slate-300 border-slate-500/30">Starter</Badge>;
+      case 'profissional':
+        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Profissional</Badge>;
+      case 'growth':
+        return <Badge className="bg-primary/20 text-primary border-primary/30">Growth</Badge>;
       default:
-        return <Badge variant="outline">Free</Badge>;
+        return <Badge variant="outline">Sem plano</Badge>;
     }
   };
 
   const getPlanLimits = (plan: string | null) => {
     switch (plan) {
-      case 'pro':
-        return { users: 5, whatsapp: true };
-      case 'business':
-        return { users: 15, whatsapp: true };
-      case 'enterprise':
+      case 'starter':
+        return { users: '1', whatsapp: true };
+      case 'profissional':
+        return { users: '5', whatsapp: true };
+      case 'growth':
         return { users: 'Ilimitado', whatsapp: true };
       default:
-        return { users: 2, whatsapp: false };
+        return { users: '0', whatsapp: false };
     }
   };
 
