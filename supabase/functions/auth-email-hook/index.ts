@@ -139,7 +139,7 @@ const handler = createAuthEmailHandler({
         }),
     },
     invite: {
-      subject: "You've been invited",
+      subject: 'Seu acesso à Aurum Suite',
       render: (data) =>
         React.createElement(InviteEmail, {
           siteName: SITE_NAME,
