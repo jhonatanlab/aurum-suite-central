@@ -478,7 +478,32 @@ export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRe
               )}
             </div>
           </div>
+
+          {onRequestDelete && (
+            <>
+              <Separator className="bg-border" />
+              <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                <h3 className="text-sm font-semibold text-destructive uppercase tracking-wide flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Zona de Risco
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  A exclusão remove definitivamente a empresa, todos os dados e os usuários de acesso.
+                  Assinaturas ativas são canceladas automaticamente.
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => onRequestDelete(company, details?.usage ?? null)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir empresa
+                </Button>
+              </div>
+            </>
+          )}
         </div>
+
       </SheetContent>
     </Sheet>
   );
