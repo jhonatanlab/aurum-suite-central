@@ -89,11 +89,49 @@ interface CompanyDetailPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRequestUnblock?: (company: Company) => void;
+  onRequestDelete?: (company: Company, usage: CompanyDetails["usage"] | null) => void;
 }
 
-export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRequestUnblock }: CompanyDetailPanelProps) {
+export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRequestUnblock, onRequestDelete }: CompanyDetailPanelProps) {
+  const [details, setDetails] = useState<CompanyDetails | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const { toast } = useToast();
+  const companyId = company?.id ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!open || !companyId) {
+      setDetails(null);
+      return;
+    }
+    setDetailsLoading(true);
+    supabase.functions
+      .invoke("admin-company-details", { body: { company_id: companyId } })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || (data as { error?: string } | null)?.error) {
+          console.error("admin-company-details", error || data);
+          setDetails(null);
+        } else {
+          setDetails(data as CompanyDetails);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDetailsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, companyId]);
+
+  const copyValue = (value: string | null, label: string) => {
+    if (!value) return;
+    navigator.clipboard.writeText(value);
+    toast({ title: `${label} copiado`, description: value });
+  };
 
   if (!company) return null;
+
 
   const getStatusBadge = (status: string | null) => {
     switch (status) {
