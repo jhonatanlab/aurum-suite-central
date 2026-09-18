@@ -148,7 +148,7 @@ const handler = createAuthEmailHandler({
         }),
     },
     magiclink: {
-      subject: 'Your login link',
+      subject: 'Seu link de acesso — Aurum Suite',
       render: (data) =>
         React.createElement(MagicLinkEmail, {
           siteName: SITE_NAME,
