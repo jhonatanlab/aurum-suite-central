@@ -143,6 +143,11 @@ export default function AdminEmpresas() {
   const [confirmCompany, setConfirmCompany] = useState<Company | null>(null);
   const [newCompanyOpen, setNewCompanyOpen] = useState(false);
   const [unblocking, setUnblocking] = useState(false);
+  const [deleteCompany, setDeleteCompany] = useState<Company | null>(null);
+  const [deleteUsage, setDeleteUsage] = useState<
+    { products: number; sales: number; leads: number; resellers: number; users: number } | null
+  >(null);
+
 
   const { toast } = useToast();
 
