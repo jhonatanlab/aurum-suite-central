@@ -397,6 +397,19 @@ export default function AdminEmpresas() {
                               <Eye className="h-4 w-4 mr-1" />
                               Ver
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteUsage(null);
+                                setDeleteCompany(company);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+
                           </div>
                         </TableCell>
                       </TableRow>
