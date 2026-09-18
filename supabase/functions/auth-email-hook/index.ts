@@ -164,7 +164,7 @@ const handler = createAuthEmailHandler({
         }),
     },
     email_change: {
-      subject: 'Confirm your new email',
+      subject: 'Confirme seu novo e-mail — Aurum Suite',
       render: (data) =>
         React.createElement(EmailChangeEmail, {
           siteName: SITE_NAME,
