@@ -156,7 +156,7 @@ const handler = createAuthEmailHandler({
         }),
     },
     recovery: {
-      subject: 'Reset your password',
+      subject: 'Redefinição de senha — Aurum Suite',
       render: (data) =>
         React.createElement(RecoveryEmail, {
           siteName: SITE_NAME,
