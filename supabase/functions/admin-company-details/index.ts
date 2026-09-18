@@ -129,7 +129,17 @@ serve(async (req) => {
       countOf("resellers"),
     ]);
 
-    const limits = PLAN_LIMITS[String(company.plan || "starter")] || PLAN_LIMITS.starter;
+    // Plano efetivo: assinatura mais recente tem prioridade sobre o cadastro da empresa
+    const { data: subRow } = await adminClient
+      .from("subscriptions")
+      .select("plan")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const effectivePlan = String(subRow?.plan || company.plan || "none");
+    const limits = PLAN_LIMITS[effectivePlan] || PLAN_LIMITS.none;
 
     return json({
       owner,
