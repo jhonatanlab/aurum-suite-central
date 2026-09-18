@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Building2, Loader2, Eye, Clock, Wifi, WifiOff, Unlock, Plus } from "lucide-react";
+import { Search, Building2, Loader2, Eye, Clock, Wifi, WifiOff, Unlock, Plus, Trash2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
