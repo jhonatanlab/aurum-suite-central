@@ -15,7 +15,7 @@ const corsHeaders = {
 }
 
 // Configuration
-const SITE_NAME = "Aurum Suite Dashboard"
+const SITE_NAME = "Aurum Suite"
 const SENDER_DOMAIN = "notify.aurumsuite.cloud"
 const ROOT_DOMAIN = "aurumsuite.cloud"
 const FROM_DOMAIN = "aurumsuite.cloud"
