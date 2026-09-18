@@ -260,6 +260,142 @@ export function CompanyDetailPanel({ company, instance, open, onOpenChange, onRe
 
           <Separator className="bg-border" />
 
+          {/* Responsável */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Responsável
+            </h3>
+            {detailsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : details?.owner ? (
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                  <span className="text-sm text-muted-foreground">Nome</span>
+                  <span className="text-sm font-medium text-foreground">{details.owner.full_name || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-background border border-border">
+                  <span className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    E-mail
+                  </span>
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="text-sm font-medium text-foreground truncate">{details.owner.email || '-'}</span>
+                    {details.owner.email && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => copyValue(details.owner!.email, 'E-mail')}>
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                  <span className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    Telefone
+                  </span>
+                  <span className="text-sm font-medium text-foreground">{details.owner.phone || 'Não informado'}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                  <span className="text-sm text-muted-foreground">Último login</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {details.owner.last_sign_in_at
+                      ? format(new Date(details.owner.last_sign_in_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                      : 'Nunca'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum responsável vinculado.</p>
+            )}
+          </div>
+
+          <Separator className="bg-border" />
+
+          {/* Equipe */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Equipe {details ? `(${details.members.length})` : ''}
+            </h3>
+            {detailsLoading ? (
+              <Skeleton className="h-16 w-full" />
+            ) : details && details.members.length > 0 ? (
+              <div className="grid gap-3">
+                {details.members.map((m) => (
+                  <div key={m.user_id} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-background border border-border">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{m.full_name || m.email || 'Usuário'}</p>
+                      <p className="text-xs text-muted-foreground truncate">{m.email || 'Sem e-mail'}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge variant="outline">{ROLE_LABELS[String(m.role)] || m.role || 'Usuário'}</Badge>
+                      {m.email && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyValue(m.email, 'E-mail')}>
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum usuário vinculado.</p>
+            )}
+          </div>
+
+          <Separator className="bg-border" />
+
+          {/* Uso do plano */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Uso do Plano
+            </h3>
+            {detailsLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : details ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-background border border-border">
+                  <p className="text-xs text-muted-foreground">Produtos</p>
+                  <p className="text-lg font-semibold text-primary">
+                    {details.usage.products}
+                    <span className="text-xs text-muted-foreground font-normal"> / {formatLimit(details.limits.max_products)}</span>
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border">
+                  <p className="text-xs text-muted-foreground">Usuários</p>
+                  <p className="text-lg font-semibold text-primary">
+                    {details.usage.users}
+                    <span className="text-xs text-muted-foreground font-normal"> / {formatLimit(details.limits.max_users)}</span>
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border">
+                  <p className="text-xs text-muted-foreground">Revendedores</p>
+                  <p className="text-lg font-semibold text-primary">
+                    {details.usage.resellers}
+                    <span className="text-xs text-muted-foreground font-normal"> / {formatLimit(details.limits.max_resellers)}</span>
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border">
+                  <p className="text-xs text-muted-foreground">Vendas</p>
+                  <p className="text-lg font-semibold text-foreground">{details.usage.sales}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border col-span-2">
+                  <p className="text-xs text-muted-foreground">Clientes / Leads</p>
+                  <p className="text-lg font-semibold text-foreground">{details.usage.leads}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Não foi possível carregar o uso.</p>
+            )}
+          </div>
+
+          <Separator className="bg-border" />
+
+
           {/* Plano */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
