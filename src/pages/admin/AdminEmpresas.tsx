@@ -62,6 +62,7 @@ interface WhatsAppInstance {
 interface SubscriptionRow {
   company_id: string;
   status: string | null;
+  plan: string | null;
   created_at: string;
 }
 
@@ -170,7 +171,7 @@ export default function AdminEmpresas() {
           .select('id, company_id, instance_id, phone_number, status, last_connected_at'),
         supabase
           .from('subscriptions')
-          .select('company_id, status, created_at')
+          .select('company_id, status, plan, created_at')
           .order('created_at', { ascending: false })
       ]);
 
@@ -210,16 +211,21 @@ export default function AdminEmpresas() {
   };
 
 
+  const getEffectivePlan = (company: Company): string | null => {
+    const sub = subscriptions.find(s => s.company_id === company.id);
+    return sub?.plan || company.plan || null;
+  };
+
   const getPlanBadge = (plan: string | null) => {
     switch (plan) {
-      case 'pro':
-        return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">Pro</Badge>;
-      case 'business':
-        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Business</Badge>;
-      case 'enterprise':
-        return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Enterprise</Badge>;
+      case 'starter':
+        return <Badge className="bg-slate-500/20 text-slate-300 border-slate-500/30">Starter</Badge>;
+      case 'profissional':
+        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Profissional</Badge>;
+      case 'growth':
+        return <Badge className="bg-primary/20 text-primary border-primary/30">Growth</Badge>;
       default:
-        return <Badge variant="outline">Free</Badge>;
+        return <Badge variant="outline">Sem plano</Badge>;
     }
   };
 
