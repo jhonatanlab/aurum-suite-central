@@ -224,7 +224,7 @@ serve(async (req) => {
     await del("subscriptions", "company_id", companyId);
     await del("stripe_customers", "company_id", companyId);
 
-    // 5) Users
+    // 5) Members, company, then auth users
     const { data: memberRows } = await adminClient
       .from("company_users")
       .select("user_id")
@@ -232,6 +232,9 @@ serve(async (req) => {
     const userIds = [...new Set((memberRows || []).map((m) => m.user_id))];
 
     await del("company_users", "company_id", companyId);
+
+    const { error: finalErr } = await adminClient.from("companies").delete().eq("id", companyId);
+    if (finalErr) throw finalErr;
 
     let deletedUsers = 0;
     for (const uid of userIds) {
@@ -247,11 +250,8 @@ serve(async (req) => {
       else deletedUsers++;
     }
 
-    // 6) Company
-    const { error: finalErr } = await adminClient.from("companies").delete().eq("id", companyId);
-    if (finalErr) throw finalErr;
-
     log("Done", { companyId, deletedUsers, cancelled: cancelled.length });
+
 
     return json({
       success: true,
