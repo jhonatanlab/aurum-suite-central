@@ -408,7 +408,29 @@ export default function AdminEmpresas() {
         open={panelOpen}
         onOpenChange={setPanelOpen}
         onRequestUnblock={(c) => setConfirmCompany(c as Company)}
+        onRequestDelete={(c, usage) => {
+          setDeleteUsage(usage);
+          setDeleteCompany(c as Company);
+        }}
       />
+
+      <DeleteCompanyDialog
+        company={deleteCompany}
+        usage={deleteUsage}
+        open={!!deleteCompany}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteCompany(null);
+            setDeleteUsage(null);
+          }
+        }}
+        onDeleted={() => {
+          setPanelOpen(false);
+          setSelectedCompany(null);
+          fetchData();
+        }}
+      />
+
 
       <NewCompanyModal
         open={newCompanyOpen}
