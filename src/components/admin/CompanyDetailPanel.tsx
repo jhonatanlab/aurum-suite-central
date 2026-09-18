@@ -1,10 +1,63 @@
+import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Calendar, User, CreditCard, MessageCircle, Wifi, WifiOff, Clock, Unlock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Building2,
+  Calendar,
+  User,
+  CreditCard,
+  MessageCircle,
+  Wifi,
+  WifiOff,
+  Clock,
+  Unlock,
+  Mail,
+  Phone,
+  Users,
+  BarChart3,
+  Copy,
+  Trash2,
+  AlertTriangle,
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface CompanyDetails {
+  owner: {
+    id: string;
+    email: string | null;
+    phone: string | null;
+    full_name: string | null;
+    created_at: string | null;
+    last_sign_in_at: string | null;
+  } | null;
+  members: Array<{
+    user_id: string;
+    role: string | null;
+    email: string | null;
+    phone: string | null;
+    full_name: string | null;
+    last_sign_in_at: string | null;
+  }>;
+  usage: { products: number; sales: number; leads: number; resellers: number; users: number };
+  limits: { max_users: number; max_products: number; max_resellers: number };
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Proprietário",
+  manager: "Gerente",
+  gerente: "Gerente",
+  seller: "Vendedor",
+  vendedor: "Vendedor",
+};
+
+const formatLimit = (value: number) => (value >= 999 ? "Ilimitado" : String(value));
+
 
 
 interface WhatsAppInstance {
