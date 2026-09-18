@@ -1,4 +1,4 @@
-# Finalizar ativação do e-mail notify.aurumsuite.cloud
+- Finalizar ativação do e-mail notify.aurumsuite.cloud
 
 ## Estado atual (verificado)
 
