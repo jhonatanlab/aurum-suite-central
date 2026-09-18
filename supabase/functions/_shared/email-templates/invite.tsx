@@ -9,9 +9,8 @@ import {
   Head,
   Heading,
   Html,
-  Img,
+  Link,
   Preview,
-  Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
 
@@ -23,28 +22,32 @@ interface InviteEmailProps {
 
 export const InviteEmail = ({
   siteName,
+  siteUrl,
   confirmationUrl,
 }: InviteEmailProps) => (
-  <Html lang="pt-BR" dir="ltr">
-    <Head />
-    <Preview>Seu acesso à Aurum Suite está pronto</Preview>
+  <Html lang="en" dir="ltr">
+    <Head>
+      <style>{darkModeCss}</style>
+    </Head>
+    <Preview>You've been invited to join {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={card}>
-          <Img src={logoUrl} width="150" alt={siteName} style={logo} />
-          <Heading style={h1}>Bem-vindo à Aurum Suite</Heading>
-          <Text style={text}>
-            Sua conta foi criada. Para começar, defina sua senha de acesso
-            clicando no botão abaixo.
-          </Text>
-          <Button style={button} href={confirmationUrl}>
-            Definir minha senha
-          </Button>
-          <Text style={footer}>
-            Este link é pessoal e expira em breve. Se você não esperava este
-            convite, pode ignorar este e-mail.
-          </Text>
-        </Section>
+        <Heading style={h1}>You've been invited</Heading>
+        <Text style={text}>
+          You've been invited to join{' '}
+          <Link href={siteUrl} style={link}>
+            <strong>{siteName}</strong>
+          </Link>
+          . Click the button below to accept the invitation and create your
+          account.
+        </Text>
+        <Button className="dm-btn" style={button} href={confirmationUrl}>
+          Accept Invitation
+        </Button>
+        <Text style={footer}>
+          If you weren't expecting this invitation, you can safely ignore this
+          email.
+        </Text>
       </Container>
     </Body>
   </Html>
@@ -52,45 +55,36 @@ export const InviteEmail = ({
 
 export default InviteEmail
 
-const logoUrl = 'https://aurumsuite.cloud/aurum-suite-logo.png'
-const main = {
-  backgroundColor: '#ffffff',
-  fontFamily: 'Helvetica, Arial, sans-serif',
-  padding: '24px 0',
-}
-const container = { padding: '0 16px', maxWidth: '560px' }
-const card = {
-  backgroundColor: '#121212',
-  border: '1px solid rgba(199,160,82,0.3)',
-  borderRadius: '16px',
-  padding: '36px 32px',
-}
-const logo = { margin: '0 0 28px' }
+const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
+const container = { padding: '20px 25px' }
 const h1 = {
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  color: '#F5F1E8',
-  margin: '0 0 16px',
+  color: '#000000',
+  margin: '0 0 20px',
 }
 const text = {
-  fontSize: '15px',
-  color: '#A1A1AA',
-  lineHeight: '1.6',
-  margin: '0 0 28px',
+  fontSize: '14px',
+  color: '#55575d',
+  lineHeight: '1.5',
+  margin: '0 0 25px',
 }
+const link = { color: 'inherit', textDecoration: 'underline' }
 const button = {
-  backgroundColor: '#C7A052',
-  color: '#121212',
-  fontSize: '15px',
-  fontWeight: 'bold' as const,
-  borderRadius: '12px',
-  padding: '14px 26px',
+  backgroundColor: '#000000',
+  color: '#ffffff',
+  fontSize: '14px',
+  border: '1px solid #000000',
+  borderRadius: '8px',
+  padding: '12px 20px',
   textDecoration: 'none',
-  display: 'inline-block',
 }
-const footer = {
-  fontSize: '12px',
-  color: '#6B6B6B',
-  lineHeight: '1.6',
-  margin: '32px 0 0',
-}
+const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+// Rendered as a text child, which React may HTML-escape: keep this CSS free of >, &, and quotes.
+const darkModeCss = `
+  @media (prefers-color-scheme: dark) {
+    .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  }
+  [data-ogsc] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  [data-ogsb] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+`

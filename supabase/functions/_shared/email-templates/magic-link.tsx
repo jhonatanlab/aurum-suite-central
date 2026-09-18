@@ -9,9 +9,7 @@ import {
   Head,
   Heading,
   Html,
-  Img,
   Preview,
-  Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
 
@@ -24,25 +22,24 @@ export const MagicLinkEmail = ({
   siteName,
   confirmationUrl,
 }: MagicLinkEmailProps) => (
-  <Html lang="pt-BR" dir="ltr">
-    <Head />
-    <Preview>Seu link de acesso à Aurum Suite</Preview>
+  <Html lang="en" dir="ltr">
+    <Head>
+      <style>{darkModeCss}</style>
+    </Head>
+    <Preview>Your login link for {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={card}>
-          <Img src={logoUrl} width="150" alt={siteName} style={logo} />
-          <Heading style={h1}>Entrar na Aurum Suite</Heading>
-          <Text style={text}>
-            Clique no botão abaixo para entrar na sua conta. Este link expira em
-            pouco tempo e só pode ser usado uma vez.
-          </Text>
-          <Button style={button} href={confirmationUrl}>
-            Entrar agora
-          </Button>
-          <Text style={footer}>
-            Se você não pediu este acesso, pode ignorar este e-mail.
-          </Text>
-        </Section>
+        <Heading style={h1}>Your login link</Heading>
+        <Text style={text}>
+          Click the button below to log in to {siteName}. This link will expire
+          shortly.
+        </Text>
+        <Button className="dm-btn" style={button} href={confirmationUrl}>
+          Log In
+        </Button>
+        <Text style={footer}>
+          If you didn't request this link, you can safely ignore this email.
+        </Text>
       </Container>
     </Body>
   </Html>
@@ -50,45 +47,35 @@ export const MagicLinkEmail = ({
 
 export default MagicLinkEmail
 
-const logoUrl = 'https://aurumsuite.cloud/aurum-suite-logo.png'
-const main = {
-  backgroundColor: '#ffffff',
-  fontFamily: 'Helvetica, Arial, sans-serif',
-  padding: '24px 0',
-}
-const container = { padding: '0 16px', maxWidth: '560px' }
-const card = {
-  backgroundColor: '#121212',
-  border: '1px solid rgba(199,160,82,0.3)',
-  borderRadius: '16px',
-  padding: '36px 32px',
-}
-const logo = { margin: '0 0 28px' }
+const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
+const container = { padding: '20px 25px' }
 const h1 = {
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  color: '#F5F1E8',
-  margin: '0 0 16px',
+  color: '#000000',
+  margin: '0 0 20px',
 }
 const text = {
-  fontSize: '15px',
-  color: '#A1A1AA',
-  lineHeight: '1.6',
-  margin: '0 0 28px',
+  fontSize: '14px',
+  color: '#55575d',
+  lineHeight: '1.5',
+  margin: '0 0 25px',
 }
 const button = {
-  backgroundColor: '#C7A052',
-  color: '#121212',
-  fontSize: '15px',
-  fontWeight: 'bold' as const,
-  borderRadius: '12px',
-  padding: '14px 26px',
+  backgroundColor: '#000000',
+  color: '#ffffff',
+  fontSize: '14px',
+  border: '1px solid #000000',
+  borderRadius: '8px',
+  padding: '12px 20px',
   textDecoration: 'none',
-  display: 'inline-block',
 }
-const footer = {
-  fontSize: '12px',
-  color: '#6B6B6B',
-  lineHeight: '1.6',
-  margin: '32px 0 0',
-}
+const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+// Rendered as a text child, which React may HTML-escape: keep this CSS free of >, &, and quotes.
+const darkModeCss = `
+  @media (prefers-color-scheme: dark) {
+    .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  }
+  [data-ogsc] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  [data-ogsb] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+`
