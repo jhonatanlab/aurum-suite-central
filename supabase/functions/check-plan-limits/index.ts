@@ -23,7 +23,7 @@ const PLAN_LIMITS: Record<string, {
     max_users: 1,
     max_products: 100,
     max_resellers: 0,
-    blocked_modules: ["revendedores"],
+    blocked_modules: ["revendedores", "whatsapp"],
   },
   profissional: {
     max_users: 5,
