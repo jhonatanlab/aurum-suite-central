@@ -181,8 +181,10 @@ serve(async (req) => {
           }
         }
         logStep("Plan resolved from Stripe fallback", { currentPlan });
+        }
       }
     }
+
     logStep("Current plan resolved", { currentPlan });
 
     const limits = PLAN_LIMITS[currentPlan] || PLAN_LIMITS.none;
