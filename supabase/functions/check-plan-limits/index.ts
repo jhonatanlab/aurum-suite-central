@@ -138,7 +138,24 @@ serve(async (req) => {
         }
         logStep("Plan resolved from local subscriptions", { status: localSub.status, currentPlan });
       } else {
-        // 2) Fallback to Stripe lookup only when no valid local subscription exists.
+        // 2) Fallback to the plan configured on the company record (Admin-granted).
+        const { data: companyRow } = await adminClient
+          .from("companies")
+          .select("plan, status")
+          .eq("id", company_id)
+          .maybeSingle();
+
+        if (
+          companyRow &&
+          (companyRow.status ?? "active") === "active" &&
+          companyRow.plan &&
+          VALID_PLANS.has(companyRow.plan)
+        ) {
+          currentPlan = companyRow.plan;
+          logStep("Plan resolved from companies.plan", { currentPlan });
+        } else {
+        // 3) Fallback to Stripe lookup only when no valid local subscription exists.
+
         const env = getEnvironment();
         const Stripe = (await import("https://esm.sh/stripe@14.21.0")).default;
         const stripeKey = env === "test"
@@ -164,8 +181,10 @@ serve(async (req) => {
           }
         }
         logStep("Plan resolved from Stripe fallback", { currentPlan });
+        }
       }
     }
+
     logStep("Current plan resolved", { currentPlan });
 
     const limits = PLAN_LIMITS[currentPlan] || PLAN_LIMITS.none;
