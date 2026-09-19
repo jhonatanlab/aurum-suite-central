@@ -55,7 +55,7 @@ export function usePlanUsage() {
   // Default to starter restrictions so blocked modules show immediately (no flash)
   const [state, setState] = useState<PlanUsageState>({
     plan: "starter",
-    limits: { max_users: 1, max_products: 100, max_resellers: 0, blocked_modules: ["revendedores"] },
+    limits: { max_users: 1, max_products: 100, max_resellers: 0, blocked_modules: ["revendedores", "whatsapp"] },
     usage: { products: 0, users: 0, resellers: 0 },
     loading: true,
     isSuperAdmin: false,
